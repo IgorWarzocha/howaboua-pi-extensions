@@ -17,7 +17,7 @@ export function registerReadTool(pi: ExtensionAPI) {
       ])
     }),
     renderResult(result, options, theme: Theme) {
-      return renderReadResult(pi as any, result, options, theme);
+      return renderReadResult(result, options, theme);
     },
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const normalizedFiles = normalizeFilesInput(params.files);

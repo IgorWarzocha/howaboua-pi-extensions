@@ -1,7 +1,7 @@
-import type { Theme } from "@mariozechner/pi-coding-agent";
+import { keyHint, type Theme } from "@mariozechner/pi-coding-agent";
+import { Container, Text } from "@mariozechner/pi-tui";
 
-export function renderReadResult(pi: any, result: any, options: { expanded?: boolean }, theme: Theme) {
-  const { Container, Text, keyHint } = pi.tui;
+export function renderReadResult(result: any, options: { expanded?: boolean }, theme: Theme) {
   const container = new Container();
   const filesDetails = result.details?.files || [];
 

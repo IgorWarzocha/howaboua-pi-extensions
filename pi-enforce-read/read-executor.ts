@@ -8,8 +8,8 @@ import { detectImageMimeType, resolvePath } from "./utils.js";
 type ExecuteReadFilesArgs = {
   toolCallId: string;
   files: FileInput[];
-  signal: AbortSignal;
-  onUpdate: (...args: any[]) => void;
+  signal?: AbortSignal;
+  onUpdate?: (...args: any[]) => void;
   ctx: { cwd: string };
 };
 

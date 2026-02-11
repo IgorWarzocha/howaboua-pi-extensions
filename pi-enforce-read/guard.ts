@@ -23,7 +23,11 @@ function getToolBlockReason(toolName: string): string | null {
 }
 
 export function setupGuard(pi: ExtensionAPI) {
-  pi.on("tool_call", (event) => {
+  pi.on("tool_call", (event, ctx) => {
+    if (event.toolName === "read" && ctx.hasUI) {
+      ctx.ui.setToolsExpanded(false);
+    }
+
     if (event.toolName === "bash") {
       const command = (event.input.command as string) || "";
       if (shouldBlockBashRead(command)) {
@@ -43,10 +47,22 @@ export function setupGuard(pi: ExtensionAPI) {
     }
   });
 
-  pi.on("session_start", () => {
+  pi.on("session_start", (_event, ctx) => {
     const current = new Set(pi.getActiveTools());
     current.delete("edit");
     current.delete("write");
     pi.setActiveTools([...current]);
+
+    // Keep tool output collapsed by default. Users can expand on demand via Ctrl+O.
+    if (ctx.hasUI) {
+      ctx.ui.setToolsExpanded(false);
+    }
+  });
+
+  // Re-apply collapsed state when read results arrive, in case UI state was restored/overridden.
+  pi.on("tool_result", (event, ctx) => {
+    if (event.toolName === "read" && ctx.hasUI) {
+      ctx.ui.setToolsExpanded(false);
+    }
   });
 }
