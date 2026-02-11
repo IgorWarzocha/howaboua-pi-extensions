@@ -73,7 +73,16 @@ function checkPatchBoundaries(lines: string[]): void {
   }
 
   const firstLine = (lines[0] ?? "").trim();
-  const lastLine = (lines[lines.length - 1] ?? "").trim();
+  const lastIndex = lines.length - 1;
+  const lastLine = (lines[lastIndex] ?? "").trim();
+  const plusEndMarker = /^\+\*{2,3}\s*end\s*patch\s*$/i;
+
+  if (plusEndMarker.test(lastLine)) {
+    // Auto-repair common model mistake: treating end marker as Add File content.
+    lines[lastIndex] = END_PATCH_MARKER;
+  }
+
+  const normalizedLastLine = (lines[lastIndex] ?? "").trim();
 
   if (firstLine !== BEGIN_PATCH_MARKER) {
     throw new InvalidPatchError(
@@ -82,9 +91,18 @@ function checkPatchBoundaries(lines: string[]): void {
     );
   }
 
-  if (lastLine === END_PATCH_MARKER || END_PATCH_MARKER_LOOSE.test(lastLine)) {
-    lines[lines.length - 1] = END_PATCH_MARKER;
+  if (normalizedLastLine === END_PATCH_MARKER || END_PATCH_MARKER_LOOSE.test(normalizedLastLine)) {
+    lines[lastIndex] = END_PATCH_MARKER;
     return;
+  }
+
+  const prefixedEndMarkerIndex = lines.findIndex(line => plusEndMarker.test(line.trim()));
+  if (prefixedEndMarkerIndex !== -1) {
+    throw new InvalidPatchError(
+      `Found a prefixed end marker ('+*** End Patch') at line ${prefixedEndMarkerIndex + 1}.` +
+      `\nYou MUST NOT prefix patch envelope markers with '+'.` +
+      `\nYou MUST place exactly '${END_PATCH_MARKER}' as the final non-empty line.`
+    );
   }
 
   const totalLines = lines.length;
@@ -93,14 +111,14 @@ function checkPatchBoundaries(lines: string[]): void {
 
   if (looksLikeContent) {
     throw new InvalidPatchError(
-      `Patch appears truncated — end marker missing (${totalLines} lines received, last: '${lastLine.slice(0, 60)}').` +
+      `Patch appears truncated — end marker missing (${totalLines} lines received, last: '${normalizedLastLine.slice(0, 60)}').` +
       `\nYou MUST split large patches — one file per call, max ~800 added lines.` +
       `\nYou MUST ensure patchText ends with exactly: ${END_PATCH_MARKER}`
     );
   }
 
   throw new InvalidPatchError(
-    `Last line MUST be '${END_PATCH_MARKER}'. Got: '${lastLine.slice(0, 80)}'.` +
+    `Last line MUST be '${END_PATCH_MARKER}'. Got: '${normalizedLastLine.slice(0, 80)}'.` +
     `\nYou MUST end patchText with exactly: ${END_PATCH_MARKER}` +
     `\nYou MUST NOT add trailing blank lines or comments after the end marker.`
   );

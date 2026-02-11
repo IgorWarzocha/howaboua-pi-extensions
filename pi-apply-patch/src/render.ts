@@ -113,7 +113,7 @@ export function renderApplyPatchCall(args: unknown, parsePatch: (text: string) =
     );
   } catch {
     return new Text(
-      `${theme.fg("toolTitle", theme.bold("apply_patch"))} ${theme.fg("warning", "(invalid patch payload)")}`,
+      `${theme.fg("toolTitle", theme.bold("apply_patch"))} ${theme.fg("muted", "(patching)")}`,
       0, 0,
     );
   }
@@ -136,10 +136,14 @@ export function renderApplyPatchResult(
   }
 
   let output = textContent
-    ? (result.isError ? theme.fg("error", textContent) : theme.fg("toolOutput", textContent))
+    ? (result.isError ? textContent : theme.fg("toolOutput", textContent))
     : "";
   const summary = result.details as ApplySummary | undefined;
   const fileDiffs = summary?.fileDiffs ?? [];
+
+  if (result.isError) {
+    return new Text(output || "Error", 0, 0);
+  }
 
   if (fileDiffs.length > 0) {
     const visibleFileCount = expanded ? fileDiffs.length : Math.min(fileDiffs.length, 2);
