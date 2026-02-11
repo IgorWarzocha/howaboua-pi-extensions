@@ -37,7 +37,7 @@ export async function configure(ctx: { cwd: string; ui: Ui }): Promise<void> {
     } else {
       conf.models[task.id] = model;
     }
-    const levels = ["default", "minimal", "low", "medium", "high", "xhigh"];
+    const levels = ["default", "off", "minimal", "low", "medium", "high", "xhigh"];
     const cur = conf.thinking[task.id] ?? "default";
     const opts = levels.map((item) => item === cur ? `${item} (current)` : item);
     const effort = await pick(opts, `Thinking variant for ${task.title}`, ctx.ui);

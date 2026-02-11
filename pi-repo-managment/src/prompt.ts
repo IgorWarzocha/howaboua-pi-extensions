@@ -14,13 +14,12 @@ function ref(task: Task, repo: Repo | undefined, number: number | undefined): st
 }
 
 export function build(task: Task, effort: string | undefined, repo: Repo | undefined, number: number | undefined, extra: string | undefined): string {
-  const head = effort ? `Execution requirement: You MUST set reasoning effort to '${effort}' if supported before doing the task.\n\n` : "";
-  const repoText = repo && task.mode !== "local"
-    ? `Repository requirement: You MUST use repository '${repo.slug}' at local path '${repo.path}' for all git/gh operations. Use --repo ${repo.slug} when needed.\n\n`
+  const repoText = repo
+    ? `Repository requirement: You MUST operate only within local path '${repo.path}'. You MUST treat this as the target repository for the entire task.${repo.slug ? ` For GitHub operations, use repository '${repo.slug}' and pass --repo ${repo.slug} when needed.` : ""}\n\n`
     : "";
   const target = ref(task, repo, number);
   const targetText = target ? `${target}\n\n` : "";
   const extraText = extra && extra.trim().length > 0 ? `User addendum: ${extra.trim()}\n\n` : "";
   const tail = task.guide.length > 0 ? `\n\n${task.guide.join("\n")}` : "";
-  return `${head}${repoText}${targetText}${extraText}${task.template}${tail}`;
+  return `${repoText}${targetText}${extraText}${task.template}${tail}`;
 }

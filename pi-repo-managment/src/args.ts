@@ -1,5 +1,5 @@
 export type Parsed = {
-  mode: "menu" | "issue" | "pr";
+  mode: "menu" | "issue" | "pr" | "select";
   number?: number;
   extra?: string;
 };
@@ -8,6 +8,9 @@ export function parse(input: string): Parsed {
   const text = input.trim();
   if (!text) {
     return { mode: "menu" };
+  }
+  if (/^select$/i.test(text) || /^repo$/i.test(text) || /^switch$/i.test(text)) {
+    return { mode: "select" };
   }
   const issue = text.match(/^issue\s+(\d+)(?:\s+([\s\S]+))?$/i);
   if (issue && issue[1]) {
@@ -19,4 +22,3 @@ export function parse(input: string): Parsed {
   }
   return { mode: "menu" };
 }
-

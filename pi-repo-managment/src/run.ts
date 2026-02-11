@@ -2,6 +2,11 @@ import { spawn } from "node:child_process";
 import type { Repo, Task } from "./types.js";
 import { build } from "./prompt.js";
 
+type Update = {
+  output: string;
+  tools: string[];
+};
+
 function text(line: string): string {
   try {
     const event = JSON.parse(line) as { type?: string; message?: { role?: string; content?: Array<{ type?: string; text?: string }> } };
@@ -23,8 +28,24 @@ function text(line: string): string {
   }
 }
 
-export function run(task: Task, model: string | undefined, effort: string | undefined, cwd: string, repo: Repo | undefined, number: number | undefined, extra: string | undefined): Promise<string> {
+function tool(line: string): string {
+  try {
+    const event = JSON.parse(line) as { type?: string; toolName?: string };
+    if (event.type !== "tool_execution_start") {
+      return "";
+    }
+    return event.toolName ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export function run(task: Task, model: string | undefined, effort: string | undefined, cwd: string, repo: Repo | undefined, number: number | undefined, extra: string | undefined, onUpdate?: (update: Update) => void): Promise<string> {
   const args = ["--mode", "json", "--no-session", "-p", build(task, effort, repo, number, extra)];
+  if (effort && effort !== "default") {
+    args.unshift(effort);
+    args.unshift("--thinking");
+  }
   if (model) {
     args.unshift(model);
     args.unshift("--model");
@@ -38,14 +59,28 @@ export function run(task: Task, model: string | undefined, effort: string | unde
     });
     let buf = "";
     let last = "";
+    const tools: string[] = [];
     proc.stdout.on("data", (data) => {
       buf += data.toString();
       const lines = buf.split("\n");
       buf = lines.pop() || "";
       for (const line of lines) {
+        const t = tool(line);
+        if (t) {
+          tools.push(t);
+          if (tools.length > 4) {
+            tools.shift();
+          }
+          if (onUpdate) {
+            onUpdate({ output: last, tools });
+          }
+        }
         const out = text(line);
         if (out) {
           last = out;
+          if (onUpdate) {
+            onUpdate({ output: last, tools });
+          }
         }
       }
     });

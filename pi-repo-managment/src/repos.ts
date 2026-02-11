@@ -7,21 +7,22 @@ import { pick } from "./ui.js";
 const state = new Map<string, Repo>();
 
 function key(ctx: { cwd: string; sessionManager?: unknown }): string {
+  const root = resolve(ctx.cwd);
   if (!ctx.sessionManager || typeof ctx.sessionManager !== "object") {
-    return ctx.cwd;
+    return root;
   }
   if (!("getSessionId" in ctx.sessionManager)) {
-    return ctx.cwd;
+    return root;
   }
   const get = ctx.sessionManager.getSessionId;
   if (typeof get !== "function") {
-    return ctx.cwd;
+    return root;
   }
   const id = get.call(ctx.sessionManager) as unknown;
   if (!id || typeof id !== "string") {
-    return ctx.cwd;
+    return root;
   }
-  return id;
+  return `${id}:${root}`;
 }
 
 function dirs(cwd: string): string[] {
@@ -93,9 +94,9 @@ function init(cwd: string): Repo {
   return { path: cwd, slug: slug(cwd) };
 }
 
-export async function ensure(ctx: { cwd: string; ui: Ui; sessionManager?: unknown }): Promise<Repo> {
+export async function ensure(ctx: { cwd: string; ui: Ui; sessionManager?: unknown }, force?: boolean): Promise<Repo> {
   const id = key(ctx);
-  const found = state.get(id);
+  const found = force ? undefined : state.get(id);
   if (found) {
     return found;
   }
