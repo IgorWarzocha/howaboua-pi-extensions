@@ -9,3 +9,4 @@ export const setup = "Setup";
 
 export const tasks: Task[] = [docs, agents, commit, issue, pr];
 
+export const quiet = new Set(["docs", "agents", "commit"]);

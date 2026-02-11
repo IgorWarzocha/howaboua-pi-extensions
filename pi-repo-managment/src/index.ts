@@ -3,7 +3,7 @@ import { load } from "./config.js";
 import { configure } from "./setup.js";
 import { pick } from "./ui.js";
 import { run } from "./run.js";
-import { setup, tasks } from "./tasks/index.js";
+import { quiet, setup, tasks } from "./tasks/index.js";
 import { ensure } from "./repos.js";
 import { parse } from "./args.js";
 
@@ -132,6 +132,10 @@ export default function repo(pi: ExtensionAPI): void {
           ctx.ui.notify(`Subagent: ${head}`, "info");
         }
       });
+      if (quiet.has(task.id)) {
+        ctx.ui.notify(`Finished '${task.title}'.`, "info");
+        return;
+      }
       pi.sendMessage({
         customType: "repo-subagent-result",
         display: true,
