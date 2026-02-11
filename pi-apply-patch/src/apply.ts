@@ -103,8 +103,8 @@ export function computeReplacements(
       if (contextIndex === undefined) {
         throw new Error(
           `Failed to find context '${chunk.changeContext}' in ${filePath}.` +
-            `\\nYou MUST use the 'read' tool to verify current file content before retrying.` +
-            `\\nThe @@ context line MUST match an actual line in the file. Check for stale content or wrong indentation.`,
+            `\nYou MUST use the 'read' tool to verify current file content before retrying.` +
+            `\nThe @@ context line MUST match an actual line in the file. Check for stale content or wrong indentation.`,
         );
       }
       lineIndex = contextIndex;
@@ -162,9 +162,9 @@ export function computeReplacements(
 
       throw new Error(
         `Patch Error: Failed to find the specified block in ${filePath}.${diagnostic}` +
-          `\\n\\nYou MUST use the 'read' tool to verify current file content before retrying.` +
-          `\\nYou MUST include 3+ unchanged context lines for unambiguous matching.` +
-          `\\nYou MUST NOT guess content or ignore whitespace/indentation.`,
+          `\n\nYou MUST use the 'read' tool to verify current file content before retrying.` +
+          `\nYou MUST include 3+ unchanged context lines for unambiguous matching.` +
+          `\nYou MUST NOT guess content or ignore whitespace/indentation.`,
       );
     }
 

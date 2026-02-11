@@ -16,24 +16,25 @@ export async function runSubagent(
   task: string,
   cwd: string,
   sessionId: string,
-  onUpdate?: (data: { output: string; toolCalls: string[] }) => void,
+  onUpdate?: (data: { output: string; toolCalls: string[]; isThinking: boolean }) => void,
   signal?: AbortSignal,
 ): Promise<string> {
   if (!fs.existsSync(PI_SESSIONS_DIR)) fs.mkdirSync(PI_SESSIONS_DIR, { recursive: true });
 
   const sessionFile = getSessionPath(sessionId);
-  const args = [
-    "--mode",
-    "json",
-    "-p",
-    "--session-file",
-    sessionFile,
-    "--extension",
-    EXTENSION_PATH,
-  ];
+  const args = ["--mode", "json", "-p", "--extension", EXTENSION_PATH];
+
+  if (task.includes("[AGENT_ARCHITECT_MODE]")) {
+    args.push("--no-session");
+  } else {
+    args.push("--session", sessionFile);
+  }
 
   if (agent.model) {
     args.push("--model", agent.model);
+  }
+  if (agent.thinkingEffort) {
+    args.push("--thinking", agent.thinkingEffort);
   }
 
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-agent-manager-"));
@@ -72,16 +73,26 @@ export async function runSubagent(
     let output = "";
     let buf = "";
     const toolCalls: string[] = [];
+    let isThinking = false;
 
     const processLine = (line: string) => {
       if (!line.trim()) return;
       try {
         const evt = JSON.parse(line);
 
+        if (evt.type === "thinking_start") {
+          isThinking = true;
+          if (onUpdate) onUpdate({ output, toolCalls, isThinking });
+        }
+        if (evt.type === "thinking_end") {
+          isThinking = false;
+          if (onUpdate) onUpdate({ output, toolCalls, isThinking });
+        }
+
         if (evt.type === "tool_execution_start" && evt.toolName) {
           toolCalls.push(evt.toolName);
           if (toolCalls.length > 3) toolCalls.shift();
-          if (onUpdate) onUpdate({ output, toolCalls });
+          if (onUpdate) onUpdate({ output, toolCalls, isThinking });
         }
 
         if (evt.type === "message_end" && evt.message?.role === "assistant") {
@@ -95,7 +106,7 @@ export async function runSubagent(
             }
             if (currentMessageText) {
               output = currentMessageText;
-              if (onUpdate) onUpdate({ output, toolCalls });
+              if (onUpdate) onUpdate({ output, toolCalls, isThinking });
             }
           }
         }

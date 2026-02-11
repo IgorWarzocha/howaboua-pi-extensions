@@ -5,6 +5,7 @@ export interface AgentConfig {
   source: "user" | "project";
   filePath: string;
   model?: string;
+  thinkingEffort?: string;
   skillPermissions?: Record<string, "allow" | "deny">;
 }
 

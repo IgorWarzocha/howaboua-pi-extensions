@@ -1,12 +1,24 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import type { AgentConfig } from "./types.js";
 import { bareSkillName, serializeFrontmatter } from "./utils.js";
 import { loadAgents, disabledAgents, savePermissions } from "./store.js";
 import { disabledSkills } from "./store.js";
+
+function preview(text: string): string {
+  const line =
+    text
+      .split("\n")
+      .map((item) => item.trim())
+      .find((item) => item.length > 0) ?? "";
+  if (!line) return "";
+  if (line.length <= 100) return line;
+  return `${line.slice(0, 97)}...`;
+}
 
 /**
  * Interactive fuzzy path picker.
@@ -75,21 +87,53 @@ export async function selectCwd(ctx: ExtensionContext): Promise<string> {
   }
 }
 
+export function detectModels(ctx: ExtensionContext): any[] {
+  const reg = (ctx as any).modelRegistry;
+  if (!reg || typeof reg.getAvailable !== "function") return [];
+  return reg.getAvailable();
+}
+
 export async function selectModel(
   ctx: ExtensionContext,
   current?: string,
 ): Promise<string | undefined> {
-  const models = (ctx as any).modelRegistry
-    .getAvailable()
-    .map((m: any) => `${m.provider}/${m.id}`)
-    .sort();
-  const options = ["Default", ...models];
-  const choice = await ctx.ui.select(
-    current ? `Current Model: ${current}` : "Select Model",
-    options,
-  );
-  if (!choice) return undefined;
-  return choice === "Default" ? "" : choice;
+  const list = detectModels(ctx);
+  const title = current ? `Current Model: ${current}` : "Select Model";
+
+  while (true) {
+    const query = await ctx.ui.input(
+      `${title} filter`,
+      "Type provider/id/name substring; leave empty for all",
+    );
+    if (query === undefined) return undefined;
+
+    const q = query.trim().toLowerCase();
+    const rows =
+      q.length === 0
+        ? list
+        : list.filter((item: any) =>
+            `${item.provider}/${item.id} ${item.name}`.toLowerCase().includes(q),
+          );
+
+    if (rows.length === 0) {
+      const again = await ctx.ui.select(`${title}\nNo models matched`, ["Try again", "Cancel"]);
+      if (again === "Try again") continue;
+      return undefined;
+    }
+
+    const top = rows.slice(0, 20).map((m: any) => `${m.provider}/${m.id} - ${m.name}`);
+    const options = ["Default (inherit current)", ...top];
+    const refine = `Refine filter (${rows.length} matches)`;
+    if (rows.length > 20) options.push(refine);
+
+    const choice = await ctx.ui.select(title, options);
+    if (!choice) return undefined;
+    if (choice === refine) continue;
+    if (choice === "Default (inherit current)") return "";
+
+    const at = choice.indexOf(" - ");
+    return at === -1 ? choice : choice.slice(0, at);
+  }
 }
 
 export async function manageSubagents(pi: ExtensionAPI, ctx: ExtensionContext) {
@@ -112,6 +156,7 @@ export async function manageSubagents(pi: ExtensionAPI, ctx: ExtensionContext) {
       const action = await ctx.ui.select(`Agent: ${name}`, [
         "Toggle Enable/Disable",
         "Change Model",
+        "Change Thinking Effort",
         "Manage Skill Permissions",
         "Edit Prompt",
         "Delete",
@@ -126,11 +171,30 @@ export async function manageSubagents(pi: ExtensionAPI, ctx: ExtensionContext) {
         if (newModel !== undefined) {
           fs.writeFileSync(
             agent.filePath,
-            serializeFrontmatter({ ...agent, model: newModel || undefined }) +
+            serializeFrontmatter({ ...agent, model: newModel || undefined, thinkingEffort: agent.thinkingEffort }) +
               "\n" +
               agent.systemPrompt,
           );
           ctx.ui.notify(`Model for '${name}' updated.`, "info");
+        }
+      } else if (action === "Change Thinking Effort") {
+        const effort = await ctx.ui.select("Thinking Effort", [
+          "Default",
+          "Minimal",
+          "Low",
+          "Medium",
+          "High",
+          "X-High",
+        ]);
+        if (effort) {
+          const val = effort === "Default" ? undefined : effort.toLowerCase().replace("-", "");
+          fs.writeFileSync(
+            agent.filePath,
+            serializeFrontmatter({ ...agent, thinkingEffort: val }) +
+              "\n" +
+              agent.systemPrompt,
+          );
+          ctx.ui.notify(`Thinking effort for '${name}' updated to ${effort}.`, "info");
         }
       } else if (action === "Manage Skill Permissions") {
         const allowedSkills = new Set<string>();
@@ -203,9 +267,42 @@ export async function createAgent(pi: ExtensionAPI, ctx: ExtensionContext) {
       skillPermissions: { "*": "deny" },
     }) + "\n\nPlaceholder prompt.",
   );
-  ctx.ui.notify(`Agent created. Requesting enhancement...`, "info");
+
+  ctx.ui.notify(`Agent '${name}' created. Requesting enhancement in background...`, "info");
+
   const enhancementRequest = `[AGENT_ARCHITECT_MODE]\nTarget: ${filePath}\nInitial Goal: "${description}"\n\nYou MUST refine this subagent into an expert-level specialist. \n\n### STRUCTURE REQUIREMENTS\nThe agent body MUST follow this XML-pilled structure:\n<role_and_objective>Expert persona and core mission.</role_and_objective>\n<instructions>\n- Use RFC 2119 keywords (MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT, SHOULD, SHOULD NOT, RECOMMENDED, MAY, OPTIONAL).\n- Define clear behavioral boundaries.\n- You MUST include a directive that the agent SHALL remain focused on the task at hand and the specified working directory.\n- You MUST explicitly state that the agent MUST NOT invoke further subagents or attempt to retrieve information from previous sessions unless specifically instructed.\n</instructions>\n<workflow>Step-by-step execution logic.</workflow>\n<output_format>Strict definition of how the agent returns findings.</output_format>\n\n### FRONTMATTER REQUIREMENTS\n- description: A concise (1-3 sentences), instruction-heavy rule for the Main Agent.\n- permission:\n    skill:\n      "*": "deny"\n      "relevant-skill-name": "allow"\n\n### TASK\n1. Research best practices.\n2. Generate .md content.\n3. Use 'edit' tool.\n4. Confirm initialization and 'invoke_subagent' usage.`;
-  pi.sendUserMessage(enhancementRequest, { deliverAs: "steer" });
+
+  const agents = loadAgents(ctx.cwd);
+  const agent = agents.find((a) => a.name === name);
+  if (!agent) return;
+
+  const { runSubagent } = await import("./runner.js");
+
+  let seen = "";
+  let shown = "";
+
+  runSubagent(
+    agent,
+    enhancementRequest,
+    ctx.cwd,
+    `architect-${randomUUID()}`,
+    (update) => {
+      const chain = update.toolCalls.join(" -> ");
+      if (chain && chain !== seen) {
+        seen = chain;
+        ctx.ui.notify(`Architect [${name}] tools: ${chain}`, "info");
+      }
+      const head = preview(update.output);
+      if (head && head !== shown) {
+        shown = head;
+        ctx.ui.notify(`Architect [${name}]: ${head}`, "info");
+      }
+    }
+  ).then((out) => {
+    ctx.ui.notify(`Agent '${name}' enhancement complete.`, "info");
+  }).catch((err) => {
+    ctx.ui.notify(`Agent '${name}' enhancement failed: ${err.message}`, "error");
+  });
 }
 
 export async function manageSkills(

@@ -84,6 +84,9 @@ export function parseMarkdown(content: string): { frontmatter: Record<string, an
         const key = match[1]!;
         const val = match[2]!.trim().replace(/^['"]|['"]$/g, "");
         inPermissionBlock = key === "permission";
+        if (key === "thinking_effort" || key === "thinking") {
+          frontmatter.thinkingEffort = val;
+        }
         inSkillBlock = false;
         if (!inPermissionBlock) frontmatter[key] = val;
       }
@@ -117,6 +120,7 @@ export function serializeFrontmatter(config: Partial<AgentConfig>): string {
   yaml += `name: ${config.name}\n`;
   yaml += `description: "${config.description}"\n`;
   if (config.model) yaml += `model: ${config.model}\n`;
+  if (config.thinkingEffort) yaml += `thinking: ${config.thinkingEffort}\n`;
   if (config.skillPermissions) {
     yaml += "permission:\n  skill:\n";
     for (const [s, action] of Object.entries(config.skillPermissions))
