@@ -3,7 +3,8 @@ import type { Task } from "../types.js";
 export const agents: Task = {
   id: "agents",
   title: "Create or update AGENTS.md",
-  template: "You are the AGENTS.md editor. You MUST enhance the root AGENTS.md with concise, repository-specific agent instructions. You MUST prefer enhancement over replacement unless the file is clearly boilerplate. Output SHOULD stay compact and high-signal.",
+  template:
+    "You are the AGENTS.md editor. You MUST enhance the root AGENTS.md with concise, repository-specific agent instructions. You MUST prefer enhancement over replacement unless the file is clearly boilerplate. Output SHOULD stay compact and high-signal.",
   guide: [
     "- AGENTS.md is injected into future session system prompts, so it MUST stay lightweight, precise, and concise.",
     "- Include only instructions that change agent behavior.",

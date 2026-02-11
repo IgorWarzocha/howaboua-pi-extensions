@@ -3,14 +3,14 @@
   "version": "0.1.0",
   "description": "Subagent and skill permission manager for Pi",
   "type": "module",
-  "pi": {
-    "extensions": [
-      "./src/index.ts"
-    ]
-  },
   "devDependencies": {
     "@mariozechner/pi-coding-agent": "^0.50.0",
     "@types/node": "^20.0.0",
     "typescript": "^5.0.0"
+  },
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
   }
 }

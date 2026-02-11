@@ -51,7 +51,7 @@ export function parsePatch(patchText: string): Hunk[] {
     }
   } catch (e) {
     if (hunks.length > 0 && e instanceof Error) {
-      const parsed = hunks.map(h => h.filePath).join(", ");
+      const parsed = hunks.map((h) => h.filePath).join(", ");
       e.message = `${e.message}\n\nContext: parsed ${hunks.length} hunk(s) before failure: [${parsed}]. ${remaining.length} lines remain unparsed.`;
     }
     throw e;
@@ -68,7 +68,7 @@ function checkPatchBoundaries(lines: string[]): void {
 
   if (lines.length === 0) {
     throw new InvalidPatchError(
-      "Patch is empty. You MUST provide content between the Begin Patch and End Patch markers."
+      "Patch is empty. You MUST provide content between the Begin Patch and End Patch markers.",
     );
   }
 
@@ -87,7 +87,7 @@ function checkPatchBoundaries(lines: string[]): void {
   if (firstLine !== BEGIN_PATCH_MARKER) {
     throw new InvalidPatchError(
       `First line MUST be '${BEGIN_PATCH_MARKER}'. Got: '${firstLine.slice(0, 80)}'.` +
-      `\nYou MUST start patchText with exactly: ${BEGIN_PATCH_MARKER}`
+        `\nYou MUST start patchText with exactly: ${BEGIN_PATCH_MARKER}`,
     );
   }
 
@@ -96,31 +96,33 @@ function checkPatchBoundaries(lines: string[]): void {
     return;
   }
 
-  const prefixedEndMarkerIndex = lines.findIndex(line => plusEndMarker.test(line.trim()));
+  const prefixedEndMarkerIndex = lines.findIndex((line) => plusEndMarker.test(line.trim()));
   if (prefixedEndMarkerIndex !== -1) {
     throw new InvalidPatchError(
       `Found a prefixed end marker ('+*** End Patch') at line ${prefixedEndMarkerIndex + 1}.` +
-      `\nYou MUST NOT prefix patch envelope markers with '+'.` +
-      `\nYou MUST place exactly '${END_PATCH_MARKER}' as the final non-empty line.`
+        `\nYou MUST NOT prefix patch envelope markers with '+'.` +
+        `\nYou MUST place exactly '${END_PATCH_MARKER}' as the final non-empty line.`,
     );
   }
 
   const totalLines = lines.length;
   const lastFewLines = lines.slice(Math.max(0, totalLines - 4));
-  const looksLikeContent = lastFewLines.some(l => l.startsWith("+") || l.startsWith("-") || l.startsWith(" "));
+  const looksLikeContent = lastFewLines.some(
+    (l) => l.startsWith("+") || l.startsWith("-") || l.startsWith(" "),
+  );
 
   if (looksLikeContent) {
     throw new InvalidPatchError(
       `Patch appears truncated — end marker missing (${totalLines} lines received, last: '${normalizedLastLine.slice(0, 60)}').` +
-      `\nYou MUST split large patches — one file per call, max ~800 added lines.` +
-      `\nYou MUST ensure patchText ends with exactly: ${END_PATCH_MARKER}`
+        `\nYou MUST split large patches — one file per call, max ~800 added lines.` +
+        `\nYou MUST ensure patchText ends with exactly: ${END_PATCH_MARKER}`,
     );
   }
 
   throw new InvalidPatchError(
     `Last line MUST be '${END_PATCH_MARKER}'. Got: '${normalizedLastLine.slice(0, 80)}'.` +
-    `\nYou MUST end patchText with exactly: ${END_PATCH_MARKER}` +
-    `\nYou MUST NOT add trailing blank lines or comments after the end marker.`
+      `\nYou MUST end patchText with exactly: ${END_PATCH_MARKER}` +
+      `\nYou MUST NOT add trailing blank lines or comments after the end marker.`,
   );
 }
 
@@ -156,8 +158,8 @@ function parseOneHunk(lines: string[], lineNumber: number): { hunk: Hunk; consum
     if (consumedLines === 1) {
       throw new InvalidHunkError(
         `Add file hunk for '${filePath}' has no content lines.` +
-        `\nEvery added line MUST start with '+'. For blank lines use '+' alone.` +
-        `\nYou MUST NOT omit the '+' prefix on content lines.`,
+          `\nEvery added line MUST start with '+'. For blank lines use '+' alone.` +
+          `\nYou MUST NOT omit the '+' prefix on content lines.`,
         lineNumber,
       );
     }
@@ -205,8 +207,8 @@ function parseOneHunk(lines: string[], lineNumber: number): { hunk: Hunk; consum
     if (chunks.length === 0) {
       throw new InvalidHunkError(
         `Update file hunk for '${filePath}' has no chunks.` +
-        `\nEach chunk MUST start with '@@' or '@@ <context>'.` +
-        `\nLines MUST start with ' ' (context), '+' (add), or '-' (remove).`,
+          `\nEach chunk MUST start with '@@' or '@@ <context>'.` +
+          `\nLines MUST start with ' ' (context), '+' (add), or '-' (remove).`,
         lineNumber,
       );
     }
@@ -216,8 +218,8 @@ function parseOneHunk(lines: string[], lineNumber: number): { hunk: Hunk; consum
 
   throw new InvalidHunkError(
     `'${firstLine.slice(0, 100)}' is not a valid hunk header.` +
-    `\nYou MUST use one of: '${ADD_FILE_MARKER}<path>', '${DELETE_FILE_MARKER}<path>', '${UPDATE_FILE_MARKER}<path>'.` +
-    `\nYou MUST NOT place content lines outside of a file section.`,
+      `\nYou MUST use one of: '${ADD_FILE_MARKER}<path>', '${DELETE_FILE_MARKER}<path>', '${UPDATE_FILE_MARKER}<path>'.` +
+      `\nYou MUST NOT place content lines outside of a file section.`,
     lineNumber,
   );
 }
@@ -246,7 +248,7 @@ function parseUpdateFileChunk(
     if (!allowMissingContext) {
       throw new InvalidHunkError(
         `Expected '@@' context marker, got: '${lines[0].slice(0, 80)}'.` +
-        `\nEach update chunk MUST start with '@@' or '@@ <context>'. You MUST NOT omit the @@ marker.`,
+          `\nEach update chunk MUST start with '@@' or '@@ <context>'. You MUST NOT omit the @@ marker.`,
         lineNumber,
       );
     }
@@ -310,7 +312,7 @@ function parseUpdateFileChunk(
     if (parsedBodyLines === 0) {
       throw new InvalidHunkError(
         `Unexpected line in update hunk: '${line.slice(0, 80)}'.` +
-        `\nEvery line MUST start with ' ' (context), '+' (add), or '-' (remove). You MUST NOT have unprefixed lines.`,
+          `\nEvery line MUST start with ' ' (context), '+' (add), or '-' (remove). You MUST NOT have unprefixed lines.`,
         lineNumber + 1,
       );
     }

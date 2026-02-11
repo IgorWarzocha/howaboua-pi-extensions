@@ -30,7 +30,7 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
     }
 
     if (event.toolName === "bash") {
-      const command = (event.input.command as string || "").trim();
+      const command = ((event.input.command as string) || "").trim();
       const violation = detectBashWriteViolation(command);
       if (violation) {
         return {
@@ -44,7 +44,8 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
   pi.registerTool({
     name: "apply_patch",
     label: "apply_patch",
-    description: "Apply a patch envelope containing one or more file operations (Add, Update, Move, Delete). This tool MUST be used for all file modifications and SHOULD be used to batch related changes for atomicity.",
+    description:
+      "Apply a patch envelope containing one or more file operations (Add, Update, Move, Delete). This tool MUST be used for all file modifications and SHOULD be used to batch related changes for atomicity.",
     renderCall(args, theme) {
       return renderApplyPatchCall(args, parsePatch, theme);
     },
@@ -56,7 +57,9 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
       return text;
     },
     parameters: Type.Object({
-      patchText: Type.String({ description: "Patch text containing *** Begin Patch ... *** End Patch" }),
+      patchText: Type.String({
+        description: "Patch text containing *** Begin Patch ... *** End Patch",
+      }),
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       try {

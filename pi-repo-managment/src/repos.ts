@@ -87,22 +87,34 @@ function init(cwd: string): Repo {
   if (add.status !== 0) {
     throw new Error(`git add MUST succeed: ${add.stderr || add.stdout}`);
   }
-  const commit = spawnSync("git", ["commit", "-m", "chore: initial commit"], { cwd, encoding: "utf-8" });
+  const commit = spawnSync("git", ["commit", "-m", "chore: initial commit"], {
+    cwd,
+    encoding: "utf-8",
+  });
   if (commit.status !== 0) {
     throw new Error(`Initial commit MUST succeed: ${commit.stderr || commit.stdout}`);
   }
   return { path: cwd, slug: slug(cwd) };
 }
 
-export async function ensure(ctx: { cwd: string; ui: Ui; sessionManager?: unknown }, force?: boolean): Promise<Repo> {
+export async function ensure(
+  ctx: { cwd: string; ui: Ui; sessionManager?: unknown },
+  force?: boolean,
+): Promise<Repo> {
   const id = key(ctx);
   const found = force ? undefined : state.get(id);
   if (found) {
     return found;
   }
-  const list = dirs(ctx.cwd).filter((dir, at, all) => all.indexOf(dir) === at).filter((dir) => git(dir));
+  const list = dirs(ctx.cwd)
+    .filter((dir, at, all) => all.indexOf(dir) === at)
+    .filter((dir) => git(dir));
   if (list.length === 0) {
-    const made = await pick(["Create git repo here", "Cancel"], "No git repository found in cwd or two levels down", ctx.ui);
+    const made = await pick(
+      ["Create git repo here", "Cancel"],
+      "No git repository found in cwd or two levels down",
+      ctx.ui,
+    );
     if (made !== "Create git repo here") {
       throw new Error("A repository MUST be selected for this session.");
     }

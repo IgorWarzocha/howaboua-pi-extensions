@@ -54,7 +54,7 @@ export const APPLY_PATCH_PROMPT_INSTRUCTIONS = [
   `${M3} Update File: src/old-name.ts`,
   `${M3} Move to: src/new-name.ts`,
   "@@ import { util }",
-  "+import { util } from \"./new-utility.js\";",
+  '+import { util } from "./new-utility.js";',
   " ",
   `${M3} Delete File: temp-log.txt`,
   `${M3} End Patch`,

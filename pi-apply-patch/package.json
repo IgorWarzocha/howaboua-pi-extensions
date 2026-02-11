@@ -6,6 +6,8 @@
     "e2e": "bash ./e2e-runner.sh"
   },
   "pi": {
-    "extensions": ["./index.ts"]
+    "extensions": [
+      "./index.ts"
+    ]
   }
 }

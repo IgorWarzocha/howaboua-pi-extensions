@@ -32,4 +32,3 @@ export function normalizeFilesInput(input: unknown): FileInput[] {
 
   return normalizedFiles;
 }
-

@@ -10,7 +10,10 @@ function normalizeUnicode(str: string): string {
     .replace(/[\u201C\u201D\u201E\u201F]/g, '"')
     .replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, "-")
     .replace(/\u2026/g, "...")
-    .replace(/[\u00A0\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u202F\u205F\u3000]/g, " ");
+    .replace(
+      /[\u00A0\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u202F\u205F\u3000]/g,
+      " ",
+    );
 }
 
 /**
@@ -78,7 +81,9 @@ function applyReplacements(
   replacements: Array<[start: number, oldLength: number, newLines: string[]]>,
 ): string[] {
   const result = [...sourceLines];
-  for (const [start, oldLength, newLines] of [...replacements].sort((lhs, rhs) => rhs[0] - lhs[0])) {
+  for (const [start, oldLength, newLines] of [...replacements].sort(
+    (lhs, rhs) => rhs[0] - lhs[0],
+  )) {
     result.splice(start, oldLength, ...newLines);
   }
   return result;
@@ -98,8 +103,8 @@ export function computeReplacements(
       if (contextIndex === undefined) {
         throw new Error(
           `Failed to find context '${chunk.changeContext}' in ${filePath}.` +
-          `\\nYou MUST use the 'read' tool to verify current file content before retrying.` +
-          `\\nThe @@ context line MUST match an actual line in the file. Check for stale content or wrong indentation.`
+            `\\nYou MUST use the 'read' tool to verify current file content before retrying.` +
+            `\\nThe @@ context line MUST match an actual line in the file. Check for stale content or wrong indentation.`,
         );
       }
       lineIndex = contextIndex;
@@ -130,9 +135,9 @@ export function computeReplacements(
       }
 
       if (potentialIndices.length > 0) {
-        const bestIdx = potentialIndices.find(idx => idx >= lineIndex) ?? potentialIndices[0];
+        const bestIdx = potentialIndices.find((idx) => idx >= lineIndex) ?? potentialIndices[0];
         diagnostic += `\n\nPotential match started at line ${bestIdx + 1}, but failed on a subsequent line:`;
-        
+
         if (bestIdx + oldPattern.length > originalLines.length) {
           diagnostic += `\n(Note: The patch block is ${oldPattern.length} lines, but only ${originalLines.length - bestIdx} lines remain in the file from this point)`;
         }
@@ -140,7 +145,7 @@ export function computeReplacements(
         for (let j = 0; j < oldPattern.length; j++) {
           const fileLine = originalLines[bestIdx + j];
           const patchLine = oldPattern[j];
-          
+
           if (fileLine === undefined) {
             diagnostic += `\nLine ${bestIdx + j + 1} mismatch:\n  Expected: [${patchLine}]\n  Actual:   [End of File]`;
             break;
@@ -157,9 +162,9 @@ export function computeReplacements(
 
       throw new Error(
         `Patch Error: Failed to find the specified block in ${filePath}.${diagnostic}` +
-        `\\n\\nYou MUST use the 'read' tool to verify current file content before retrying.` +
-        `\\nYou MUST include 3+ unchanged context lines for unambiguous matching.` +
-        `\\nYou MUST NOT guess content or ignore whitespace/indentation.`
+          `\\n\\nYou MUST use the 'read' tool to verify current file content before retrying.` +
+          `\\nYou MUST include 3+ unchanged context lines for unambiguous matching.` +
+          `\\nYou MUST NOT guess content or ignore whitespace/indentation.`,
       );
     }
 
@@ -188,7 +193,9 @@ export function deriveUpdatedContent(
 
 export async function applyHunks(cwd: string, hunks: Hunk[]): Promise<ApplySummary> {
   if (hunks.length === 0) {
-    throw new Error("No files were modified. You MUST include at least one file section in the patch.");
+    throw new Error(
+      "No files were modified. You MUST include at least one file section in the patch.",
+    );
   }
 
   const summary: ApplySummary = {

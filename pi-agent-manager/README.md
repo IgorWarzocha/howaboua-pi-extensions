@@ -14,9 +14,11 @@ A comprehensive subagent orchestration and resource permission system for Pi. Th
 ## Usage
 
 ### Slash Commands
+
 - `/agents`: Open the interactive management GUI.
 
 ### Subagent Delegation
+
 The Main Agent will automatically see enabled subagents in its `<available_subagents>` block. It can delegate tasks using the `invoke_subagent` tool:
 
 ```json
@@ -27,6 +29,7 @@ The Main Agent will automatically see enabled subagents in its `<available_subag
 ```
 
 ### Skill Permissions
+
 Subagent `.md` files use a specialized frontmatter for skill access:
 
 ```yaml
@@ -41,6 +44,7 @@ permission:
 ```
 
 ## Storage Locations
+
 - **Project Agents**: `.pi/agents/*.md`
 - **Global Agents**: `~/.pi/agent/agents/*.md`
 - **Sessions**: `~/.pi/agent/sessions/*.jsonl`

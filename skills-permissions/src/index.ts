@@ -38,12 +38,13 @@ export default function (pi: ExtensionAPI) {
     });
 
     // Reconstruct prompt — only the <available_skills> region is touched
-    systemPrompt = systemPrompt.substring(0, startIndex + startTag.length) +
-                   skillsBlock +
-                   systemPrompt.substring(endIndex);
+    systemPrompt =
+      systemPrompt.substring(0, startIndex + startTag.length) +
+      skillsBlock +
+      systemPrompt.substring(endIndex);
 
     // Notification: show remaining skill names (scoped to <available_skills> only)
-    const remaining = [...skillsBlock.matchAll(/<name>(.*?)<\/name>/gi)].map(m => m[1]);
+    const remaining = [...skillsBlock.matchAll(/<name>(.*?)<\/name>/gi)].map((m) => m[1]);
     if (remaining.length > 0) {
       ctx.ui.notify(`Active skills: ${remaining.join(", ")}`, "info");
     } else {

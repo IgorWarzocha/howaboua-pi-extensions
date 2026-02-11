@@ -6,4 +6,3 @@ export function pick(options: string[], title: string, ui: Ui): Promise<string |
   }
   return ui.select(title, options, { timeout: 0 });
 }
-

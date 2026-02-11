@@ -18,7 +18,11 @@ export type Config = {
 };
 
 export type Ui = {
-  select: (title: string, options: string[], settings?: { timeout?: number }) => Promise<string | undefined>;
+  select: (
+    title: string,
+    options: string[],
+    settings?: { timeout?: number },
+  ) => Promise<string | undefined>;
   input: (title: string, placeholder?: string) => Promise<string | undefined>;
   notify: (text: string, level: "info" | "warning" | "error") => void;
 };

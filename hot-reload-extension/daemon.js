@@ -180,12 +180,17 @@ function launchInNewTerminal({
 	modelProvider,
 	modelId,
 	thinking,
-	display,
-	waylandDisplay,
-	dbusSessionBusAddress,
-	xdgRuntimeDir,
+  display,
+  waylandDisplay,
+  dbusSessionBusAddress,
+  xdgRuntimeDir,
+  workspace,
 }) {
-	const terminal = detectTerminal(termProgram);
+  if (workspace) {
+    spawnSync("hyprctl", ["dispatch", "workspace", String(workspace)], { stdio: "ignore", timeout: 2000 });
+  }
+
+  const terminal = detectTerminal(termProgram);
 	const piBinary = process.env.PI_HOT_RELOAD_PI_BIN || "pi";
 	const providerArg = modelProvider ? ` --provider ${shellQuote(modelProvider)}` : "";
 	const modelArg = modelId ? ` --model ${shellQuote(modelId)}` : "";
@@ -300,8 +305,9 @@ function handleRequest(message) {
 			display: String(message.display || ""),
 			waylandDisplay: String(message.waylandDisplay || ""),
 			dbusSessionBusAddress: String(message.dbusSessionBusAddress || ""),
-			xdgRuntimeDir: String(message.xdgRuntimeDir || ""),
-			updatedAt: new Date().toISOString(),
+      xdgRuntimeDir: String(message.xdgRuntimeDir || ""),
+      workspace: String(message.workspace || ""),
+      updatedAt: new Date().toISOString(),
 		};
 		writeState(state);
 		log("register", state.instances[key]);
@@ -498,8 +504,9 @@ async function main() {
 			display: flags.display,
 			waylandDisplay: flags["wayland-display"],
 			dbusSessionBusAddress: flags["dbus-session-bus-address"],
-			xdgRuntimeDir: flags["xdg-runtime-dir"],
-		});
+      xdgRuntimeDir: flags["xdg-runtime-dir"],
+      workspace: flags.workspace,
+    });
 		console.log(JSON.stringify(response));
 		process.exit(response.ok ? 0 : 1);
 		return;

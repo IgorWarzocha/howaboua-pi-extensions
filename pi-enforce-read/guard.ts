@@ -7,7 +7,7 @@ const FORBIDDEN_BASH_READ_PATTERNS = [
   /\bless\b/,
   /\bmore\b/,
   /\bnl\b/,
-  /\bsed\b.*\bp\b/
+  /\bsed\b.*\bp\b/,
 ];
 
 function shouldBlockBashRead(command: string): boolean {
@@ -33,7 +33,8 @@ export function setupGuard(pi: ExtensionAPI) {
       if (shouldBlockBashRead(command)) {
         return {
           block: true,
-          reason: "Direct file reading via bash is blocked. You MUST use the 'read' tool for all file inspection (including images). You SHOULD batch related paths into a single MULTI-READ call via the 'files' array instead of chaining single-file calls."
+          reason:
+            "Direct file reading via bash is blocked. You MUST use the 'read' tool for all file inspection (including images). You SHOULD batch related paths into a single MULTI-READ call via the 'files' array instead of chaining single-file calls.",
         };
       }
     }
@@ -42,7 +43,7 @@ export function setupGuard(pi: ExtensionAPI) {
     if (toolBlockReason) {
       return {
         block: true,
-        reason: toolBlockReason
+        reason: toolBlockReason,
       };
     }
   });

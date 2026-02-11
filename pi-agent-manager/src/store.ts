@@ -41,7 +41,7 @@ export function savePermissions(cwd: string) {
   const filePath = path.join(cwd, PERMISSIONS_FILE);
   const data = {
     disabledSkills: Array.from(disabledSkills),
-    disabledAgents: Array.from(disabledAgents)
+    disabledAgents: Array.from(disabledAgents),
   };
   try {
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
@@ -77,7 +77,7 @@ export function loadAgents(cwd: string): AgentConfig[] {
               source,
               filePath,
               model: frontmatter.model,
-              skillPermissions: frontmatter.skill
+              skillPermissions: frontmatter.skill,
             });
           }
         } catch {}

@@ -13,7 +13,13 @@ type ExecuteReadFilesArgs = {
   ctx: { cwd: string };
 };
 
-export async function executeReadFiles({ toolCallId, files, signal, onUpdate, ctx }: ExecuteReadFilesArgs) {
+export async function executeReadFiles({
+  toolCallId,
+  files,
+  signal,
+  onUpdate,
+  ctx,
+}: ExecuteReadFilesArgs) {
   const output: (TextContent | ImageContent)[] = [];
   const details: ReadFileDetail[] = [];
 
@@ -31,9 +37,9 @@ export async function executeReadFiles({ toolCallId, files, signal, onUpdate, ct
         result = {
           content: [
             { type: "text", text: `Read image file [${mimeType}]` },
-            { type: "image", data: base64, mimeType }
+            { type: "image", data: base64, mimeType },
           ],
-          details: {}
+          details: {},
         };
       } else {
         const readTool = createReadTool(ctx.cwd);
@@ -41,7 +47,7 @@ export async function executeReadFiles({ toolCallId, files, signal, onUpdate, ct
           toolCallId,
           { path: file.path, offset: file.offset, limit: file.limit },
           signal,
-          onUpdate
+          onUpdate,
         );
       }
 
@@ -54,13 +60,13 @@ export async function executeReadFiles({ toolCallId, files, signal, onUpdate, ct
         offset: file.offset,
         limit: file.limit,
         mimeType: mimeType ?? undefined,
-        details: result.details
+        details: result.details,
       });
     } catch (err: any) {
       const error = err?.message ?? String(err);
       output.push({
         type: "text",
-        text: `--- ${file.path} ---\nERROR: ${error}`
+        text: `--- ${file.path} ---\nERROR: ${error}`,
       });
       details.push({ path: file.path, offset: file.offset, limit: file.limit, error });
     }
@@ -68,6 +74,6 @@ export async function executeReadFiles({ toolCallId, files, signal, onUpdate, ct
 
   return {
     content: output,
-    details: { files: details }
+    details: { files: details },
   };
 }

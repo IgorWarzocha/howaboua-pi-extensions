@@ -2,34 +2,26 @@
   "name": "@pi-extensions-dev/super-ralph",
   "version": "0.1.0",
   "description": "Super Ralph - The ultimate iterative development loop for Pi",
+  "keywords": [
+    "loop",
+    "pi-extension",
+    "pi-package",
+    "ralph"
+  ],
+  "license": "MIT",
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md",
+    "src"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": [
-    "dist",
-    "src",
-    "README.md",
-    "LICENSE"
-  ],
   "scripts": {
     "build": "tsc",
     "check": "tsc --noEmit",
     "clean": "rm -rf dist"
-  },
-  "keywords": [
-    "pi-package",
-    "pi-extension",
-    "ralph",
-    "loop"
-  ],
-  "license": "MIT",
-  "pi": {
-    "extensions": [
-      "./src/index.ts"
-    ]
-  },
-  "peerDependencies": {
-    "@mariozechner/pi-coding-agent": "*"
   },
   "dependencies": {
     "@sinclair/typebox": "^0.34.41"
@@ -39,5 +31,13 @@
     "@mariozechner/pi-tui": "*",
     "@types/node": "^24.3.0",
     "typescript": "^5.9.3"
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*"
+  },
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
   }
 }

@@ -13,7 +13,9 @@ export async function configure(ctx: { cwd: string; ui: Ui }): Promise<void> {
   while (true) {
     const rows = tasks.map((task) => {
       const model = conf.models[task.id] ? ` (${conf.models[task.id]})` : " (default)";
-      const think = conf.thinking[task.id] ? ` | thinking=${conf.thinking[task.id]}` : " | thinking=default";
+      const think = conf.thinking[task.id]
+        ? ` | thinking=${conf.thinking[task.id]}`
+        : " | thinking=default";
       return `${task.title}${model}${think}`;
     });
     rows.push("Done");
@@ -39,7 +41,7 @@ export async function configure(ctx: { cwd: string; ui: Ui }): Promise<void> {
     }
     const levels = ["default", "off", "minimal", "low", "medium", "high", "xhigh"];
     const cur = conf.thinking[task.id] ?? "default";
-    const opts = levels.map((item) => item === cur ? `${item} (current)` : item);
+    const opts = levels.map((item) => (item === cur ? `${item} (current)` : item));
     const effort = await pick(opts, `Thinking variant for ${task.title}`, ctx.ui);
     if (!effort) {
       continue;

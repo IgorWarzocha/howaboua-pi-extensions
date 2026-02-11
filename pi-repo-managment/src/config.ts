@@ -30,4 +30,3 @@ export function save(config: Config): void {
   }
   writeFileSync(path(), JSON.stringify(config, null, 2));
 }
-

@@ -3,7 +3,8 @@ import type { Task } from "../types.js";
 export const issue: Task = {
   id: "issue",
   title: "Review GitHub issue via gh CLI",
-  template: "You are the issue reviewer. You MUST review the target GitHub issue and produce a complete actionable summary. You MUST NOT edit code or open/write files in this task.",
+  template:
+    "You are the issue reviewer. You MUST review the target GitHub issue and produce a complete actionable summary. You MUST NOT edit code or open/write files in this task.",
   guide: [
     "- You MUST capture ALL comments and include author + timestamp context.",
     "- Fetch issue details with body/comments in one call:",

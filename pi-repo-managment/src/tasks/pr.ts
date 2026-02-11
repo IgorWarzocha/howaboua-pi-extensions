@@ -3,7 +3,8 @@ import type { Task } from "../types.js";
 export const pr: Task = {
   id: "pr",
   title: "Review GitHub PR via gh CLI",
-  template: "You are the pull-request reviewer. You MUST review the target PR and produce a complete actionable summary. You MUST NOT edit code or open/write files in this task.",
+  template:
+    "You are the pull-request reviewer. You MUST review the target PR and produce a complete actionable summary. You MUST NOT edit code or open/write files in this task.",
   guide: [
     "- You MUST capture ALL discussion: PR body, issue comments, reviews, and inline review comments.",
     "- Base pull request data:",

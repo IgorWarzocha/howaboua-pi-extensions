@@ -9,21 +9,26 @@ export function renderReadResult(result: any, options: { expanded?: boolean }, t
     for (let i = 0; i < filesDetails.length; i++) {
       const detail = filesDetails[i];
       if (detail.error) {
-        container.addChild(new Text(theme.fg("error", `read ${detail.path}\nERROR: ${detail.error}`), 0, 0));
+        container.addChild(
+          new Text(theme.fg("error", `read ${detail.path}\nERROR: ${detail.error}`), 0, 0),
+        );
         continue;
       }
 
       const startLine = detail.offset ?? 1;
-      const range = detail.offset !== undefined || detail.limit !== undefined
-        ? `:${startLine}${detail.limit !== undefined ? `-${startLine + detail.limit - 1}` : ""}`
-        : "";
+      const range =
+        detail.offset !== undefined || detail.limit !== undefined
+          ? `:${startLine}${detail.limit !== undefined ? `-${startLine + detail.limit - 1}` : ""}`
+          : "";
       const imageSuffix = detail.mimeType ? theme.fg("muted", ` [${detail.mimeType}]`) : "";
       const line = `${theme.fg("toolTitle", theme.bold("read"))} ${theme.fg("accent", detail.path)}${theme.fg("warning", range)}${imageSuffix}`;
       container.addChild(new Text(line, 0, 0));
     }
 
     if (filesDetails.length > 0) {
-      container.addChild(new Text(theme.fg("muted", `(${keyHint("expandTools", "to expand output")})`), 0, 0));
+      container.addChild(
+        new Text(theme.fg("muted", `(${keyHint("expandTools", "to expand output")})`), 0, 0),
+      );
     }
     return container;
   }
@@ -33,7 +38,9 @@ export function renderReadResult(result: any, options: { expanded?: boolean }, t
   for (let i = 0; i < filesDetails.length; i++) {
     const detail = filesDetails[i];
     if (detail.error) {
-      container.addChild(new Text(theme.fg("error", `--- ${detail.path} ---\nERROR: ${detail.error}`), 0, 0));
+      container.addChild(
+        new Text(theme.fg("error", `--- ${detail.path} ---\nERROR: ${detail.error}`), 0, 0),
+      );
       continue;
     }
 

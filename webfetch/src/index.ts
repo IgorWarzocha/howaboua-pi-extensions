@@ -2,11 +2,11 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import TurndownService from "turndown";
-import { 
-  truncateHead, 
-  DEFAULT_MAX_BYTES, 
-  DEFAULT_MAX_LINES, 
-  formatSize 
+import {
+  truncateHead,
+  DEFAULT_MAX_BYTES,
+  DEFAULT_MAX_LINES,
+  formatSize,
 } from "@mariozechner/pi-coding-agent";
 
 const MAX_RESPONSE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -36,9 +36,10 @@ export default function (pi: ExtensionAPI) {
       url: Type.String({ description: "The URL to fetch content from" }),
       format: Type.Optional(
         StringEnum(["text", "markdown", "html"] as const, {
-          description: "The format to return the content in (text, markdown, or html). Defaults to markdown.",
+          description:
+            "The format to return the content in (text, markdown, or html). Defaults to markdown.",
           default: "markdown",
-        })
+        }),
       ),
       timeout: Type.Optional(Type.Number({ description: "Optional timeout in seconds (max 120)" })),
     }),
@@ -60,13 +61,15 @@ export default function (pi: ExtensionAPI) {
       let acceptHeader = "*/*";
       switch (format) {
         case "markdown":
-          acceptHeader = "text/markdown;q=1.0, text/x-markdown;q=0.9, text/plain;q=0.8, text/html;q=0.7, */*;q=0.1";
+          acceptHeader =
+            "text/markdown;q=1.0, text/x-markdown;q=0.9, text/plain;q=0.8, text/html;q=0.7, */*;q=0.1";
           break;
         case "text":
           acceptHeader = "text/plain;q=1.0, text/markdown;q=0.9, text/html;q=0.8, */*;q=0.1";
           break;
         case "html":
-          acceptHeader = "text/html;q=1.0, application/xhtml+xml;q=0.9, text/plain;q=0.8, text/markdown;q=0.7, */*;q=0.1";
+          acceptHeader =
+            "text/html;q=1.0, application/xhtml+xml;q=0.9, text/plain;q=0.8, text/markdown;q=0.7, */*;q=0.1";
           break;
       }
 
@@ -83,7 +86,10 @@ export default function (pi: ExtensionAPI) {
 
         // Retry with honest UA if blocked by Cloudflare bot detection
         if (response.status === 403 && response.headers.get("cf-mitigated") === "challenge") {
-          response = await fetch(url, { signal: fetchSignal, headers: { ...headers, "User-Agent": "pi-extension" } });
+          response = await fetch(url, {
+            signal: fetchSignal,
+            headers: { ...headers, "User-Agent": "pi-extension" },
+          });
         }
 
         clearTimeout(timeoutId);
@@ -161,7 +167,9 @@ async function extractTextFromHTML(html: string) {
     })
     .on("*", {
       element(element) {
-        if (!["script", "style", "noscript", "iframe", "object", "embed"].includes(element.tagName)) {
+        if (
+          !["script", "style", "noscript", "iframe", "object", "embed"].includes(element.tagName)
+        ) {
           skipContent = false;
         }
       },

@@ -10,6 +10,8 @@
     "@sinclair/typebox": "latest"
   },
   "pi": {
-    "extensions": ["./src/index.ts"]
+    "extensions": [
+      "./src/index.ts"
+    ]
   }
 }

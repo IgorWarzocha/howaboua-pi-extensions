@@ -16,9 +16,8 @@ function formatDiffLine(
   width: number,
   text: string,
 ): string {
-  const num = lineNumber === undefined
-    ? "".padStart(width, " ")
-    : String(lineNumber).padStart(width, " ");
+  const num =
+    lineNumber === undefined ? "".padStart(width, " ") : String(lineNumber).padStart(width, " ");
   return `${prefix}${num} ${text}`;
 }
 
@@ -29,7 +28,11 @@ export function buildNumberedDiff(oldContent: string, newContent: string): strin
   if (oldLines.length === 0 && newLines.length === 0) return "";
 
   let start = 0;
-  while (start < oldLines.length && start < newLines.length && oldLines[start] === newLines[start]) {
+  while (
+    start < oldLines.length &&
+    start < newLines.length &&
+    oldLines[start] === newLines[start]
+  ) {
     start += 1;
   }
 
@@ -85,15 +88,21 @@ export function formatSummary(summary: ApplySummary): string {
   return `${lines.join("\n")}\n`;
 }
 
-export function renderApplyPatchCall(args: unknown, parsePatch: (text: string) => any[], theme: any): Text {
-  const patchText = typeof (args as { patchText?: unknown })?.patchText === "string"
-    ? ((args as { patchText?: string }).patchText ?? "")
-    : "";
+export function renderApplyPatchCall(
+  args: unknown,
+  parsePatch: (text: string) => any[],
+  theme: any,
+): Text {
+  const patchText =
+    typeof (args as { patchText?: unknown })?.patchText === "string"
+      ? ((args as { patchText?: string }).patchText ?? "")
+      : "";
 
   if (!patchText) {
     return new Text(
       `${theme.fg("toolTitle", theme.bold("apply_patch"))} ${theme.fg("muted", "(awaiting patch)")}`,
-      0, 0,
+      0,
+      0,
     );
   }
 
@@ -108,13 +117,15 @@ export function renderApplyPatchCall(args: unknown, parsePatch: (text: string) =
     const opSummary = `A:${addCount} M:${updateCount} D:${deleteCount}`;
     return new Text(
       `${theme.fg("toolTitle", theme.bold("apply_patch"))} ${theme.fg("muted", `(${opSummary})`)}` +
-      `${preview ? `\n${theme.fg("accent", preview)}${theme.fg("muted", suffix)}` : ""}`,
-      0, 0,
+        `${preview ? `\n${theme.fg("accent", preview)}${theme.fg("muted", suffix)}` : ""}`,
+      0,
+      0,
     );
   } catch {
     return new Text(
       `${theme.fg("toolTitle", theme.bold("apply_patch"))} ${theme.fg("muted", "(patching)")}`,
-      0, 0,
+      0,
+      0,
     );
   }
 }
@@ -136,7 +147,9 @@ export function renderApplyPatchResult(
   }
 
   let output = textContent
-    ? (result.isError ? textContent : theme.fg("toolOutput", textContent))
+    ? result.isError
+      ? textContent
+      : theme.fg("toolOutput", textContent)
     : "";
   const summary = result.details as ApplySummary | undefined;
   const fileDiffs = summary?.fileDiffs ?? [];

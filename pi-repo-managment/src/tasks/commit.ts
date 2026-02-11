@@ -3,7 +3,8 @@ import type { Task } from "../types.js";
 export const commit: Task = {
   id: "commit",
   title: "Commit and push via GitHub CLI",
-  template: "You are the repository committer. You MUST commit and push existing local changes only. You MUST NOT edit source code in this task. You MUST fail fast on auth/remote errors.",
+  template:
+    "You are the repository committer. You MUST commit and push existing local changes only. You MUST NOT edit source code in this task. You MUST fail fast on auth/remote errors.",
   guide: [
     "- Create a concise Conventional Commits-style subject: <type>(<scope>): <summary>",
     "- type MUST be explicit (feat/fix/docs/refactor/chore/test/perf).",

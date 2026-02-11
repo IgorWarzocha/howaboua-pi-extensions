@@ -40,12 +40,20 @@ export function label(model: Model): string {
 
 export async function choose(list: Model[], title: string, ui: Ui): Promise<string | undefined> {
   while (true) {
-    const query = await ui.input(`${title} filter`, "Type provider/id/name substring; leave empty for all");
+    const query = await ui.input(
+      `${title} filter`,
+      "Type provider/id/name substring; leave empty for all",
+    );
     if (query === undefined) {
       return undefined;
     }
     const q = query.trim().toLowerCase();
-    const rows = q.length === 0 ? list : list.filter((item) => `${item.provider}/${item.id} ${item.name}`.toLowerCase().includes(q));
+    const rows =
+      q.length === 0
+        ? list
+        : list.filter((item) =>
+            `${item.provider}/${item.id} ${item.name}`.toLowerCase().includes(q),
+          );
     if (rows.length === 0) {
       const again = await pick(["Try again", "Cancel"], `${title}\nNo models matched`, ui);
       if (again === "Try again") {
@@ -76,4 +84,3 @@ export async function choose(list: Model[], title: string, ui: Ui): Promise<stri
     return picked.slice(0, at);
   }
 }
-

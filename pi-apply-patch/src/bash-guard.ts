@@ -39,9 +39,15 @@ export function detectBashWriteViolation(command: string): string | null {
     // Skip leading env assignments (VAR=val cmd) and command prefixes
     while (true) {
       const envMatch = rest.match(/^\w+=\S*\s+/);
-      if (envMatch) { rest = rest.slice(envMatch[0].length); continue; }
+      if (envMatch) {
+        rest = rest.slice(envMatch[0].length);
+        continue;
+      }
       const prefixMatch = rest.match(/^(?:sudo|env|command|exec|nice|nohup|time|xargs)\s+/);
-      if (prefixMatch) { rest = rest.slice(prefixMatch[0].length); continue; }
+      if (prefixMatch) {
+        rest = rest.slice(prefixMatch[0].length);
+        continue;
+      }
       break;
     }
 

@@ -1,7 +1,7 @@
 import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { spawnSync } from "node:child_process";
+import { execSync, spawnSync } from "node:child_process";
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 
@@ -195,8 +195,17 @@ function ensureDaemonReady(): EnsureDaemonResult {
 	};
 }
 
+function detectWorkspace(): string {
+    try {
+        const raw = execSync("hyprctl activeworkspace -j", { encoding: "utf-8", timeout: 2000 });
+        return String(JSON.parse(raw).id ?? "");
+    } catch {
+        return "";
+    }
+}
+
 function registerInstance(pi: ExtensionAPI, ctx: ExtensionContext): { ok: boolean; message: string; ensure: EnsureDaemonResult } {
-	const ensure = ensureDaemonReady();
+    const ensure = ensureDaemonReady();
 	if (!ensure.ok) {
 		return { ok: false, message: ensure.message, ensure };
 	}
@@ -230,11 +239,13 @@ function registerInstance(pi: ExtensionAPI, ctx: ExtensionContext): { ok: boolea
 		process.env.DISPLAY ?? "",
 		"--wayland-display",
 		process.env.WAYLAND_DISPLAY ?? "",
-		"--dbus-session-bus-address",
-		process.env.DBUS_SESSION_BUS_ADDRESS ?? "",
-		"--xdg-runtime-dir",
-		process.env.XDG_RUNTIME_DIR ?? "",
-	]);
+        "--dbus-session-bus-address",
+        process.env.DBUS_SESSION_BUS_ADDRESS ?? "",
+        "--xdg-runtime-dir",
+        process.env.XDG_RUNTIME_DIR ?? "",
+        "--workspace",
+        detectWorkspace(),
+    ]);
 
 	if (!register.ok) {
 		return { ok: false, message: `register failed: ${register.stderr || register.stdout}`, ensure };

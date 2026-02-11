@@ -3,7 +3,8 @@ import type { Task } from "../types.js";
 export const docs: Task = {
   id: "docs",
   title: "Create or update user-facing README.md",
-  template: "You are the documentation editor. You MUST produce a user-facing guide first. You MUST NOT prioritize maintainer/developer internals over user onboarding. You MUST edit documentation files only in this task.",
+  template:
+    "You are the documentation editor. You MUST produce a user-facing guide first. You MUST NOT prioritize maintainer/developer internals over user onboarding. You MUST edit documentation files only in this task.",
   guide: [
     "- Optimize for end users who want to install and use the project quickly.",
     "- Start with: project purpose, what it does, and who it is for.",

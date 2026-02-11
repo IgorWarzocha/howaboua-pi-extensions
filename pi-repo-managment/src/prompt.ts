@@ -13,7 +13,13 @@ function ref(task: Task, repo: Repo | undefined, number: number | undefined): st
   return "";
 }
 
-export function build(task: Task, effort: string | undefined, repo: Repo | undefined, number: number | undefined, extra: string | undefined): string {
+export function build(
+  task: Task,
+  effort: string | undefined,
+  repo: Repo | undefined,
+  number: number | undefined,
+  extra: string | undefined,
+): string {
   const repoText = repo
     ? `Repository requirement: You MUST operate only within local path '${repo.path}'. You MUST treat this as the target repository for the entire task.${repo.slug ? ` For GitHub operations, use repository '${repo.slug}' and pass --repo ${repo.slug} when needed.` : ""}\n\n`
     : "";

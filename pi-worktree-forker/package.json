@@ -2,38 +2,38 @@
   "name": "@pi-extensions-dev/pi-worktree-forker",
   "version": "0.1.0",
   "description": "Automagically create git worktrees when forking a session in Pi",
+  "keywords": [
+    "git",
+    "pi-extension",
+    "pi-package",
+    "worktree"
+  ],
+  "license": "MIT",
+  "files": [
+    "dist",
+    "PRD.md",
+    "README.md",
+    "src"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": [
-    "dist",
-    "src",
-    "README.md",
-    "PRD.md"
-  ],
   "scripts": {
     "build": "tsc",
     "check": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
-  "keywords": [
-    "pi-package",
-    "pi-extension",
-    "git",
-    "worktree"
-  ],
-  "license": "MIT",
-  "pi": {
-    "extensions": [
-      "./src/index.ts"
-    ]
-  },
-  "peerDependencies": {
-    "@mariozechner/pi-coding-agent": "*"
-  },
   "devDependencies": {
     "@mariozechner/pi-coding-agent": "*",
     "@types/node": "^24.3.0",
     "typescript": "^5.9.3"
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*"
+  },
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
   }
 }

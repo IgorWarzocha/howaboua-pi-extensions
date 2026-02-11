@@ -1,9 +1,11 @@
 # AGENTS
 
 ## Scope
+
 This document applies to `pi-extensions-dev/pi-apply-patch/`.
 
 ## Files
+
 - `index.ts`: Registers the extension, enables `apply_patch`, injects prompt instructions, blocks `edit`/`write`, and guards bash write attempts.
 - `src/constants.ts`: Patch markers and system prompt instruction text.
 - `src/types.ts`: Core patch/apply types and parser error classes.
@@ -16,9 +18,11 @@ This document applies to `pi-extensions-dev/pi-apply-patch/`.
 - `package.json`: Project metadata and `npm run e2e` script.
 
 ## Testing
+
 - Test command: `npm run e2e`
 - Model selection: defaults to `zai/glm-4.7`; override with `PI_E2E_MODEL=<model>`.
 
 ## Agent Rule
+
 - The agent MUST NOT run tests proactively/agentically.
 - The agent MAY run tests ONLY when the user explicitly requests testing.

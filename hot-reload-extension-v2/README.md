@@ -1,20 +1,25 @@
 # hot-reload-extension-v2
 
-In-process hot reload test extension using `ctx.reload()` (no daemon, no terminal restart).
+In-process hot reload extension using `pi.sendUserMessage("/reload")` (no daemon, no terminal restart).
 
 ## What this tests
 
-- Reload runtime directly from an extension command via `ctx.reload()`.
+- Reload runtime directly from a tool via `pi.sendUserMessage("/reload")`.
 - After reload, automatically queue a continuation prompt so work resumes immediately.
 
-This is the approach referenced by changelog/docs (`ctx.reload()` + `reload-runtime` example).
+This approach bypasses the lack of `ctx.reload()` in tool context by using the slash command.
 
-## Commands
+## Tools
+
+- `hot_reload_v2 [optional prompt]`
+  - writes pending continuation prompt to `.pi/hot-reload-v2-pending-prompt.json`
+  - sends `/reload` to the agent
+  - on next `session_start`, sends the pending prompt automatically
+
+## Commands (Slash)
 
 - `/hot-reload-v2 [optional prompt]`
-  - writes pending continuation prompt to `.pi/hot-reload-v2-pending-prompt.json`
-  - calls `ctx.reload()`
-  - on next `session_start`, sends the pending prompt automatically
+  - legacy command-path trigger (redundant if using tool)
 
 - `/hot-reload-v2-status`
   - shows whether a pending prompt file exists and its content

@@ -9,7 +9,10 @@ type Update = {
 
 function text(line: string): string {
   try {
-    const event = JSON.parse(line) as { type?: string; message?: { role?: string; content?: Array<{ type?: string; text?: string }> } };
+    const event = JSON.parse(line) as {
+      type?: string;
+      message?: { role?: string; content?: Array<{ type?: string; text?: string }> };
+    };
     if (event.type !== "message_end") {
       return "";
     }
@@ -40,7 +43,16 @@ function tool(line: string): string {
   }
 }
 
-export function run(task: Task, model: string | undefined, effort: string | undefined, cwd: string, repo: Repo | undefined, number: number | undefined, extra: string | undefined, onUpdate?: (update: Update) => void): Promise<string> {
+export function run(
+  task: Task,
+  model: string | undefined,
+  effort: string | undefined,
+  cwd: string,
+  repo: Repo | undefined,
+  number: number | undefined,
+  extra: string | undefined,
+  onUpdate?: (update: Update) => void,
+): Promise<string> {
   const args = ["--mode", "json", "--no-session", "-p", build(task, effort, repo, number, extra)];
   if (effort && effort !== "default") {
     args.unshift(effort);

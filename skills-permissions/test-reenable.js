@@ -1,4 +1,3 @@
-
 // Test: verify the regex filtering + name matching works correctly.
 //
 // Simulates the exact flow:
@@ -49,13 +48,16 @@ const getCommandsResult = [
 ];
 
 const allSkills = getCommandsResult
-  .filter(c => c.source === "skill")
-  .map(c => ({ name: bareSkillName(c.name) }));
+  .filter((c) => c.source === "skill")
+  .map((c) => ({ name: bareSkillName(c.name) }));
 
-console.log("All skills (bare names):", allSkills.map(s => s.name));
+console.log(
+  "All skills (bare names):",
+  allSkills.map((s) => s.name),
+);
 
 // Disable all, then re-enable github
-const disabledSkills = new Set(allSkills.map(s => s.name));
+const disabledSkills = new Set(allSkills.map((s) => s.name));
 disabledSkills.delete("github");
 
 console.log("Disabled:", [...disabledSkills]);
@@ -87,9 +89,10 @@ if (startIndex !== -1 && endIndex !== -1) {
   });
 
   filteredSkillsBlock = skillsBlock;
-  updatedPrompt = updatedPrompt.substring(0, startIndex + startTag.length) +
-                  skillsBlock +
-                  updatedPrompt.substring(endIndex);
+  updatedPrompt =
+    updatedPrompt.substring(0, startIndex + startTag.length) +
+    skillsBlock +
+    updatedPrompt.substring(endIndex);
 }
 
 // --- Verify results ---
@@ -110,18 +113,30 @@ console.log("PASS mermaid removed:", !hasMermaid ? "✅" : "❌ FAIL");
 console.log("PASS workflows untouched:", hasDeploy && hasWorkflowsBlock ? "✅" : "❌ FAIL");
 
 // Verify notification only scans within available_skills
-const remaining = [...filteredSkillsBlock.matchAll(/<name>(.*?)<\/name>/gi)].map(m => m[1]);
-console.log("PASS notification shows only skills:", remaining.join(", ") === "github" ? "✅" : `❌ FAIL (got: ${remaining.join(", ")})`);
+const remaining = [...filteredSkillsBlock.matchAll(/<name>(.*?)<\/name>/gi)].map((m) => m[1]);
+console.log(
+  "PASS notification shows only skills:",
+  remaining.join(", ") === "github" ? "✅" : `❌ FAIL (got: ${remaining.join(", ")})`,
+);
 
 // Test input interceptor
 const inputText = "/skill:commit some args";
 const interceptedName = inputText.slice(7).split(/\s/)[0];
-console.log("PASS input intercept extracts correct name:", interceptedName === "commit" ? "✅" : `❌ FAIL (got: ${interceptedName})`);
-console.log("PASS input intercept blocks disabled skill:", disabledSkills.has(interceptedName) ? "✅" : "❌ FAIL");
+console.log(
+  "PASS input intercept extracts correct name:",
+  interceptedName === "commit" ? "✅" : `❌ FAIL (got: ${interceptedName})`,
+);
+console.log(
+  "PASS input intercept blocks disabled skill:",
+  disabledSkills.has(interceptedName) ? "✅" : "❌ FAIL",
+);
 
 const inputText2 = "/skill:github";
 const interceptedName2 = inputText2.slice(7).split(/\s/)[0];
-console.log("PASS input intercept allows enabled skill:", !disabledSkills.has(interceptedName2) ? "✅" : "❌ FAIL");
+console.log(
+  "PASS input intercept allows enabled skill:",
+  !disabledSkills.has(interceptedName2) ? "✅" : "❌ FAIL",
+);
 
 console.log("\n--- Final prompt ---");
 console.log(updatedPrompt);

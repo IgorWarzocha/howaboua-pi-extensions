@@ -67,6 +67,7 @@ pi install npm:@pi-extensions-dev/pi-rfc-keywords-extension
 ```
 
 Use:
+
 - Write prompts naturally (`must`, `should`, `may`, `must not`).
 - The extension rewrites them as uppercase RFC keywords.
 - Slash command names are preserved; only arguments are rewritten.
@@ -96,11 +97,13 @@ pi install npm:@pi-extensions-dev/pi-remember-extension
 ```
 
 Use tools:
+
 - `remember` - store memory
 - `recall` - semantic lookup
 - `forget` - delete by memory ID
 
 Default storage:
+
 - project: `./.agents/memory/memories.sqlite`
 - global: `~/.pi/agent/memory/memories.sqlite`
 
@@ -115,6 +118,7 @@ pi install npm:@pi-extensions-dev/pi-workflows-tool
 ```
 
 Use:
+
 - `/workflow` to convert session outcomes into reusable workflow docs.
 - `workflows_create` tool for programmatic workflow creation.
 - Generated files go to `./.agents/workflows/<slug>/SKILL.md`.
@@ -130,6 +134,7 @@ pi -e /home/igorw/Work/pi/pi-extensions-dev/pi-worktree-forker/src/index.ts
 ```
 
 Use:
+
 1. Open Pi in a Git repository.
 2. Run `/fork` or press `Escape` twice on an empty editor.
 3. Pick **Create Git Worktree + Branch**.
@@ -146,6 +151,7 @@ pi -e /home/igorw/Work/pi/pi-extensions-dev/pi-agent-manager/src/index.ts
 ```
 
 Use:
+
 - Run `/agents` to create, enable/disable, edit, and delete subagents.
 - Subagents appear in `<available_subagents>` and can be called via `invoke_subagent`.
 
@@ -160,6 +166,7 @@ pi -e /home/igorw/Work/pi/pi-extensions-dev/hot-reload-extension/index.ts
 ```
 
 Use:
+
 - call `hot_reload` to restart Pi in a new terminal while resuming the same session.
 - `/reload:status` for extension and daemon status.
 - `/reload:log [lines]` for diagnostic logs.
