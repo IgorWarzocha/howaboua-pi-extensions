@@ -136,11 +136,16 @@ export function renderApplyPatchResult(
   isPartial: boolean,
   theme: any,
 ): Text {
-  const textContent = (result.content ?? [])
+  const rawTextContent = (result.content ?? [])
     .filter((block: any) => block.type === "text" && typeof block.text === "string")
     .map((block: any) => block.text ?? "")
     .join("\n")
     .trim();
+
+  const summaryLines = rawTextContent.split("\n");
+  const textContent = summaryLines.length > 0 && summaryLines[0] === "Success. Updated the following files:"
+    ? summaryLines.filter((line, index) => index === 0 || !/^[AMD] /.test(line)).join("\n").trim()
+    : rawTextContent;
 
   if (isPartial) {
     return new Text(theme.fg("warning", textContent || "Applying patch..."), 0, 0);
@@ -166,7 +171,7 @@ export function renderApplyPatchResult(
         ? `${fileDiff.status} ${fileDiff.path} (from ${fileDiff.moveFrom})`
         : `${fileDiff.status} ${fileDiff.path}`;
 
-      const renderedDiff = renderDiff(fileDiff.diff, { filePath: fileDiff.path });
+      const renderedDiff = renderDiff(fileDiff.diff);
       const diffLines = renderedDiff.split("\n");
       const visibleDiffLines = expanded ? diffLines.length : Math.min(diffLines.length, 30);
       const shownDiff = diffLines.slice(0, visibleDiffLines).join("\n");

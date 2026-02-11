@@ -291,16 +291,17 @@ export default function (pi: ExtensionAPI) {
 		description:
 			"Restart pi in a new terminal window and resume current session. Terminal operation: do not batch with other tool calls. Call this tool alone and wait for session resumption before issuing more commands.",
 		parameters: Type.Object({}),
-		async execute(_toolCallId, _params, _signal, _onUpdate, ctx) {
-			const registration = registerInstance(pi, ctx);
-			if (!registration.ok) {
+        async execute(_toolCallId, _params, _signal, _onUpdate, ctx) {
+            const workspace = detectWorkspace();
+            const registration = registerInstance(pi, ctx);
+            if (!registration.ok) {
 				return {
 					content: [{ type: "text", text: `Hot reload failed at registration: ${registration.message}` }],
 					details: { registration },
 				};
 			}
 
-			const restart = runDaemonCli(["restart", "--pid", String(process.pid)]);
+            const restart = runDaemonCli(["restart", "--pid", String(process.pid), "--workspace", workspace]);
 			if (!restart.ok) {
 				return {
 					content: [{ type: "text", text: `Hot reload failed at restart request: ${restart.stderr || restart.stdout}` }],

@@ -1,6 +1,8 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { keyHint } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
+import { Text } from "@mariozechner/pi-tui";
 import TurndownService from "turndown";
 import {
   truncateHead,
@@ -27,6 +29,33 @@ Usage notes:
   - This tool is read-only and does not modify any files
   - Results may be summarized if the content is very large`;
 
+function stripDataImageUris(input: string): string {
+  const marker = "(data:image";
+  const lower = input.toLowerCase();
+  let out = "";
+  let index = 0;
+
+  while (index < input.length) {
+    const start = lower.indexOf(marker, index);
+    if (start === -1) {
+      out += input.slice(index);
+      break;
+    }
+
+    out += input.slice(index, start);
+    const close = input.indexOf(")", start + marker.length);
+    if (close === -1) {
+      out += "(data:image omitted)";
+      break;
+    }
+
+    out += "(data:image omitted)";
+    index = close + 1;
+  }
+
+  return out;
+}
+
 export default function (pi: ExtensionAPI) {
   pi.registerTool({
     name: "webfetch",
@@ -43,6 +72,24 @@ export default function (pi: ExtensionAPI) {
       ),
       timeout: Type.Optional(Type.Number({ description: "Optional timeout in seconds (max 120)" })),
     }),
+    renderResult(result, options, theme) {
+      const textBlock = result.content.find((item) => item.type === "text");
+      if (!textBlock || textBlock.type !== "text") {
+        return new Text("", 0, 0);
+      }
+
+      const lines = textBlock.text.split("\n");
+      const details = result.details as { url?: string } | undefined;
+      if (!options.expanded) {
+        const summary = details?.url
+          ? `${theme.fg("toolTitle", theme.bold("webfetch"))} ${theme.fg("accent", details.url)}`
+          : theme.fg("toolTitle", theme.bold("webfetch"));
+        const status = theme.fg("muted", `(${lines.length} lines, ${keyHint("expandTools", "to expand output")})`);
+        return new Text(`${summary}\n${status}`, 0, 0);
+      }
+
+      return new Text(lines.map((line) => theme.fg("toolOutput", line)).join("\n"), 0, 0);
+    },
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       const url = params.url;
       const format = params.format ?? "markdown";
@@ -121,7 +168,8 @@ export default function (pi: ExtensionAPI) {
           output = await extractTextFromHTML(content);
         }
 
-        const truncation = truncateHead(output, {
+        const cleaned = stripDataImageUris(output);
+        const truncation = truncateHead(cleaned, {
           maxLines: DEFAULT_MAX_LINES,
           maxBytes: DEFAULT_MAX_BYTES,
         });

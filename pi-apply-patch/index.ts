@@ -7,6 +7,12 @@ import { applyHunks } from "./src/apply.js";
 import { renderApplyPatchCall, renderApplyPatchResult, formatSummary } from "./src/render.js";
 
 export default function applyPatchExtension(pi: ExtensionAPI) {
+  let patchCallsInTurn = 0;
+
+  pi.on("turn_start", () => {
+    patchCallsInTurn = 0;
+  });
+
   pi.on("session_start", () => {
     const current = new Set(pi.getActiveTools());
     current.add("apply_patch");
@@ -39,26 +45,33 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
         };
       }
     }
+
+    if (event.toolName === "apply_patch") {
+      if (patchCallsInTurn > 0) {
+        return {
+          block: true,
+          reason:
+            "Multiple apply_patch calls in the same turn are blocked. You MUST batch all related file changes into one apply_patch envelope. You MUST NOT emit sequential apply_patch calls for the same request.",
+        };
+      }
+      patchCallsInTurn += 1;
+    }
   });
 
   pi.registerTool({
     name: "apply_patch",
     label: "apply_patch",
     description:
-      "Apply a patch envelope containing one or more file operations (Add, Update, Move, Delete). This tool MUST be used for all file modifications and SHOULD be used to batch related changes for atomicity.",
+      "Apply a patch envelope containing one or more file operations (Add, Update, Move, Delete). This tool MUST be used for all file modifications. You MUST include all related changes for a request in one call unless payload limits require splitting.",
     renderCall(args, theme) {
       return renderApplyPatchCall(args, parsePatch, theme);
     },
     renderResult(result, options, theme) {
-      const text = renderApplyPatchResult(result, options.expanded, options.isPartial, theme);
-      if (result.isError) {
-        text.text = theme.fg("error", text.text);
-      }
-      return text;
+      return renderApplyPatchResult(result, options.expanded, options.isPartial, theme);
     },
     parameters: Type.Object({
       patchText: Type.String({
-        description: "Patch text containing *** Begin Patch ... *** End Patch",
+        description: "Patch text containing *** Begin Patch ... *** End Patch. It MUST include all related file operations for the current request in a single atomic envelope when feasible.",
       }),
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {

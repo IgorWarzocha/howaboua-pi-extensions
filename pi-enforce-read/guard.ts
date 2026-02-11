@@ -1,18 +1,24 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 
 const FORBIDDEN_BASH_READ_PATTERNS = [
-  /\bcat\b/,
-  /\bhead\b/,
-  /\btail\b/,
-  /\bless\b/,
-  /\bmore\b/,
-  /\bnl\b/,
-  /\bsed\b.*\bp\b/,
+  /^(?:\s*(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*)?(?:cat|head|tail|less|more|nl)\b/,
+  /^(?:\s*(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*)?sed\b(?=.*(?:^|\s)-n(?:\s|$))(?=.*\bp(?:\s|$|'|"))/,
 ];
 
 function shouldBlockBashRead(command: string): boolean {
   const normalized = command.trim().toLowerCase();
-  return FORBIDDEN_BASH_READ_PATTERNS.some((pattern) => pattern.test(normalized));
+  const chains = normalized
+    .split(/&&|\|\||;/g)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  for (const chain of chains) {
+    const firstSegment = chain.split("|")[0].trim();
+    const isForbidden = FORBIDDEN_BASH_READ_PATTERNS.some((pattern) => pattern.test(firstSegment));
+    if (isForbidden) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function getToolBlockReason(toolName: string): string | null {

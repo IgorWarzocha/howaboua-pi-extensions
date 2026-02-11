@@ -19,7 +19,10 @@ const M3 = "\x2a\x2a\x2a";
 export const APPLY_PATCH_PROMPT_INSTRUCTIONS = [
   "## apply_patch",
   "",
-  "The apply_patch tool MUST be used for all file modifications. You SHOULD batch multiple related changes into a single call to ensure atomicity and efficiency.",
+  "The apply_patch tool MUST be used for all file modifications.",
+  "You MUST include all related file modifications for a user request in a single apply_patch call.",
+  "You MUST NOT split related edits across sequential apply_patch calls unless the patch is too large to send safely.",
+  "If a patch is too large, you MUST split by independent files and explain the split briefly.",
   "",
   "### Patch Envelope Structure",
   "A patch MUST start with a Begin marker and end with an End marker. Between these markers, you MAY include one or more file sections.",
@@ -64,5 +67,8 @@ export const APPLY_PATCH_PROMPT_INSTRUCTIONS = [
   "- You SHALL NOT use bash for file edits (no sed -i, tee, echo >, printf >, etc.).",
   "- All file paths MUST be relative to the current working directory.",
   "- Every line in an Add File block MUST start with '+'. Use '+' alone for blank lines.",
-  "- You SHOULD split very large new files (>500 lines) into multiple sequential calls.",
+  "- You MUST prefer one atomic patch call per request.",
+  "- You MAY split only when payload size or model limits require it.",
+  "- If splitting is required, each call MUST contain a complete file section set for independent files.",
+  "- You MUST NOT emit one apply_patch call per tiny edit when one envelope can contain all changes.",
 ].join("\n");

@@ -6,7 +6,7 @@ export function renderReadResult(result: any, options: { expanded?: boolean }, t
   const filesDetails = result.details?.files || [];
 
   if (!options.expanded) {
-    for (let i = 0; i < filesDetails.length; i++) {
+  for (let i = 0; i < filesDetails.length; i++) {
       const detail = filesDetails[i];
       if (detail.error) {
         container.addChild(
@@ -21,7 +21,13 @@ export function renderReadResult(result: any, options: { expanded?: boolean }, t
           ? `:${startLine}${detail.limit !== undefined ? `-${startLine + detail.limit - 1}` : ""}`
           : "";
       const imageSuffix = detail.mimeType ? theme.fg("muted", ` [${detail.mimeType}]`) : "";
-      const line = `${theme.fg("toolTitle", theme.bold("read"))} ${theme.fg("accent", detail.path)}${theme.fg("warning", range)}${imageSuffix}`;
+      const searchSuffix = detail.search
+        ? theme.fg(
+            "muted",
+            ` search=${detail.regex ? "/" : "\""}${detail.search}${detail.regex ? "/" : "\""}${typeof detail.matches === "number" ? ` matches=${detail.matches}` : ""}`,
+          )
+        : "";
+      const line = `${theme.fg("toolTitle", theme.bold("read"))} ${theme.fg("accent", detail.path)}${theme.fg("warning", range)}${imageSuffix}${searchSuffix}`;
       container.addChild(new Text(line, 0, 0));
     }
 
@@ -60,7 +66,10 @@ export function renderReadResult(result: any, options: { expanded?: boolean }, t
     const displayLines = lines.slice(0, maxLines);
     const remaining = lines.length - maxLines;
 
-    let text = theme.fg("accent", `--- ${detail.path} ---\n`);
+    let text = "";
+    if (filesDetails.length > 1) {
+      text += theme.fg("accent", `--- ${detail.path} ---\n`);
+    }
     text += displayLines.map((line: string) => theme.fg("toolOutput", line)).join("\n");
 
     if (remaining > 0) {

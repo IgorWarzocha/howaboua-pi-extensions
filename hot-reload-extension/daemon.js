@@ -17,7 +17,7 @@ const SOCK_PATH = path.join(BASE_DIR, `pi-hot-reloadd-${UID}.sock`);
 const STATE_PATH = path.join(BASE_DIR, `pi-hot-reloadd-${UID}.json`);
 const LOG_PATH = path.join(BASE_DIR, `pi-hot-reloadd-${UID}.log`);
 const LOG_ENABLED = /^(1|true|yes|on)$/i.test(process.env.PI_HOT_RELOAD_LOG ?? "");
-const CLOSE_OLD_TERMINAL_RAW = (process.env.PI_HOT_RELOAD_CLOSE_OLD_TERMINAL ?? "safe").trim();
+const CLOSE_OLD_TERMINAL_RAW = (process.env.PI_HOT_RELOAD_CLOSE_OLD_TERMINAL ?? "force").trim();
 const CLOSE_OLD_TERMINAL_MODE = /^(0|false|no|off)$/i.test(CLOSE_OLD_TERMINAL_RAW)
 	? "off"
 	: /^(force|aggressive)$/i.test(CLOSE_OLD_TERMINAL_RAW)
@@ -174,8 +174,8 @@ function detectTerminal(termProgram) {
 }
 
 function launchInNewTerminal({
-	cwd,
-	sessionFile,
+    cwd,
+    sessionFile,
 	termProgram,
 	modelProvider,
 	modelId,
@@ -184,14 +184,10 @@ function launchInNewTerminal({
   waylandDisplay,
   dbusSessionBusAddress,
   xdgRuntimeDir,
-  workspace,
+    workspace,
 }) {
-  if (workspace) {
-    spawnSync("hyprctl", ["dispatch", "workspace", String(workspace)], { stdio: "ignore", timeout: 2000 });
-  }
-
-  const terminal = detectTerminal(termProgram);
-	const piBinary = process.env.PI_HOT_RELOAD_PI_BIN || "pi";
+    const terminal = detectTerminal(termProgram);
+    const piBinary = process.env.PI_HOT_RELOAD_PI_BIN || "pi";
 	const providerArg = modelProvider ? ` --provider ${shellQuote(modelProvider)}` : "";
 	const modelArg = modelId ? ` --model ${shellQuote(modelId)}` : "";
 	const thinkingArg = thinking ? ` --thinking ${shellQuote(thinking)}` : "";
@@ -224,13 +220,26 @@ function launchInNewTerminal({
 	} else if (terminal === "xterm") {
 		cmd = "xterm";
 		args = ["-e", "bash", "-lc", command];
-	} else {
-		cmd = "xdg-terminal-exec";
-		args = ["bash", "-lc", command];
-	}
+    } else {
+        cmd = "xdg-terminal-exec";
+        args = ["bash", "-lc", command];
+    }
 
-	const child = spawn(cmd, args, {
-		detached: true,
+    if (workspace) {
+        const launch = `${cmd} ${args.map((value) => shellQuote(value)).join(" ")}`;
+        const exec = spawnSync("hyprctl", ["dispatch", "exec", `[workspace ${String(workspace)} silent] ${launch}`], {
+            env: launchEnv,
+            stdio: "ignore",
+            timeout: 2000,
+        });
+        if (exec.status === 0) {
+            log("launched", { terminal: "hyprctl-exec", workspace: String(workspace), cwd, sessionFile, resumePrompt: RESUME_PROMPT });
+            return;
+        }
+    }
+
+    const child = spawn(cmd, args, {
+        detached: true,
 		stdio: "ignore",
 		env: launchEnv,
 	});
@@ -314,18 +323,24 @@ function handleRequest(message) {
 		return { ok: true, socketPath: SOCK_PATH };
 	}
 
-	if (message.type === "restart") {
-		const key = String(message.pid);
-		const instance = state.instances[key];
+    if (message.type === "restart") {
+        const key = String(message.pid);
+        const instance = state.instances[key];
 		if (!instance) {
 			return { ok: false, error: `instance ${key} not registered` };
 		}
-		if (!instance.sessionFile) {
-			return { ok: false, error: `instance ${key} has no sessionFile` };
-		}
-		performRestart(instance);
-		log("restart-request", { pid: instance.pid, sessionFile: instance.sessionFile });
-		return { ok: true, queued: true };
+        if (!instance.sessionFile) {
+            return { ok: false, error: `instance ${key} has no sessionFile` };
+        }
+        if (message.workspace) {
+            instance.workspace = String(message.workspace);
+        }
+        instance.updatedAt = new Date().toISOString();
+        state.instances[key] = instance;
+        writeState(state);
+        performRestart(instance);
+        log("restart-request", { pid: instance.pid, sessionFile: instance.sessionFile });
+        return { ok: true, queued: true };
 	}
 
 	if (message.type === "status") {
@@ -512,12 +527,12 @@ async function main() {
 		return;
 	}
 
-	if (cmd === "restart") {
-		await ensureDaemon();
-		const response = await sendMessage({ type: "restart", pid: Number(flags.pid) });
-		console.log(JSON.stringify(response));
-		process.exit(response.ok ? 0 : 1);
-		return;
+    if (cmd === "restart") {
+        await ensureDaemon();
+        const response = await sendMessage({ type: "restart", pid: Number(flags.pid), workspace: flags.workspace });
+        console.log(JSON.stringify(response));
+        process.exit(response.ok ? 0 : 1);
+        return;
 	}
 
 	if (cmd === "status") {

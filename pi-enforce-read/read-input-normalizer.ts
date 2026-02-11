@@ -25,6 +25,17 @@ export function normalizeFilesInput(input: unknown): FileInput[] {
   } else if (
     typeof normalizedInput === "object" &&
     normalizedInput !== null &&
+    "files" in normalizedInput &&
+    Array.isArray((normalizedInput as { files: unknown }).files)
+  ) {
+    const files = (normalizedInput as { files: unknown[] }).files;
+    normalizedFiles = files.map((file) => {
+      if (typeof file === "string") return { path: file };
+      return file as FileInput;
+    });
+  } else if (
+    typeof normalizedInput === "object" &&
+    normalizedInput !== null &&
     "path" in normalizedInput
   ) {
     normalizedFiles = [normalizedInput as FileInput];
