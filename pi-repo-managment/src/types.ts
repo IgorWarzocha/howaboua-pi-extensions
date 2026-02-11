@@ -2,7 +2,7 @@ export type Task = {
   id: string;
   title: string;
   template: string;
-  skills: string[];
+  guide: string[];
   mode: "local" | "gh-commit" | "gh-issue" | "gh-pr";
 };
 
@@ -27,4 +27,3 @@ export type Repo = {
   path: string;
   slug: string;
 };
-

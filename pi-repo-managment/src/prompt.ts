@@ -1,5 +1,4 @@
 import type { Repo, Task } from "./types.js";
-import { skill } from "./tasks.js";
 
 function ref(task: Task, repo: Repo | undefined, number: number | undefined): string {
   if (!repo || !number) {
@@ -22,15 +21,6 @@ export function build(task: Task, effort: string | undefined, repo: Repo | undef
   const target = ref(task, repo, number);
   const targetText = target ? `${target}\n\n` : "";
   const extraText = extra && extra.trim().length > 0 ? `User addendum: ${extra.trim()}\n\n` : "";
-  const rows = task.skills
-    .map((name) => {
-      const body = skill[name];
-      if (!body) {
-        return "";
-      }
-      return `Skill guidance (${name})\n${body}`;
-    })
-    .filter((item) => item.length > 0);
-  const tail = rows.length > 0 ? `\n\n${rows.join("\n\n")}` : "";
+  const tail = task.guide.length > 0 ? `\n\n${task.guide.join("\n")}` : "";
   return `${head}${repoText}${targetText}${extraText}${task.template}${tail}`;
 }

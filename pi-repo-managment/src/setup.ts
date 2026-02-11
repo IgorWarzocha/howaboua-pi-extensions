@@ -1,6 +1,6 @@
 import { load, save } from "./config.js";
 import { choose, detect } from "./models.js";
-import { tasks } from "./tasks.js";
+import { tasks } from "./tasks/index.js";
 import type { Ui } from "./types.js";
 import { pick } from "./ui.js";
 
@@ -52,4 +52,3 @@ export async function configure(ctx: { cwd: string; ui: Ui }): Promise<void> {
     conf.thinking[task.id] = next;
   }
 }
-

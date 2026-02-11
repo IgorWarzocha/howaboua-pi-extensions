@@ -3,7 +3,7 @@ import { load } from "./config.js";
 import { configure } from "./setup.js";
 import { pick } from "./ui.js";
 import { run } from "./run.js";
-import { setup, tasks } from "./tasks.js";
+import { setup, tasks } from "./tasks/index.js";
 import { ensure } from "./repos.js";
 import { parse } from "./args.js";
 
