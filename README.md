@@ -1,199 +1,109 @@
 # Pi Extensions Dev
 
-A collection of Pi extensions that add practical features like long-term memory, workflow capture, Git worktree forking, RFC keyword normalization, and agent management.
+A collection of user-ready extensions for Pi to add features like memory, workflows, Git automation, and advanced agent management.
 
-This repository is for Pi users who want to quickly add capabilities to their Pi setup, and for people testing extension ideas locally.
+## Project Purpose
+
+This repository provides a set of modular capabilities that enhance the Pi coding agent. It is designed for users who want to add robust, local-first features to their AI assistant and for developers prototyping new extension patterns.
 
 ## Quick Start
 
-Install and use one extension in under a minute:
+Enable any extension by passing its path when starting Pi:
 
 ```bash
-cd /home/igorw/Work/pi/pi-extensions-dev
 pi -e /home/igorw/Work/pi/pi-extensions-dev/pi-rfc-keywords-extension/src/index.ts
 ```
 
-Then send a prompt with words like `must`, `should not`, or `may` and the extension will normalize them to RFC uppercase forms.
-
-## What is in this repo
-
-User-ready extensions with documentation:
-
-- `pi-rfc-keywords-extension` - normalizes RFC 2119/8174 keywords in prompts.
-- `pi-remember-extension` - local semantic memory (`remember`, `recall`, `forget`).
-- `pi-workflows-tool` - workflow creation and workflow context injection.
-- `pi-worktree-forker` - creates a Git worktree/branch when forking sessions.
-- `pi-agent-manager` - manage subagents and skill permissions.
-- `hot-reload-extension` - restart Pi into a new terminal while continuing the same session.
-
-Other folders are experiments, internal tooling, or in-progress extensions.
-
-## Installation
-
-You can run extensions directly from this repository path, or install published packages when available.
-
-### Option A: Local path (works immediately)
-
-From any project where you run Pi:
-
-```bash
-pi -e /home/igorw/Work/pi/pi-extensions-dev/<extension>/src/index.ts
-```
-
-Example:
-
-```bash
-pi -e /home/igorw/Work/pi/pi-extensions-dev/pi-remember-extension/src/index.ts
-```
-
-### Option B: Install from npm (published extensions)
-
-```bash
-pi install npm:@pi-extensions-dev/pi-remember-extension
-pi install npm:@pi-extensions-dev/pi-rfc-keywords-extension
-pi install npm:@pi-extensions-dev/pi-workflows-tool
-```
-
-## Usage
-
-## 1) RFC Keywords Extension
-
-Path: `pi-rfc-keywords-extension`
-
-Install:
-
-```bash
-pi install npm:@pi-extensions-dev/pi-rfc-keywords-extension
-```
-
-Use:
-
-- Write prompts naturally (`must`, `should`, `may`, `must not`).
-- The extension rewrites them as uppercase RFC keywords.
-- Slash command names are preserved; only arguments are rewritten.
-
-Example:
-
-Input:
-
-```text
-must not use console logs; should return early
-```
-
-Output behavior:
-
-```text
-MUST NOT use console logs; SHOULD return early
-```
-
-## 2) Remember Extension
-
-Path: `pi-remember-extension`
-
-Install:
-
-```bash
-pi install npm:@pi-extensions-dev/pi-remember-extension
-```
-
-Use tools:
-
-- `remember` - store memory
-- `recall` - semantic lookup
-- `forget` - delete by memory ID
-
-Default storage:
-
-- project: `./.agents/memory/memories.sqlite`
-- global: `~/.pi/agent/memory/memories.sqlite`
-
-## 3) Workflows Tool
-
-Path: `pi-workflows-tool`
-
-Install:
-
-```bash
-pi install npm:@pi-extensions-dev/pi-workflows-tool
-```
-
-Use:
-
-- `/workflow` to convert session outcomes into reusable workflow docs.
-- `workflows_create` tool for programmatic workflow creation.
-- Generated files go to `./.agents/workflows/<slug>/SKILL.md`.
-
-## 4) Worktree Forker
-
-Path: `pi-worktree-forker`
-
-Run locally:
-
-```bash
-pi -e /home/igorw/Work/pi/pi-extensions-dev/pi-worktree-forker/src/index.ts
-```
-
-Use:
-
-1. Open Pi in a Git repository.
-2. Run `/fork` or press `Escape` twice on an empty editor.
-3. Pick **Create Git Worktree + Branch**.
-4. Follow the printed command to switch into the new worktree.
-
-## 5) Agent Manager
-
-Path: `pi-agent-manager`
-
-Run locally:
-
-```bash
-pi -e /home/igorw/Work/pi/pi-extensions-dev/pi-agent-manager/src/index.ts
-```
-
-Use:
-
-- Run `/agents` to create, enable/disable, edit, and delete subagents.
-- Subagents appear in `<available_subagents>` and can be called via `invoke_subagent`.
-
-## 6) Hot Reload Extension
-
-Path: `hot-reload-extension`
-
-Run locally:
-
-```bash
-pi -e /home/igorw/Work/pi/pi-extensions-dev/hot-reload-extension/index.ts
-```
-
-Use:
-
-- call `hot_reload` to restart Pi in a new terminal while resuming the same session.
-- `/reload:status` for extension and daemon status.
-- `/reload:log [lines]` for diagnostic logs.
-
-## Common setup pattern
-
-If you prefer persistent extension loading, add paths to your Pi settings file.
-
-Example `~/.pi/settings.json` snippet:
+To make an extension persistent, add it to your `~/.pi/settings.json`:
 
 ```json
 {
   "extensions": [
-    "/home/igorw/Work/pi/pi-extensions-dev/pi-rfc-keywords-extension/src/index.ts",
-    "/home/igorw/Work/pi/pi-extensions-dev/pi-remember-extension/src/index.ts"
+    "/home/igorw/Work/pi/pi-extensions-dev/pi-rfc-keywords-extension/src/index.ts"
   ]
 }
 ```
 
+## Available Extensions
+
+### 1) RFC Keywords Extension
+**Normalizes RFC 2119 requirement keywords in prompts.**
+- **Path**: `pi-rfc-keywords-extension`
+- **Use**: Write naturally (`must`, `should`, `may`); the extension rewrites them as uppercase RFC keywords before sending them to the model.
+
+### 2) Remember Extension
+**Semantic long-term memory for agents.**
+- **Path**: `pi-remember-extension`
+- **Use**: Store information using `remember`, search it with `recall`, and manage it with `forget`. Memories are stored locally in SQLite.
+
+### 3) Workflows Tool
+**Capture and reuse session outcomes as structured workflows.**
+- **Path**: `pi-workflows-tool`
+- **Use**: Use `/workflow` to convert recent successes into reusable skill definitions.
+
+### 4) Web Fetch
+**Fetch and convert web content to Markdown.**
+- **Path**: `webfetch`
+- **Use**: Provide a URL to the `webfetch` tool to get a clean Markdown representation of the page, optimized for AI consumption.
+
+### 5) Question Tool
+**Interactive TUI for answering agent questions.**
+- **Path**: `pi-question-tool`
+- **Use**: Run `/answer` or press `Ctrl+.` to extract questions from the last agent message and answer them one-by-one in a custom interface.
+
+### 6) Todos Extension
+**File-based task management for humans and agents.**
+- **Path**: `pi-todos`
+- **Use**: Manage project tasks with `/todos`. Agents can use the `todo` tool to track their own progress and dependencies.
+
+### 7) Agent Manager
+**Orchestrate specialized subagents with strict permissions.**
+- **Path**: `pi-agent-manager`
+- **Use**: Run `/agents` to create specialist subagents. The main agent can then delegate tasks via `invoke_subagent`.
+
+### 8) Worktree Forker
+**Create Git worktrees when forking sessions.**
+- **Path**: `pi-worktree-forker`
+- **Use**: Choose "Create Git Worktree" when using `/fork` to isolate experiments into separate branches and directories automatically.
+
+### 9) Subdirectory Context
+**Automatically load context based on where you are working.**
+- **Path**: `pi-nested-agents-md`
+- **Use**: Injects any `AGENTS.md` files found in the path hierarchy whenever an agent reads a file, ensuring local conventions are always respected.
+
+### 10) Apply Patch
+**Atomic file modifications for better reliability.**
+- **Path**: `pi-apply-patch`
+- **Use**: Enforces a single `apply_patch` call per turn, preventing fragmented edits and ensuring complex changes across multiple files succeed or fail together.
+
+### 11) Hot Reload Extension
+**Restart Pi while maintaining session state.**
+- **Path**: `hot-reload-extension`
+- **Use**: Call `hot_reload` to restart Pi in a new terminal window while automatically resuming the current session.
+
+### 12) Spinners Extension
+**Custom working messages.**
+- **Path**: `pi-spinners`
+- **Use**: Replaces the standard "Working..." message with a variety of humorous phrases to add personality to your sessions.
+
+## Installation
+
+### From npm (Recommended)
+Most extensions are published and can be installed via the Pi package manager:
+
+```bash
+pi install npm:@pi-extensions-dev/<extension-name>
+```
+
+### From Local Source
+Clone this repository and point Pi to the extension entry point:
+
+```bash
+pi -e /home/igorw/Work/pi/pi-extensions-dev/<folder>/src/index.ts
+```
+
 ## Troubleshooting
 
-- If a command is not recognized, confirm the extension path is correct and restart Pi.
-- If npm install fails, use the local `pi -e /absolute/path/...` method.
-- For memory/workflow features, check that your current project allows writing `.agents/*` files.
-
-## Notes for advanced users
-
-This is a workspace-style repository (`package.json` with `workspaces: ["*"]`).
-
-If you are developing extension code, run TypeScript checks/build inside the specific extension directory where scripts are defined.
+- **Tool not found**: Ensure the extension is loaded (check Pi startup logs) and that your model has permission to use the tool.
+- **Path issues**: Always use absolute paths when adding extensions to `settings.json`.
+- **Conflicts**: Some extensions (like `pi-apply-patch`) deliberately disable standard tools like `edit` to enforce better patterns. Check the extension description if a tool goes missing.
