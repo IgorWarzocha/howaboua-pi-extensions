@@ -11,7 +11,7 @@ export function registerReadHashTool(pi: ExtensionAPI) {
     name: "read",
     label: "Read File(s)",
     description:
-      "Read files with LINEHASH| anchors REQUIRED for robust editing. Supports multi-read, range slicing, and in-file search. This tool REPLACES in-file grep/rg for known paths. You MUST use this tool for inspection, and you SHOULD refresh anchors before apply_patch updates when file state MAY have changed. Lines are prefixed with LINEHASH| for apply_patch anchored hunks.",
+      "Read files with LINEHASH| anchors REQUIRED for robust editing. Supports multi-read, range slicing, and in-file search. This tool REPLACES in-file grep/rg for known paths. You MUST use this tool for inspection. Lines are prefixed with LINEHASH| for apply_patch anchored hunks.",
     parameters: Type.Object({
       files: Type.Union([
         Type.String({

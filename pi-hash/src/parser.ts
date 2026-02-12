@@ -63,6 +63,11 @@ export function parsePatch(patchText: string): Hunk[] {
 
   try {
     while (remaining.length > 0) {
+      if (remaining[0].trim().length === 0) {
+        lineNumber += 1;
+        remaining = remaining.slice(1);
+        continue;
+      }
       const { hunk, consumedLines } = parseOneHunk(remaining, lineNumber);
       hunks.push(hunk);
       remaining = remaining.slice(consumedLines);

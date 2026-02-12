@@ -50,6 +50,9 @@ export type ApplySummary = {
 export type ApplyFailure = {
   path: string;
   error: string;
+  expected?: string[];
+  actual?: string[];
+  suggest?: string;
 };
 
 export type ApplyLive = {

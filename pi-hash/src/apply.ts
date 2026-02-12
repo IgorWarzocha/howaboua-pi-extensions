@@ -12,9 +12,10 @@ type ReplaceOp = {
   newLines: string[];
 };
 
-type Range = {
-  start: number;
-  length: number;
+type AnchorError = Error & {
+  expected?: string[];
+  actual?: string[];
+  suggest?: string;
 };
 
 function findContext(lines: string[], context: string, start: number): number {
@@ -89,14 +90,9 @@ function locate(lines: string[], chunk: UpdateFileChunk, seed: number): number {
   return best;
 }
 
-function applyReplacements(
-  sourceLines: string[],
-  replacements: ReplaceOp[],
-): string[] {
+function applyReplacements(sourceLines: string[], replacements: ReplaceOp[]): string[] {
   const result = [...sourceLines];
-  for (const replacement of [...replacements].sort(
-    (lhs, rhs) => rhs.start - lhs.start,
-  )) {
+  for (const replacement of [...replacements].sort((lhs, rhs) => rhs.start - lhs.start)) {
     result.splice(replacement.start, replacement.oldLength, ...replacement.newLines);
   }
   return result;
@@ -118,46 +114,52 @@ function collapseEmpty(lines: string[]): string[] {
   return out;
 }
 
-function anchorText(lines: string[], start: number, length: number): string[] {
+function anchorLines(lines: string[]): string[] {
   const out: string[] = [];
-  const end = Math.min(lines.length, start + Math.max(1, length));
-  let index = start;
-  while (index < end && out.length < 6) {
+  let index = 0;
+  while (index < lines.length) {
     out.push(`${index + 1}${computeLineHash(lines[index])}|${lines[index]}`);
     index += 1;
   }
   return out;
 }
 
-function mismatch(lines: string[], pathText: string, chunk: UpdateFileChunk): string {
-  const first = chunk.oldAnchors[0];
-  if (!first) return `Patch Error: Failed to locate anchored block in ${pathText}.`;
-  const around = Math.max(1, first.line - 1);
-  const start = Math.max(0, around - 1);
-  const stop = Math.min(lines.length, around + 2);
-  const sample: string[] = [];
-  let index = start;
-  while (index < stop) {
-    sample.push(`${index + 1}:${computeLineHash(lines[index])}| ${lines[index]}`);
-    index += 1;
-  }
-  return (
-    `Patch Error: Failed to find anchored block in ${pathText}.` +
-    `\nExpected first anchor: ${first.line}${first.hash}|${chunk.oldLines[0] ?? ""}` +
-    `\nActual state:\n${sample.join("\n")}` +
-    `\n\nYou MUST use the 'read' tool to refresh anchors before retrying.`
-  );
+function anchorsFromContent(content: string): string[] {
+  return anchorLines(content.split("\n"));
 }
 
-export function computeReplacements(
-  originalLines: string[],
-  filePath: string,
-  chunks: UpdateFileChunk[],
-): { replacements: ReplaceOp[]; ranges: Range[] } {
-  const replacements: ReplaceOp[] = [];
-  const ranges: Range[] = [];
-  let drift = 0;
+function mismatch(lines: string[], pathText: string, chunk: UpdateFileChunk): AnchorError {
+  const first = chunk.oldAnchors[0];
+  if (!first) return new Error(`Patch Error: Failed to locate anchored block in ${pathText}.`);
+  const around = Math.max(1, first.line - 1);
+  const start = Math.max(0, around - 4);
+  const stop = Math.min(lines.length, around + 9);
+  const sample: string[] = [];
+  const expected: string[] = [];
+  let oldIndex = 0;
+  while (oldIndex < chunk.oldLines.length) {
+    const anchor = chunk.oldAnchors[oldIndex];
+    expected.push(`${anchor.line}${anchor.hash}|${chunk.oldLines[oldIndex]}`);
+    oldIndex += 1;
+  }
+  let index = start;
+  while (index < stop) {
+    sample.push(`${index + 1}${computeLineHash(lines[index])}|${lines[index]}`);
+    index += 1;
+  }
+  const error = new Error(
+    `Patch Error: Failed to find anchored block in ${pathText}.` +
+      `\nExpected first anchor: ${first.line}${first.hash}|${chunk.oldLines[0] ?? ""}`,
+  ) as AnchorError;
+  error.expected = expected;
+  error.actual = sample;
+  error.suggest = `Retry apply_patch with anchored lines from ${Math.max(1, start + 1)}-${stop}.`;
+  return error;
+}
 
+function computeReplacements(originalLines: string[], filePath: string, chunks: UpdateFileChunk[]): ReplaceOp[] {
+  const replacements: ReplaceOp[] = [];
+  let drift = 0;
   for (const chunk of chunks) {
     const base = chunk.oldAnchors[0] ? chunk.oldAnchors[0].line - 1 : originalLines.length;
     const shifted = base + drift;
@@ -168,43 +170,43 @@ export function computeReplacements(
     try {
       start = locate(originalLines, chunk, seed);
     } catch {
-      throw new Error(mismatch(originalLines, filePath, chunk));
+      throw mismatch(originalLines, filePath, chunk);
     }
     replacements.push({ start, oldLength: chunk.oldLines.length, newLines: [...chunk.newLines] });
-    ranges.push({ start, length: chunk.newLines.length });
     drift += chunk.newLines.length - chunk.oldLines.length;
   }
-
   replacements.sort((lhs, rhs) => lhs.start - rhs.start);
-  return { replacements, ranges };
+  return replacements;
 }
 
-export function deriveUpdatedContent(
+function deriveUpdatedContent(
   originalContent: string,
   filePath: string,
   chunks: UpdateFileChunk[],
 ): { content: string; anchors: string[] } {
   const originalLines = originalContent.split("\n");
-  if (originalLines[originalLines.length - 1] === "") originalLines.pop();
-
-  const result = computeReplacements(originalLines, filePath, chunks);
-  const updatedLines = collapseEmpty(applyReplacements(originalLines, result.replacements));
-  const anchors: string[] = [];
-  for (const range of result.ranges) {
-    for (const line of anchorText(updatedLines, range.start, range.length)) anchors.push(line);
-  }
+  const replacements = computeReplacements(originalLines, filePath, chunks);
+  const updatedLines = collapseEmpty(applyReplacements(originalLines, replacements));
   if (updatedLines[updatedLines.length - 1] !== "") updatedLines.push("");
+  return { content: updatedLines.join("\n"), anchors: anchorLines(updatedLines) };
+}
 
-  return { content: updatedLines.join("\n"), anchors };
+function upsertLive(summary: ApplySummary, pathText: string, anchors: string[]): void {
+  let index = 0;
+  while (index < summary.live.length) {
+    if (summary.live[index].path === pathText) {
+      summary.live[index] = { path: pathText, anchors };
+      return;
+    }
+    index += 1;
+  }
+  summary.live.push({ path: pathText, anchors });
 }
 
 export async function applyHunks(cwd: string, hunks: Hunk[]): Promise<ApplySummary> {
   if (hunks.length === 0) {
-    throw new Error(
-      "No files were modified. You MUST include at least one file section in the patch.",
-    );
+    throw new Error("No files were modified. You MUST include at least one file section in the patch.");
   }
-
   const summary: ApplySummary = {
     added: [],
     modified: [],
@@ -213,40 +215,42 @@ export async function applyHunks(cwd: string, hunks: Hunk[]): Promise<ApplySumma
     live: [],
     fileDiffs: [],
   };
-
   for (const hunk of hunks) {
     try {
       if (hunk.type === "add") {
         const target = resolvePatchPath(cwd, hunk.filePath);
+        let exists = false;
+        try {
+          await fs.stat(target);
+          exists = true;
+        } catch {}
+        if (exists) {
+          throw new Error(
+            `Add File target already exists: ${hunk.filePath}. ` +
+              "You MUST NOT overwrite existing files via Add File. " +
+              "You SHOULD use Update File for edits. " +
+              "If you are sure you want full replacement, you MUST include Delete File + Add File for the same path in the SAME apply_patch call, with Delete File before Add File.",
+          );
+        }
         await fs.mkdir(path.dirname(target), { recursive: true });
         await fs.writeFile(target, hunk.contents, "utf-8");
         summary.added.push(hunk.filePath);
-        summary.fileDiffs.push({
-          status: "A",
-          path: hunk.filePath,
-          diff: buildNumberedDiff("", hunk.contents),
-        });
+        summary.fileDiffs.push({ status: "A", path: hunk.filePath, diff: buildNumberedDiff("", hunk.contents) });
+        upsertLive(summary, hunk.filePath, anchorsFromContent(hunk.contents));
         continue;
       }
-
       if (hunk.type === "delete") {
         const target = resolvePatchPath(cwd, hunk.filePath);
-        const originalContent = await fs.readFile(target, "utf-8");
+        await fs.readFile(target, "utf-8");
         await fs.unlink(target);
         summary.deleted.push(hunk.filePath);
-        summary.fileDiffs.push({
-          status: "D",
-          path: hunk.filePath,
-          diff: buildNumberedDiff(originalContent, ""),
-        });
+        summary.fileDiffs.push({ status: "D", path: hunk.filePath, diff: "" });
         continue;
       }
-
       const source = resolvePatchPath(cwd, hunk.filePath);
       const originalContent = await fs.readFile(source, "utf-8");
       const next = deriveUpdatedContent(originalContent, source, hunk.chunks);
       const diff = buildNumberedDiff(originalContent, next.content);
-
       if (hunk.moveToPath) {
         const destination = resolvePatchPath(cwd, hunk.moveToPath);
         await fs.mkdir(path.dirname(destination), { recursive: true });
@@ -258,29 +262,29 @@ export async function applyHunks(cwd: string, hunks: Hunk[]): Promise<ApplySumma
           throw error;
         }
         summary.modified.push(hunk.moveToPath);
-        summary.fileDiffs.push({
-          status: "M",
-          path: hunk.moveToPath,
-          moveFrom: hunk.filePath,
-          diff,
-        });
-        summary.live.push({ path: hunk.moveToPath, anchors: next.anchors });
+        summary.fileDiffs.push({ status: "M", path: hunk.moveToPath, moveFrom: hunk.filePath, diff });
+        upsertLive(summary, hunk.moveToPath, next.anchors);
         continue;
       }
-
       await fs.writeFile(source, next.content, "utf-8");
       summary.modified.push(hunk.filePath);
-      summary.fileDiffs.push({
-        status: "M",
-        path: hunk.filePath,
-        diff,
-      });
-      summary.live.push({ path: hunk.filePath, anchors: next.anchors });
+      summary.fileDiffs.push({ status: "M", path: hunk.filePath, diff });
+      upsertLive(summary, hunk.filePath, next.anchors);
     } catch (error) {
+      const typed = error as AnchorError;
       const message = error instanceof Error ? error.message : String(error);
-      summary.failed.push({ path: hunk.filePath, error: message });
+      const failure = { path: hunk.filePath, error: message } as {
+        path: string;
+        error: string;
+        expected?: string[];
+        actual?: string[];
+        suggest?: string;
+      };
+      if (typed.expected && typed.expected.length > 0) failure.expected = typed.expected;
+      if (typed.actual && typed.actual.length > 0) failure.actual = typed.actual;
+      if (typed.suggest) failure.suggest = typed.suggest;
+      summary.failed.push(failure);
     }
   }
-
   return summary;
 }
