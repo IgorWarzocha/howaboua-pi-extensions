@@ -11,7 +11,7 @@ export function renderReadHash(result: AgentToolResult<unknown>, options: { expa
   if (!options.expanded) {
     for (const detail of files) {
       if (detail.error) {
-        container.addChild(new Text(theme.fg("error", `read_hash ${detail.path}\nERROR: ${detail.error}`), 0, 0));
+        container.addChild(new Text(theme.fg("error", `read ${detail.path}\nERROR: ${detail.error}`), 0, 0));
         continue;
       }
       const range =
@@ -22,7 +22,7 @@ export function renderReadHash(result: AgentToolResult<unknown>, options: { expa
         ? theme.fg("muted", ` search=${detail.regex ? "/" : '"'}${detail.search}${detail.regex ? "/" : '"'}${typeof detail.matches === "number" ? ` matches=${detail.matches}` : ""}`)
         : "";
       container.addChild(
-        new Text(`${theme.fg("toolTitle", theme.bold("read_hash"))} ${theme.fg("accent", detail.path)}${theme.fg("warning", range)}${search}`, 0, 0),
+        new Text(`${theme.fg("toolTitle", theme.bold("read"))} ${theme.fg("accent", detail.path)}${theme.fg("warning", range)}${search}`, 0, 0),
       );
     }
     if (files.length > 0) {

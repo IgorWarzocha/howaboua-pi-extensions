@@ -1,40 +1,34 @@
-### PRD: Atomic Hash-Anchored Mutation Tool (`apply_hash`)
+# PRD: Mutation Engine (Apply)
 
-#### 1. Purpose
-A high-reliability, multi-file mutation tool that uses hashes to ensure targeted edits land on the intended content even if line numbers shift.
+This document defines the Hyper-Robust Mutation Engine for the `apply_patch` tool, ensuring 100% edit reliability through multi-layered verification and relocation.
 
-**Context for Implementation:**
-This tool replaces the fragile unified diff format. It uses the "Relocation Engine" to find lines that have moved, making it significantly more robust than standard `str_replace`. We MUST preserve the atomic multi-file operations (Add/Move/Delete) from our existing patch extension to support complex refactors.
+## 1. Hunk Protocol
+1. **Anchored Lines:** All context (` `) and removal (`-`) lines in a hunk MUST include the `LINEHASH|` prefix (e.g., `- 42abcd| old content`).
+2. **Addition Lines:** Addition (`+`) lines MUST NOT include prefixes; they contain raw content to be inserted.
+3. **Validation:** The engine MUST strip the `LINEHASH|` prefix from hunk lines to extract clean content for comparison, while using the hash for verification.
 
-**Reference Files:**
-- `pi-extensions-dev/pi-apply-patch/src/apply.ts`: Logic for multi-file operations and the `deriveUpdatedContent` structure.
-- `pi-extensions-dev/pi-apply-patch/src/parser.ts`: Logic for parsing the atomic "Begin Patch" envelope.
+## 2. Relocation Engine (Spiral Search)
+1. **Window:** If a match fails at the target line, the engine MUST search a `+/- 100` line window.
+2. **Strategy:** Search MUST expand outward (Spiral) from the target line (`+1, -1, +2, -2...`) to prioritize the intended location.
+3. **Tie-breaking:** If multiple identical matches (same hash and normalized content) exist, the engine MUST select the one with the smallest absolute offset from the original target.
 
-#### 2. Operations (The Envelope)
-The tool accepts a batch of operations to ensure atomicity:
+## 4. Sequential Mutation Logic
+1. **Cumulative Drift:** The engine MUST track a per-file `drift` counter.
+2. **Adjustment:** For files with multiple hunks, the target line for Hunk N MUST be adjusted by the cumulative line-count change (additions minus removals) from Hunks 1 to N-1.
+3. **Search Origin:** The Spiral Search for Hunk N MUST begin at `OriginalTarget + Drift`.
 
-**Line-Level (Update):**
-- `set_line(anchor, text)`: Replace a single anchored line.
-- `replace_range(start_anchor, end_anchor, text)`: Replace a block of code.
-- `insert_after(anchor, text)`: Append content after a specific anchor.
+## 5. Normalization & Comparison
+1. **Pre-processing:** The engine MUST apply the full `normalizeForHash` pipeline (NFC, invisible char stripping, absolute whitespace stripping) to file lines before hashing or comparison.
+2. **Content Match:** A match is valid ONLY if both the hash and the normalized content match the hunk's anchor.
 
-**File-Level:**
-- `add_file(path, content)`
-- `move_file(from_path, to_path)`
-- `delete_file(path)`
+## 6. Transactional Integrity
+1. **Per-File Atomicity:** If any hunk in a file fails to relocate or verify, the entire file operation MUST be rolled back.
+2. **Per-Call Granularity:** Success or failure in one file MUST NOT affect other files in the same `apply_patch` call. The tool MUST return a per-file status report.
 
-#### 3. The Relocation Engine (Advanced Banger)
-If an operation targets `10:a3` but line 10 no longer matches `a3`:
-1. The engine MUST scan a window of +/- 100 lines.
-2. If the hash `a3` is found at line 12 and is **unique** within the search window, the engine MUST relocate the edit to line 12 automatically.
-3. If relocation fails (no match or ambiguous matches), the tool MUST abort the entire turn's batch.
+## 7. Live Sync (Confusion Prevention)
+1. **Requirement:** To prevent model confusion after edits, the tool result MUST include updated line numbers and hashes for the modified blocks.
+2. **Format:** Return a summary mapping modified ranges to their new anchored state.
 
-#### 4. Safety & Heuristics
-- **Bash Write Guard:** Block `echo >`, `tee`, and `sed -i` via the `bash` tool.
-- **Indentation Inheritance:** Replacement text SHOULD inherit the leading whitespace of the anchor line if the model omits it.
-- **Hallucination Cleaning:** Proactively strip common LLM errors from input `text` (e.g., repeating the `LINE:HASH|` prefix or diff `+` markers).
-
-#### 5. Failure Recovery
-On mismatch/relocation failure, return a "Quick Fix" payload:
-- Show the `Actual State` (line number and actual hash) for the lines immediately surrounding the failed anchor.
-- This allows the model to "re-anchor" without needing to perform a full `read` call.
+## 8. Failure Modes
+1. **Collisions:** If a search window contains multiple equidistant matches, the engine MUST fail fast and prompt a re-read.
+2. **OOB:** If an adjusted target is out of bounds, the engine MUST fail.

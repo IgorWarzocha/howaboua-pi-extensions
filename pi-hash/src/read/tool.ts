@@ -8,10 +8,10 @@ import { HashFileSchema } from "./types.js";
 
 export function registerReadHashTool(pi: ExtensionAPI) {
   pi.registerTool({
-    name: "read_hash",
-    label: "Read File(s) [Hashline]",
+    name: "read",
+    label: "Read File(s)",
     description:
-      "Read one or more files with LINEHASH| anchored prefixes for robust editing. Supports multi-file reads, offset/limit, and in-file search (search/regex/caseSensitive/contextBefore/contextAfter/maxMatches). You MUST use this tool for file inspection. Lines are prefixed with LINE_NUMBER + HASH + '|' for use with apply_hash anchors.",
+      "Read files with LINEHASH| anchors REQUIRED for robust editing. Supports multi-read, range slicing, and in-file search. This tool REPLACES in-file grep/rg for known paths. You MUST use this tool for inspection. Lines are prefixed with LINEHASH| for use with apply_patch anchors.",
     parameters: Type.Object({
       files: Type.Union([
         Type.String({
