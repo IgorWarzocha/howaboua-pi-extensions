@@ -20,7 +20,7 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
 
   pi.on("session_start", () => {
     const current = new Set(pi.getActiveTools());
-    current.add("apply_patch");
+    current.add("apply_hash");
     current.delete("edit");
     current.delete("write");
     pi.setActiveTools([...current]);
@@ -36,7 +36,7 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
     if (event.toolName === "edit" || event.toolName === "write") {
       return {
         block: true,
-        reason: `The '${event.toolName}' tool is disabled. Use apply_patch for all file modifications.`,
+        reason: `The '${event.toolName}' tool is disabled. Use apply_hash for all file modifications.`,
       };
     }
 
@@ -51,12 +51,12 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
       }
     }
 
-    if (event.toolName === "apply_patch") {
+    if (event.toolName === "apply_hash") {
       if (patchCallsInTurn > 0) {
         return {
           block: true,
           reason:
-            "Multiple apply_patch calls in the same turn are blocked. You MUST batch all related file changes into one apply_patch envelope. You MUST NOT emit sequential apply_patch calls for the same request.",
+            "Multiple apply_hash calls in the same turn are blocked. You MUST batch all related file changes into one apply_hash envelope. You MUST NOT emit sequential apply_hash calls for the same request.",
         };
       }
       patchCallsInTurn += 1;
@@ -64,8 +64,8 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
   });
 
   pi.registerTool({
-    name: "apply_patch",
-    label: "apply_patch",
+    name: "apply_hash",
+    label: "apply_hash",
     description:
       "Apply a patch envelope containing one or more file operations (Add, Update, Move, Delete). This tool MUST be used for all file modifications. You MUST include all related changes for a request in one call unless payload limits require splitting.",
     renderCall(args, theme) {

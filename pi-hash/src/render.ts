@@ -85,6 +85,17 @@ export function formatSummary(summary: ApplySummary): string {
   for (const file of summary.added) lines.push(`A ${file}`);
   for (const file of summary.modified) lines.push(`M ${file}`);
   for (const file of summary.deleted) lines.push(`D ${file}`);
+  if (summary.failed.length > 0) {
+    lines.push("Partial failures:");
+    for (const failed of summary.failed) lines.push(`F ${failed.path}: ${failed.error}`);
+  }
+  if (summary.live.length > 0) {
+    lines.push("Updated anchors:");
+    for (const live of summary.live) {
+      lines.push(`@ ${live.path}`);
+      for (const anchor of live.anchors.slice(0, 8)) lines.push(`  ${anchor}`);
+    }
+  }
   return `${lines.join("\n")}\n`;
 }
 
@@ -100,7 +111,7 @@ export function renderApplyPatchCall(
 
   if (!patchText) {
     return new Text(
-      `${theme.fg("toolTitle", theme.bold("apply_patch"))} ${theme.fg("muted", "(awaiting patch)")}`,
+      `${theme.fg("toolTitle", theme.bold("apply_hash"))} ${theme.fg("muted", "(awaiting patch)")}`,
       0,
       0,
     );
@@ -116,14 +127,14 @@ export function renderApplyPatchCall(
     const suffix = files.length > 3 ? `, +${files.length - 3} more` : "";
     const opSummary = `A:${addCount} M:${updateCount} D:${deleteCount}`;
     return new Text(
-      `${theme.fg("toolTitle", theme.bold("apply_patch"))} ${theme.fg("muted", `(${opSummary})`)}` +
+      `${theme.fg("toolTitle", theme.bold("apply_hash"))} ${theme.fg("muted", `(${opSummary})`)}` +
         `${preview ? `\n${theme.fg("accent", preview)}${theme.fg("muted", suffix)}` : ""}`,
       0,
       0,
     );
   } catch {
     return new Text(
-      `${theme.fg("toolTitle", theme.bold("apply_patch"))} ${theme.fg("muted", "(patching)")}`,
+      `${theme.fg("toolTitle", theme.bold("apply_hash"))} ${theme.fg("muted", "(patching)")}`,
       0,
       0,
     );

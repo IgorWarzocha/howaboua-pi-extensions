@@ -32,3 +32,8 @@ This document defines the Hyper-Robust Mutation Engine for the `apply_patch` too
 ## 8. Failure Modes
 1. **Collisions:** If a search window contains multiple equidistant matches, the engine MUST fail fast and prompt a re-read.
 2. **OOB:** If an adjusted target is out of bounds, the engine MUST fail.
+## 9. Hyper-Edge Case Handling
+1. **Hunk-Level Atomicity (All-or-Nothing):** Relocation is only valid if EVERY anchored line (` ` and `-`) in the hunk matches the file at the new offset. Partial relocation within a hunk is strictly FORBIDDEN.
+2. **Tie-Break Stalemate:** If the Spiral Search finds unique matches at exactly equidistant offsets (e.g., `+5` and `-5`), the engine MUST fail fast.
+3. **Empty Line Collapsing:** To resolve "Empty Line Storms" (ambiguous `aaaa` anchors), the engine SHOULD collapse sequences of multiple empty lines into a single empty line during the mutation process.
+4. **EOF Resilience:** The engine MUST be invariant to trailing newlines at the end of the file. Insertion at the end of a file MUST work regardless of whether the file ends with `\n`.

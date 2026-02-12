@@ -3,192 +3,199 @@ import * as path from "node:path";
 import type { Hunk, UpdateFileChunk, ApplySummary } from "./types.js";
 import { resolvePatchPath } from "./path-utils.js";
 import { buildNumberedDiff } from "./render.js";
+import { normalizeForHash } from "./shared/normalize.js";
+import { computeLineHash } from "./shared/hash.js";
 
-function normalizeUnicode(str: string): string {
-  return str
-    .replace(/[\u2018\u2019\u201A\u201B]/g, "'")
-    .replace(/[\u201C\u201D\u201E\u201F]/g, '"')
-    .replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, "-")
-    .replace(/\u2026/g, "...")
-    .replace(
-      /[\u00A0\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u202F\u205F\u3000]/g,
-      " ",
-    );
-}
+type ReplaceOp = {
+  start: number;
+  oldLength: number;
+  newLines: string[];
+};
 
-/**
- * Progressive comparison of two lines.
- */
-function linesMatch(a: string, b: string): boolean {
-  if (a === b) return true;
-  if (a.trimEnd() === b.trimEnd()) return true;
-  if (a.trim() === b.trim()) return true;
-  const normalize = (s: string) => normalizeUnicode(s.trim()).toLowerCase();
-  return normalize(a) === normalize(b);
-}
+type Range = {
+  start: number;
+  length: number;
+};
 
-/**
- * Internal helper to find a pattern in lines starting from startIndex.
- */
-function tryMatch(
-  lines: string[],
-  pattern: string[],
-  startIndex: number,
-  eof: boolean,
-): number | undefined {
-  if (eof) {
-    const fromEnd = lines.length - pattern.length;
-    if (fromEnd >= startIndex) {
-      let matches = true;
-      for (let j = 0; j < pattern.length; j++) {
-        if (!linesMatch(lines[fromEnd + j], pattern[j])) {
-          matches = false;
-          break;
-        }
-      }
-      if (matches) return fromEnd;
-    }
+function findContext(lines: string[], context: string, start: number): number {
+  let index = Math.max(0, start);
+  while (index < lines.length) {
+    if (normalizeForHash(lines[index], false) === normalizeForHash(context, false)) return index;
+    index += 1;
   }
-
-  for (let i = startIndex; i <= lines.length - pattern.length; i++) {
-    let matches = true;
-    for (let j = 0; j < pattern.length; j++) {
-      if (!linesMatch(lines[i + j], pattern[j])) {
-        matches = false;
-        break;
-      }
-    }
-    if (matches) return i;
-  }
-  return undefined;
+  throw new Error(`Failed to find context '${context}'.`);
 }
 
-/**
- * Find a sequence of lines in the file using fuzzy matching.
- */
-export function seekSequence(
-  lines: string[],
-  pattern: string[],
-  startIndex: number,
-  eof = false,
-): number | undefined {
-  if (pattern.length === 0) return startIndex;
-  return tryMatch(lines, pattern, startIndex, eof);
+function linesEqual(fileLine: string, expected: string, expectedHash: string): boolean {
+  if (computeLineHash(fileLine) !== expectedHash) return false;
+  return normalizeForHash(fileLine, false) === normalizeForHash(expected, false);
+}
+
+function matchChunkAt(lines: string[], chunk: UpdateFileChunk, start: number): boolean {
+  if (chunk.oldLines.length === 0) return true;
+  if (start < 0 || start + chunk.oldLines.length > lines.length) return false;
+  let index = 0;
+  while (index < chunk.oldLines.length) {
+    const fileLine = lines[start + index];
+    const expected = chunk.oldLines[index];
+    const anchor = chunk.oldAnchors[index];
+    if (!linesEqual(fileLine, expected, anchor.hash)) return false;
+    index += 1;
+  }
+  return true;
+}
+
+function spiral(seed: number, max: number): number[] {
+  const out: number[] = [];
+  if (seed >= 0 && seed < max) out.push(seed);
+  let delta = 1;
+  while (delta <= 100) {
+    const up = seed + delta;
+    const down = seed - delta;
+    if (up >= 0 && up < max) out.push(up);
+    if (down >= 0 && down < max) out.push(down);
+    delta += 1;
+  }
+  return out;
+}
+
+function locate(lines: string[], chunk: UpdateFileChunk, seed: number): number {
+  if (chunk.oldLines.length === 0) return Math.max(0, Math.min(seed, lines.length));
+  const max = Math.max(0, lines.length - chunk.oldLines.length + 1);
+  if (chunk.isEndOfFile) {
+    const eofStart = lines.length - chunk.oldLines.length;
+    if (matchChunkAt(lines, chunk, eofStart)) return eofStart;
+    throw new Error("EOF chunk did not match file tail.");
+  }
+  const firstAnchor = chunk.oldAnchors[0];
+  const target = firstAnchor ? seed : 0;
+  if (target < 0 || target >= max) {
+    throw new Error("Adjusted target is out of bounds.");
+  }
+  const candidates = spiral(target, max);
+  const hits: number[] = [];
+  for (const candidate of candidates) {
+    if (matchChunkAt(lines, chunk, candidate)) hits.push(candidate);
+  }
+  if (hits.length === 0) {
+    throw new Error("No anchor match found in +/-100 spiral window.");
+  }
+  const best = hits[0];
+  const bestDistance = Math.abs(best - target);
+  const tie = hits.find((value, index) => index > 0 && Math.abs(value - target) === bestDistance);
+  if (tie !== undefined) {
+    throw new Error(`Equidistant anchor collision at lines ${best + 1} and ${tie + 1}.`);
+  }
+  return best;
 }
 
 function applyReplacements(
   sourceLines: string[],
-  replacements: Array<[start: number, oldLength: number, newLines: string[]]>,
+  replacements: ReplaceOp[],
 ): string[] {
   const result = [...sourceLines];
-  for (const [start, oldLength, newLines] of [...replacements].sort(
-    (lhs, rhs) => rhs[0] - lhs[0],
+  for (const replacement of [...replacements].sort(
+    (lhs, rhs) => rhs.start - lhs.start,
   )) {
-    result.splice(start, oldLength, ...newLines);
+    result.splice(replacement.start, replacement.oldLength, ...replacement.newLines);
   }
   return result;
+}
+
+function collapseEmpty(lines: string[]): string[] {
+  const out: string[] = [];
+  let empty = false;
+  for (const line of lines) {
+    if (line.trim().length === 0) {
+      if (empty) continue;
+      empty = true;
+      out.push("");
+      continue;
+    }
+    empty = false;
+    out.push(line);
+  }
+  return out;
+}
+
+function anchorText(lines: string[], start: number, length: number): string[] {
+  const out: string[] = [];
+  const end = Math.min(lines.length, start + Math.max(1, length));
+  let index = start;
+  while (index < end && out.length < 6) {
+    out.push(`${index + 1}${computeLineHash(lines[index])}|${lines[index]}`);
+    index += 1;
+  }
+  return out;
+}
+
+function mismatch(lines: string[], pathText: string, chunk: UpdateFileChunk): string {
+  const first = chunk.oldAnchors[0];
+  if (!first) return `Patch Error: Failed to locate anchored block in ${pathText}.`;
+  const around = Math.max(1, first.line - 1);
+  const start = Math.max(0, around - 1);
+  const stop = Math.min(lines.length, around + 2);
+  const sample: string[] = [];
+  let index = start;
+  while (index < stop) {
+    sample.push(`${index + 1}:${computeLineHash(lines[index])}| ${lines[index]}`);
+    index += 1;
+  }
+  return (
+    `Patch Error: Failed to find anchored block in ${pathText}.` +
+    `\nExpected first anchor: ${first.line}${first.hash}|${chunk.oldLines[0] ?? ""}` +
+    `\nActual state:\n${sample.join("\n")}` +
+    `\n\nYou MUST use the 'read' tool to refresh anchors before retrying.`
+  );
 }
 
 export function computeReplacements(
   originalLines: string[],
   filePath: string,
   chunks: UpdateFileChunk[],
-): Array<[start: number, oldLength: number, newLines: string[]]> {
-  const replacements: Array<[start: number, oldLength: number, newLines: string[]]> = [];
-  let lineIndex = 0;
+): { replacements: ReplaceOp[]; ranges: Range[] } {
+  const replacements: ReplaceOp[] = [];
+  const ranges: Range[] = [];
+  let drift = 0;
 
   for (const chunk of chunks) {
-    if (chunk.changeContext) {
-      const contextIndex = seekSequence(originalLines, [chunk.changeContext], lineIndex, false);
-      if (contextIndex === undefined) {
-        throw new Error(
-          `Failed to find context '${chunk.changeContext}' in ${filePath}.` +
-            `\nYou MUST use the 'read' tool to verify current file content before retrying.` +
-            `\nThe @@ context line MUST match an actual line in the file. Check for stale content or wrong indentation.`,
-        );
-      }
-      lineIndex = contextIndex;
+    const base = chunk.oldAnchors[0] ? chunk.oldAnchors[0].line - 1 : originalLines.length;
+    const shifted = base + drift;
+    const seed = chunk.changeContext
+      ? findContext(originalLines, chunk.changeContext, Math.max(0, shifted))
+      : shifted;
+    let start = seed;
+    try {
+      start = locate(originalLines, chunk, seed);
+    } catch {
+      throw new Error(mismatch(originalLines, filePath, chunk));
     }
-
-    if (chunk.oldLines.length === 0) {
-      const insertionIndex = originalLines.length;
-      replacements.push([insertionIndex, 0, [...chunk.newLines]]);
-      continue;
-    }
-
-    let oldPattern = [...chunk.oldLines];
-    let newPattern = [...chunk.newLines];
-
-    let found = seekSequence(originalLines, oldPattern, lineIndex, chunk.isEndOfFile);
-    if (found === undefined && oldPattern[oldPattern.length - 1] === "") {
-      oldPattern = oldPattern.slice(0, -1);
-      if (newPattern[newPattern.length - 1] === "") newPattern = newPattern.slice(0, -1);
-      found = seekSequence(originalLines, oldPattern, lineIndex, chunk.isEndOfFile);
-    }
-
-    if (found === undefined) {
-      let diagnostic = "";
-      const firstLinePattern = oldPattern[0];
-      const potentialIndices: number[] = [];
-      for (let i = 0; i < originalLines.length; i++) {
-        if (linesMatch(originalLines[i], firstLinePattern)) potentialIndices.push(i);
-      }
-
-      if (potentialIndices.length > 0) {
-        const bestIdx = potentialIndices.find((idx) => idx >= lineIndex) ?? potentialIndices[0];
-        diagnostic += `\n\nPotential match started at line ${bestIdx + 1}, but failed on a subsequent line:`;
-
-        if (bestIdx + oldPattern.length > originalLines.length) {
-          diagnostic += `\n(Note: The patch block is ${oldPattern.length} lines, but only ${originalLines.length - bestIdx} lines remain in the file from this point)`;
-        }
-
-        for (let j = 0; j < oldPattern.length; j++) {
-          const fileLine = originalLines[bestIdx + j];
-          const patchLine = oldPattern[j];
-
-          if (fileLine === undefined) {
-            diagnostic += `\nLine ${bestIdx + j + 1} mismatch:\n  Expected: [${patchLine}]\n  Actual:   [End of File]`;
-            break;
-          }
-
-          if (!linesMatch(fileLine, patchLine)) {
-            diagnostic += `\nLine ${bestIdx + j + 1} mismatch:\n  Expected: [${patchLine}]\n  Actual:   [${fileLine}]`;
-            break;
-          }
-        }
-      } else {
-        diagnostic += `\n\nCould not find even the first line of the block: "${firstLinePattern}"`;
-      }
-
-      throw new Error(
-        `Patch Error: Failed to find the specified block in ${filePath}.${diagnostic}` +
-          `\n\nYou MUST use the 'read' tool to verify current file content before retrying.` +
-          `\nYou MUST include 3+ unchanged context lines for unambiguous matching.` +
-          `\nYou MUST NOT guess content or ignore whitespace/indentation.`,
-      );
-    }
-
-    replacements.push([found, oldPattern.length, newPattern]);
-    lineIndex = found + oldPattern.length;
+    replacements.push({ start, oldLength: chunk.oldLines.length, newLines: [...chunk.newLines] });
+    ranges.push({ start, length: chunk.newLines.length });
+    drift += chunk.newLines.length - chunk.oldLines.length;
   }
 
-  replacements.sort((lhs, rhs) => lhs[0] - rhs[0]);
-  return replacements;
+  replacements.sort((lhs, rhs) => lhs.start - rhs.start);
+  return { replacements, ranges };
 }
 
 export function deriveUpdatedContent(
   originalContent: string,
   filePath: string,
   chunks: UpdateFileChunk[],
-): string {
+): { content: string; anchors: string[] } {
   const originalLines = originalContent.split("\n");
   if (originalLines[originalLines.length - 1] === "") originalLines.pop();
 
-  const replacements = computeReplacements(originalLines, filePath, chunks);
-  const updatedLines = applyReplacements(originalLines, replacements);
+  const result = computeReplacements(originalLines, filePath, chunks);
+  const updatedLines = collapseEmpty(applyReplacements(originalLines, result.replacements));
+  const anchors: string[] = [];
+  for (const range of result.ranges) {
+    for (const line of anchorText(updatedLines, range.start, range.length)) anchors.push(line);
+  }
   if (updatedLines[updatedLines.length - 1] !== "") updatedLines.push("");
 
-  return updatedLines.join("\n");
+  return { content: updatedLines.join("\n"), anchors };
 }
 
 export async function applyHunks(cwd: string, hunks: Hunk[]): Promise<ApplySummary> {
@@ -202,63 +209,77 @@ export async function applyHunks(cwd: string, hunks: Hunk[]): Promise<ApplySumma
     added: [],
     modified: [],
     deleted: [],
+    failed: [],
+    live: [],
     fileDiffs: [],
   };
 
   for (const hunk of hunks) {
-    if (hunk.type === "add") {
-      const target = resolvePatchPath(cwd, hunk.filePath);
-      await fs.mkdir(path.dirname(target), { recursive: true });
-      await fs.writeFile(target, hunk.contents, "utf-8");
-      summary.added.push(hunk.filePath);
-      summary.fileDiffs.push({
-        status: "A",
-        path: hunk.filePath,
-        diff: buildNumberedDiff("", hunk.contents),
-      });
-      continue;
-    }
+    try {
+      if (hunk.type === "add") {
+        const target = resolvePatchPath(cwd, hunk.filePath);
+        await fs.mkdir(path.dirname(target), { recursive: true });
+        await fs.writeFile(target, hunk.contents, "utf-8");
+        summary.added.push(hunk.filePath);
+        summary.fileDiffs.push({
+          status: "A",
+          path: hunk.filePath,
+          diff: buildNumberedDiff("", hunk.contents),
+        });
+        continue;
+      }
 
-    if (hunk.type === "delete") {
-      const target = resolvePatchPath(cwd, hunk.filePath);
-      const originalContent = await fs.readFile(target, "utf-8");
-      await fs.unlink(target);
-      summary.deleted.push(hunk.filePath);
-      summary.fileDiffs.push({
-        status: "D",
-        path: hunk.filePath,
-        diff: buildNumberedDiff(originalContent, ""),
-      });
-      continue;
-    }
+      if (hunk.type === "delete") {
+        const target = resolvePatchPath(cwd, hunk.filePath);
+        const originalContent = await fs.readFile(target, "utf-8");
+        await fs.unlink(target);
+        summary.deleted.push(hunk.filePath);
+        summary.fileDiffs.push({
+          status: "D",
+          path: hunk.filePath,
+          diff: buildNumberedDiff(originalContent, ""),
+        });
+        continue;
+      }
 
-    const source = resolvePatchPath(cwd, hunk.filePath);
-    const originalContent = await fs.readFile(source, "utf-8");
-    const nextContent = deriveUpdatedContent(originalContent, source, hunk.chunks);
-    const diff = buildNumberedDiff(originalContent, nextContent);
+      const source = resolvePatchPath(cwd, hunk.filePath);
+      const originalContent = await fs.readFile(source, "utf-8");
+      const next = deriveUpdatedContent(originalContent, source, hunk.chunks);
+      const diff = buildNumberedDiff(originalContent, next.content);
 
-    if (hunk.moveToPath) {
-      const destination = resolvePatchPath(cwd, hunk.moveToPath);
-      await fs.mkdir(path.dirname(destination), { recursive: true });
-      await fs.writeFile(destination, nextContent, "utf-8");
-      await fs.unlink(source);
-      summary.modified.push(hunk.moveToPath);
+      if (hunk.moveToPath) {
+        const destination = resolvePatchPath(cwd, hunk.moveToPath);
+        await fs.mkdir(path.dirname(destination), { recursive: true });
+        await fs.writeFile(destination, next.content, "utf-8");
+        try {
+          await fs.unlink(source);
+        } catch (error) {
+          await fs.unlink(destination);
+          throw error;
+        }
+        summary.modified.push(hunk.moveToPath);
+        summary.fileDiffs.push({
+          status: "M",
+          path: hunk.moveToPath,
+          moveFrom: hunk.filePath,
+          diff,
+        });
+        summary.live.push({ path: hunk.moveToPath, anchors: next.anchors });
+        continue;
+      }
+
+      await fs.writeFile(source, next.content, "utf-8");
+      summary.modified.push(hunk.filePath);
       summary.fileDiffs.push({
         status: "M",
-        path: hunk.moveToPath,
-        moveFrom: hunk.filePath,
+        path: hunk.filePath,
         diff,
       });
-      continue;
+      summary.live.push({ path: hunk.filePath, anchors: next.anchors });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      summary.failed.push({ path: hunk.filePath, error: message });
     }
-
-    await fs.writeFile(source, nextContent, "utf-8");
-    summary.modified.push(hunk.filePath);
-    summary.fileDiffs.push({
-      status: "M",
-      path: hunk.filePath,
-      diff,
-    });
   }
 
   return summary;

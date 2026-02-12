@@ -11,8 +11,14 @@ export type Hunk =
 export type UpdateFileChunk = {
   changeContext?: string;
   oldLines: string[];
+  oldAnchors: UpdateLineAnchor[];
   newLines: string[];
   isEndOfFile: boolean;
+};
+
+export type UpdateLineAnchor = {
+  line: number;
+  hash: string;
 };
 
 export class InvalidPatchError extends Error {}
@@ -36,5 +42,17 @@ export type ApplySummary = {
   added: string[];
   modified: string[];
   deleted: string[];
+  failed: ApplyFailure[];
+  live: ApplyLive[];
   fileDiffs: ApplyFileDiff[];
+};
+
+export type ApplyFailure = {
+  path: string;
+  error: string;
+};
+
+export type ApplyLive = {
+  path: string;
+  anchors: string[];
 };

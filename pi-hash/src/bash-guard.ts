@@ -22,7 +22,7 @@ export function detectBashWriteViolation(command: string): string | null {
   if (redirectMatch) {
     const target = redirectMatch[1] || redirectMatch[2];
     if (target && target !== "/dev/null" && target !== "&1" && target !== "&2") {
-      return "Output redirection (> or >>) or Heredoc (<<) detected. You SHALL NOT use bash to write files. You MUST use apply_patch for all file modifications.";
+      return "Output redirection (> or >>) or Heredoc (<<) detected. You SHALL NOT use bash to write files. You MUST use apply_hash for all file modifications.";
     }
   }
 
@@ -57,17 +57,17 @@ export function detectBashWriteViolation(command: string): string | null {
     const cmdName = cmdMatch[1].replace(/^.*\//, ""); // strip path: /usr/bin/tee -> tee
 
     if (forbiddenCommands.has(cmdName)) {
-      return `Command '${cmdName}' writes to files. You MUST use apply_patch for all file modifications. You MUST NOT use '${cmdName}' in bash.`;
+      return `Command '${cmdName}' writes to files. You MUST use apply_hash for all file modifications. You MUST NOT use '${cmdName}' in bash.`;
     }
 
     // sed is only forbidden with -i (in-place editing); sed without -i is read-only
     if (cmdName === "sed" && /\s-[^\s]*i/.test(rest)) {
-      return "Command 'sed -i' edits files in-place. You MUST use apply_patch instead. 'sed' without '-i' (print-only) is allowed.";
+      return "Command 'sed -i' edits files in-place. You MUST use apply_hash instead. 'sed' without '-i' (print-only) is allowed.";
     }
 
     // dd is only forbidden with of= (output file)
     if (cmdName === "dd" && /\bof=/.test(rest)) {
-      return "Command 'dd of=' writes to files. You MUST use apply_patch for all file modifications.";
+      return "Command 'dd of=' writes to files. You MUST use apply_hash for all file modifications.";
     }
   }
 

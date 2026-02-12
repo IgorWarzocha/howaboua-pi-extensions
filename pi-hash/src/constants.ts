@@ -1,7 +1,7 @@
 // Marker constants for the patch format.
 // This file is intentionally isolated because its string literals
 // contain sequences (like triple-star prefixes) that confuse the
-// apply_patch tool when used as context lines in update hunks.
+// apply_hash tool when used as context lines in update hunks.
 // Rarely needs changes — if you need to edit it, delete and recreate.
 
 export const BEGIN_PATCH_MARKER = "\x2a\x2a\x2a Begin Patch";
@@ -17,11 +17,11 @@ export const EMPTY_CHANGE_CONTEXT_MARKER = "@@";
 
 const M3 = "\x2a\x2a\x2a";
 export const APPLY_PATCH_PROMPT_INSTRUCTIONS = [
-  "## apply_patch",
+  "## apply_hash",
   "",
-  "The apply_patch tool MUST be used for all file modifications.",
-  "You MUST include all related file modifications for a user request in a single apply_patch call.",
-  "You MUST NOT split related edits across sequential apply_patch calls unless the patch is too large to send safely.",
+  "The apply_hash tool MUST be used for all file modifications.",
+  "You MUST include all related file modifications for a user request in a single apply_hash call.",
+  "You MUST NOT split related edits across sequential apply_hash calls unless the patch is too large to send safely.",
   "If a patch is too large, you MUST split by independent files and explain the split briefly.",
   "",
   "### Patch Envelope Structure",
@@ -70,5 +70,5 @@ export const APPLY_PATCH_PROMPT_INSTRUCTIONS = [
   "- You MUST prefer one atomic patch call per request.",
   "- You MAY split only when payload size or model limits require it.",
   "- If splitting is required, each call MUST contain a complete file section set for independent files.",
-  "- You MUST NOT emit one apply_patch call per tiny edit when one envelope can contain all changes.",
+  "- You MUST NOT emit one apply_hash call per tiny edit when one envelope can contain all changes.",
 ].join("\n");

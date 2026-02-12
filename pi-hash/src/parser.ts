@@ -13,6 +13,25 @@ import {
 import { ensureRelativePatchPath } from "./path-utils.js";
 import { InvalidPatchError, InvalidHunkError, type Hunk, type UpdateFileChunk } from "./types.js";
 
+function parseAnchoredBody(body: string, lineNumber: number): { line: string; lineNumber: number; hash: string } {
+  const match = body.match(/^(\d+)([a-z]{4})\|(.*)$/);
+  if (!match) {
+    throw new InvalidHunkError(
+      `Anchored line is invalid: '${body.slice(0, 120)}'.` +
+        `\nContext and removal lines MUST include LINEHASH| prefixes (e.g. '42abcd|content').`,
+      lineNumber,
+    );
+  }
+  const rawLine = Number.parseInt(match[1], 10);
+  if (!Number.isFinite(rawLine) || rawLine < 1) {
+    throw new InvalidHunkError(
+      `Anchored line number MUST be >= 1. Got '${match[1]}'.`,
+      lineNumber,
+    );
+  }
+  return { line: match[3], lineNumber: rawLine, hash: match[2] };
+}
+
 function normalizePatchText(text: string): string {
   return text.replace(/\r\n/g, "\n").replace(/\t/g, "    ").trim();
 }
@@ -265,6 +284,7 @@ function parseUpdateFileChunk(
   const chunk: UpdateFileChunk = {
     changeContext,
     oldLines: [],
+    oldAnchors: [],
     newLines: [],
     isEndOfFile: false,
   };
@@ -285,16 +305,18 @@ function parseUpdateFileChunk(
     }
 
     if (line.length === 0) {
-      chunk.oldLines.push("");
-      chunk.newLines.push("");
-      parsedBodyLines += 1;
-      continue;
+      throw new InvalidHunkError(
+        "Unexpected empty line in update hunk. Every body line MUST start with ' ', '+', or '-'.",
+        lineNumber + startIndex + parsedBodyLines + 1,
+      );
     }
 
     const prefix = line[0];
     if (prefix === " ") {
-      chunk.oldLines.push(line.slice(1));
-      chunk.newLines.push(line.slice(1));
+      const anchored = parseAnchoredBody(line.slice(1), lineNumber + startIndex + parsedBodyLines + 1);
+      chunk.oldLines.push(anchored.line);
+      chunk.oldAnchors.push({ line: anchored.lineNumber, hash: anchored.hash });
+      chunk.newLines.push(anchored.line);
       parsedBodyLines += 1;
       continue;
     }
@@ -304,7 +326,9 @@ function parseUpdateFileChunk(
       continue;
     }
     if (prefix === "-") {
-      chunk.oldLines.push(line.slice(1));
+      const anchored = parseAnchoredBody(line.slice(1), lineNumber + startIndex + parsedBodyLines + 1);
+      chunk.oldLines.push(anchored.line);
+      chunk.oldAnchors.push({ line: anchored.lineNumber, hash: anchored.hash });
       parsedBodyLines += 1;
       continue;
     }
