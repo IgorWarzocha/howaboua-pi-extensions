@@ -11,14 +11,14 @@ export function registerReadHashTool(pi: ExtensionAPI) {
     name: "read",
     label: "Read File(s)",
     description:
-      "Read files with LINEHASH| anchors REQUIRED for robust editing. Supports multi-read, range slicing, and in-file search. This tool REPLACES in-file grep/rg for known paths. You MUST use this tool for file inspection before apply_patch updates. You MUST copy anchored lines exactly from read output for update hunk body lines (' ' and '-'). You MUST NOT use LINEHASH-prefixed values as @@ context text; @@ context SHOULD be plain file text or omitted. You SHOULD NOT use bash (cat/head/tail/sed) for inspection when read can access the target paths.",
+      "Read files with LINEHASH|CONTENT output for robust patching. LINEHASH means <line-number><4 lowercase hash chars> (example: '12abcz|const x = 1;'). This tool supports single-path reads and multi-read arrays with offset/limit/search. You MUST use read for file inspection before apply_patch updates. For Update hunks, you MUST copy anchored lines exactly for context (' ') and removal ('-') lines. You MUST NOT place LINEHASH-prefixed text in '+' lines, and @@ context SHOULD be plain file text or omitted. You SHOULD NOT use bash (cat/head/tail/sed) for inspection when read can access the target paths.",
     parameters: Type.Object({
       files: Type.Union([
         Type.String({
-          description: "Single file path, JSON object with { path }, or JSON array.",
+          description: "Single file path (string), a JSON object like { path }, or a JSON array of entries.",
         }),
         Type.Array(Type.Union([Type.String(), HashFileSchema]), {
-          description: "Multi-read payload. Each entry MAY include offset/limit and search options.",
+          description: "Multi-read payload. Each entry MAY include offset, limit, search, regex, and context window options.",
         }),
       ]),
     }),

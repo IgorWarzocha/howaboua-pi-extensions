@@ -11,7 +11,7 @@
   },
   "pi": {
     "extensions": [
-      "./todos.ts"
+      "./index.ts"
     ]
   }
 }

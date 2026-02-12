@@ -2,7 +2,6 @@ import { type ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { registerReadHashTool } from "./src/read/tool.js";
 import { setupReadGuard } from "./src/read/guard.js";
 import { Type } from "@sinclair/typebox";
-import { APPLY_PATCH_PROMPT_INSTRUCTIONS } from "./src/constants.js";
 import { detectBashWriteViolation } from "./src/bash-guard.js";
 import { parsePatch } from "./src/parser.js";
 import { applyHunks } from "./src/apply.js";
@@ -24,12 +23,6 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
     current.delete("edit");
     current.delete("write");
     pi.setActiveTools([...current]);
-  });
-
-  pi.on("before_agent_start", (event) => {
-    return {
-      systemPrompt: `${event.systemPrompt}\n\n${APPLY_PATCH_PROMPT_INSTRUCTIONS}`,
-    };
   });
 
   pi.on("tool_call", (event) => {
@@ -67,7 +60,7 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
     name: "apply_patch",
     label: "apply_patch",
     description:
-      "Apply a patch envelope for multi-file operations (Add, Update, Move, Delete). You MUST use this tool for ALL file modifications. Add File MUST NOT overwrite existing files; for full replacement you MUST include Delete File + Add File for the same path in one call, with Delete File before Add File. Update hunk context (' ') and removal ('-') lines MUST include LINEHASH|CONTENT anchors. Addition lines ('+') MUST NOT include anchors. You MUST batch all related file changes in ONE call unless payload limits require splitting by independent files.",
+      "Apply a patch envelope for multi-file operations (Add, Update, Move, Delete). You MUST use this tool for ALL file modifications. Add File MUST NOT overwrite existing files; for full replacement you MUST include Delete File + Add File for the same path in one call, with Delete File before Add File. For Update hunks, context (' ') and removal ('-') lines MUST use anchored format LINEHASH|CONTENT where LINEHASH is <line-number><4 lowercase hash chars> (example: '12abcz|const x = 1;'). Addition ('+') lines MUST NOT include LINEHASH prefixes. The @@ marker MUST be present for each update chunk; @@ context SHOULD be plain file text (not LINEHASH) or omitted. You MUST batch all related file changes in ONE call unless payload limits require splitting by independent files.",
     renderCall(args, theme) {
       return renderApplyPatchCall(args, parsePatch, theme);
     },
@@ -77,7 +70,7 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
     parameters: Type.Object({
       patchText: Type.String({
         description:
-          "Patch text containing *** Begin Patch ... *** End Patch. The envelope MAY include Add/Update/Move/Delete across multiple files and MAY combine Move to + Update in one section. Update hunks MUST anchor context/removal lines as LINEHASH|CONTENT.",
+          "Patch text containing *** Begin Patch ... *** End Patch. The envelope MAY include Add/Update/Move/Delete across multiple files and MAY combine Move to + Update in one section. For Update hunks, ' ' and '-' lines MUST use LINEHASH|CONTENT anchors copied from read output (LINEHASH = <line-number><4 lowercase hash chars>, example: '12abcz|const x = 1;'). '+' lines MUST NOT include anchors. @@ context SHOULD be plain text or omitted.",
       }),
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
