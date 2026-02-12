@@ -13,6 +13,14 @@ import {
 import { ensureRelativePatchPath } from "./path-utils.js";
 import { InvalidPatchError, InvalidHunkError, type Hunk, type UpdateFileChunk } from "./types.js";
 
+function sanitizeAddedLine(line: string): string {
+  let next = line;
+  while (/^\d+[a-z]{4}\|/.test(next)) {
+    next = next.replace(/^\d+[a-z]{4}\|/, "");
+  }
+  return next;
+}
+
 function parseAnchoredBody(body: string, lineNumber: number): { line: string; lineNumber: number; hash: string } {
   const match = body.match(/^(\d+)([a-z]{4})\|(.*)$/);
   if (!match) {
@@ -160,7 +168,7 @@ function parseOneHunk(lines: string[], lineNumber: number): { hunk: Hunk; consum
 
     for (const addLine of lines.slice(1)) {
       if (addLine.startsWith("+")) {
-        contents += `${addLine.slice(1)}\n`;
+        contents += `${sanitizeAddedLine(addLine.slice(1))}\n`;
         consumedLines += 1;
         continue;
       }
@@ -326,7 +334,7 @@ function parseUpdateFileChunk(
       continue;
     }
     if (prefix === "+") {
-      chunk.newLines.push(line.slice(1));
+      chunk.newLines.push(sanitizeAddedLine(line.slice(1)));
       parsedBodyLines += 1;
       continue;
     }

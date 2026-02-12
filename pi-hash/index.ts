@@ -11,7 +11,6 @@ import { renderApplyPatchCall, renderApplyPatchResult, formatSummary } from "./s
 export default function applyPatchExtension(pi: ExtensionAPI) {
   registerReadHashTool(pi);
   setupReadGuard(pi);
-
   let patchCallsInTurn = 0;
 
   pi.on("turn_start", () => {
@@ -76,15 +75,19 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
     },
     parameters: Type.Object({
       patchText: Type.String({
-        description: "Patch text containing *** Begin Patch ... *** End Patch. The envelope MAY include Add/Update/Move/Delete across multiple files and MAY combine Move to + Update in one section. Update hunks MUST anchor context/removal lines as LINEHASH|CONTENT.",
+        description:
+          "Patch text containing *** Begin Patch ... *** End Patch. The envelope MAY include Add/Update/Move/Delete across multiple files and MAY combine Move to + Update in one section. Update hunks MUST anchor context/removal lines as LINEHASH|CONTENT.",
       }),
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       try {
         const hunks = parsePatch(params.patchText);
         const summary = await applyHunks(ctx.cwd, hunks);
+        const successCount = summary.added.length + summary.modified.length + summary.deleted.length;
+        const allFailed = summary.failed.length > 0 && successCount === 0;
         return {
           content: [{ type: "text", text: formatSummary(summary) }],
+          isError: allFailed,
           details: summary,
         };
       } catch (error) {

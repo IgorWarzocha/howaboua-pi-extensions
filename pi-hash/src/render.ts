@@ -4,20 +4,12 @@ import type { ApplySummary } from "./types.js";
 
 function splitContentLines(content: string): string[] {
   const lines = content.split("\n");
-  if (lines.length > 0 && lines[lines.length - 1] === "") {
-    lines.pop();
-  }
+  if (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
   return lines;
 }
 
-function formatDiffLine(
-  prefix: "+" | "-" | " ",
-  lineNumber: number | undefined,
-  width: number,
-  text: string,
-): string {
-  const num =
-    lineNumber === undefined ? "".padStart(width, " ") : String(lineNumber).padStart(width, " ");
+function formatDiffLine(prefix: "+" | "-" | " ", lineNumber: number | undefined, width: number, text: string): string {
+  const num = lineNumber === undefined ? "".padStart(width, " ") : String(lineNumber).padStart(width, " ");
   return `${prefix}${num} ${text}`;
 }
 
@@ -26,12 +18,8 @@ export function buildNumberedDiff(oldContent: string, newContent: string): strin
   const newLines = splitContentLines(newContent);
   if (oldLines.length === 0 && newLines.length === 0) return "";
   let start = 0;
-  while (start < oldLines.length && start < newLines.length && oldLines[start] === newLines[start]) {
-    start += 1;
-  }
-  if (start === oldLines.length && start === newLines.length) {
-    return formatDiffLine(" ", 1, 1, "(no changes)");
-  }
+  while (start < oldLines.length && start < newLines.length && oldLines[start] === newLines[start]) start += 1;
+  if (start === oldLines.length && start === newLines.length) return formatDiffLine(" ", 1, 1, "(no changes)");
   let oldEnd = oldLines.length - 1;
   let newEnd = newLines.length - 1;
   while (oldEnd >= start && newEnd >= start && oldLines[oldEnd] === newLines[newEnd]) {
@@ -42,26 +30,25 @@ export function buildNumberedDiff(oldContent: string, newContent: string): strin
   const lines: string[] = [];
   const contextBeforeStart = Math.max(0, start - 3);
   if (contextBeforeStart > 0) lines.push(formatDiffLine(" ", undefined, width, "..."));
-  for (let index = contextBeforeStart; index < start; index += 1) {
-    lines.push(formatDiffLine(" ", index + 1, width, oldLines[index]));
-  }
-  for (let index = start; index <= oldEnd; index += 1) {
-    lines.push(formatDiffLine("-", index + 1, width, oldLines[index]));
-  }
-  for (let index = start; index <= newEnd; index += 1) {
-    lines.push(formatDiffLine("+", index + 1, width, newLines[index]));
-  }
+  for (let index = contextBeforeStart; index < start; index += 1) lines.push(formatDiffLine(" ", index + 1, width, oldLines[index]));
+  for (let index = start; index <= oldEnd; index += 1) lines.push(formatDiffLine("-", index + 1, width, oldLines[index]));
+  for (let index = start; index <= newEnd; index += 1) lines.push(formatDiffLine("+", index + 1, width, newLines[index]));
   const suffixStart = oldEnd + 1;
   const suffixShownEnd = Math.min(oldLines.length, suffixStart + 3);
-  for (let index = suffixStart; index < suffixShownEnd; index += 1) {
-    lines.push(formatDiffLine(" ", index + 1, width, oldLines[index]));
-  }
+  for (let index = suffixStart; index < suffixShownEnd; index += 1) lines.push(formatDiffLine(" ", index + 1, width, oldLines[index]));
   if (suffixShownEnd < oldLines.length) lines.push(formatDiffLine(" ", undefined, width, "..."));
   return lines.join("\n");
 }
 
 export function formatSummary(summary: ApplySummary): string {
-  const lines = ["Success. Updated the following files:"];
+  const successCount = summary.added.length + summary.modified.length + summary.deleted.length;
+  const failedCount = summary.failed.length;
+  const title = failedCount === 0
+    ? "Success. Updated the following files:"
+    : successCount === 0
+      ? "Failed. No files were updated:"
+      : "Partial success. Updated the following files:";
+  const lines = [title];
   for (const file of summary.added) lines.push(`A ${file}`);
   for (const file of summary.modified) lines.push(`M ${file}`);
   for (const file of summary.deleted) lines.push(`D ${file}`);
@@ -91,13 +78,10 @@ export function formatSummary(summary: ApplySummary): string {
 }
 
 export function renderApplyPatchCall(args: unknown, parsePatch: (text: string) => any[], theme: any): Text {
-  const patchText =
-    typeof (args as { patchText?: unknown })?.patchText === "string"
-      ? ((args as { patchText?: string }).patchText ?? "")
-      : "";
-  if (!patchText) {
-    return new Text(`${theme.fg("toolTitle", theme.bold("apply_patch"))} ${theme.fg("muted", "(awaiting patch)")}`, 0, 0);
-  }
+  const patchText = typeof (args as { patchText?: unknown })?.patchText === "string"
+    ? ((args as { patchText?: string }).patchText ?? "")
+    : "";
+  if (!patchText) return new Text(`${theme.fg("toolTitle", theme.bold("apply_patch"))} ${theme.fg("muted", "(awaiting patch)")}`, 0, 0);
   try {
     const hunks = parsePatch(patchText);
     const addCount = hunks.filter((h: any) => h.type === "add").length;
@@ -107,12 +91,7 @@ export function renderApplyPatchCall(args: unknown, parsePatch: (text: string) =
     const preview = files.slice(0, 3).join(", ");
     const suffix = files.length > 3 ? `, +${files.length - 3} more` : "";
     const opSummary = `A:${addCount} M:${updateCount} D:${deleteCount}`;
-    return new Text(
-      `${theme.fg("toolTitle", theme.bold("apply_patch"))} ${theme.fg("muted", `(${opSummary})`)}` +
-        `${preview ? `\n${theme.fg("accent", preview)}${theme.fg("muted", suffix)}` : ""}`,
-      0,
-      0,
-    );
+    return new Text(`${theme.fg("toolTitle", theme.bold("apply_patch"))} ${theme.fg("muted", `(${opSummary})`)}${preview ? `\n${theme.fg("accent", preview)}${theme.fg("muted", suffix)}` : ""}`, 0, 0);
   } catch {
     return new Text(`${theme.fg("toolTitle", theme.bold("apply_patch"))} ${theme.fg("muted", "(patching)")}`, 0, 0);
   }
@@ -125,21 +104,25 @@ export function renderApplyPatchResult(result: any, expanded: boolean, isPartial
     .join("\n")
     .trim();
   const summaryLines = rawTextContent.split("\n");
-  const textContent =
-    summaryLines.length > 0 && summaryLines[0] === "Success. Updated the following files:"
-      ? summaryLines.filter((line, index) => index === 0 || !/^[AMD] /.test(line)).join("\n").trim()
-      : rawTextContent;
+  const textContent = summaryLines.length > 0 && (
+    summaryLines[0] === "Success. Updated the following files:" ||
+    summaryLines[0] === "Partial success. Updated the following files:" ||
+    summaryLines[0] === "Failed. No files were updated:"
+  )
+    ? summaryLines.filter((line: string, index: number) => index === 0 || !/^[AMD] /.test(line)).join("\n").trim()
+    : rawTextContent;
   if (isPartial) return new Text(theme.fg("warning", textContent || "Applying patch..."), 0, 0);
-  let output = textContent ? (result.isError ? textContent : theme.fg("toolOutput", textContent)) : "";
   const summary = result.details as ApplySummary | undefined;
+  const successCount = (summary?.added.length ?? 0) + (summary?.modified.length ?? 0) + (summary?.deleted.length ?? 0);
+  const failedCount = summary?.failed.length ?? 0;
+  const tone = result.isError || (failedCount > 0 && successCount === 0) ? "error" : failedCount > 0 ? "warning" : "toolOutput";
+  let output = textContent ? theme.fg(tone, textContent) : "";
   const fileDiffs = summary?.fileDiffs ?? [];
   if (result.isError) return new Text(output || "Error", 0, 0);
   if (fileDiffs.length > 0) {
     const visibleFileCount = expanded ? fileDiffs.length : Math.min(fileDiffs.length, 2);
     for (const fileDiff of fileDiffs.slice(0, visibleFileCount)) {
-      const header = fileDiff.moveFrom
-        ? `${fileDiff.status} ${fileDiff.path} (from ${fileDiff.moveFrom})`
-        : `${fileDiff.status} ${fileDiff.path}`;
+      const header = fileDiff.moveFrom ? `${fileDiff.status} ${fileDiff.path} (from ${fileDiff.moveFrom})` : `${fileDiff.status} ${fileDiff.path}`;
       if (fileDiff.status === "D" || fileDiff.diff.trim().length === 0) {
         output += `${output ? "\n\n" : ""}${theme.fg("accent", header)}`;
         continue;
@@ -159,3 +142,4 @@ export function renderApplyPatchResult(result: any, expanded: boolean, isPartial
   }
   return new Text(output || theme.fg("toolOutput", "No output"), 0, 0);
 }
+
