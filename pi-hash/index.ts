@@ -60,7 +60,7 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
     name: "apply_patch",
     label: "apply_patch",
     description:
-      "Apply a patch envelope for multi-file operations (Add, Update, Move, Delete). You MUST use this tool for ALL file modifications. Add File MUST NOT overwrite existing files; for full replacement you MUST include Delete File + Add File for the same path in one call, with Delete File before Add File. For Update hunks, context (' ') and removal ('-') lines MUST use anchored format LINEHASH|CONTENT where LINEHASH is <line-number><4 lowercase hash chars> (example: '12abcz|const x = 1;'). Addition ('+') lines MUST NOT include LINEHASH prefixes. The @@ marker MUST be present for each update chunk; @@ context SHOULD be plain file text (not LINEHASH) or omitted. You MUST batch all related file changes in ONE call unless payload limits require splitting by independent files.",
+      "Modify files. You MUST batch all related changes into ONE '*** Begin Patch ... *** End Patch' envelope (exact strings, no markdown bolding). File Sections: Each MUST start with a header: '*** Add File: <path>' (MUST NOT overwrite; use Delete+Add sequence for full replacement), '*** Update File: <path>' (For edits; MAY follow with '*** Move to: <new-path>'), or '*** Delete File: <path>'. Update Hunks: '@@ <context>' MUST be exact plain text from the file or empty (MUST NOT contain summaries or descriptive notes); ' ' and '-' MUST use exact 'LINEHASH|CONTENT' anchors from 'read' (example: '12abcz|const x = 1;'); '+' MUST NOT include LINEHASH anchors or line numbers. Batching: You MUST batch all related file changes in ONE call unless payload limits require splitting.",
     renderCall(args, theme) {
       return renderApplyPatchCall(args, parsePatch, theme);
     },
@@ -70,7 +70,7 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
     parameters: Type.Object({
       patchText: Type.String({
         description:
-          "Patch text containing *** Begin Patch ... *** End Patch. The envelope MAY include Add/Update/Move/Delete across multiple files and MAY combine Move to + Update in one section. For Update hunks, ' ' and '-' lines MUST use LINEHASH|CONTENT anchors copied from read output (LINEHASH = <line-number><4 lowercase hash chars>, example: '12abcz|const x = 1;'). '+' lines MUST NOT include anchors. @@ context SHOULD be plain text or omitted.",
+          "Patch text starting with '*** Begin Patch' and ending with '*** End Patch'. Follow strict structure: headers prefixed with '*** ', context (' ') and removal ('-') lines MUST have LINEHASH| anchors, addition ('+') lines MUST NOT have anchors. @@ context MUST be plain text or empty.",
       }),
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {

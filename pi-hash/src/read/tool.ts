@@ -11,7 +11,7 @@ export function registerReadHashTool(pi: ExtensionAPI) {
     name: "read",
     label: "Read File(s)",
     description:
-      "Read files with LINEHASH|CONTENT output for robust patching. LINEHASH means <line-number><4 lowercase hash chars> (example: '12abcz|const x = 1;'). This tool supports single-path reads and multi-read arrays with offset/limit/search. You MUST use read for file inspection before apply_patch updates. For Update hunks, you MUST copy anchored lines exactly for context (' ') and removal ('-') lines. You MUST NOT place LINEHASH-prefixed text in '+' lines, and @@ context SHOULD be plain file text or omitted. You SHOULD NOT use bash (cat/head/tail/sed) for inspection when read can access the target paths.",
+      "Read files with LINEHASH|CONTENT output for robust patching. LINEHASH means <line-number><4 lowercase hash chars> (example: '12abcz|const x = 1;'). This tool supports single-path reads and multi-read arrays. You MUST use read for file inspection before apply_patch updates. For Update hunks, you MUST copy anchored lines exactly for context (' ') and removal ('-') lines. You MUST NOT include LINEHASH prefixes or line numbers in '+' addition lines. You SHOULD NOT use bash (cat/head/tail/sed) for inspection when read can access the target paths.",
     parameters: Type.Object({
       files: Type.Union([
         Type.String({
