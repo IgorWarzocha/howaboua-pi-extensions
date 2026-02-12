@@ -1,0 +1,14 @@
+{
+  "name": "pi-nested-agents-md",
+  "version": "0.1.0",
+  "description": "Enhanced nested agents.md context with user-only info display",
+  "type": "module",
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*"
+  },
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  }
+}

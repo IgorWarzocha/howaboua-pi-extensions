@@ -1,0 +1,17 @@
+{
+  "name": "pi-todos",
+  "version": "0.1.0",
+  "description": "Todo manager extension",
+  "keywords": ["pi-extension"],
+  "type": "module",
+  "peerDependencies": {
+    "@mariozechner/pi-ai": "*",
+    "@mariozechner/pi-coding-agent": "*",
+    "@mariozechner/pi-tui": "*"
+  },
+  "pi": {
+    "extensions": [
+      "./todos.ts"
+    ]
+  }
+}
