@@ -21,11 +21,11 @@ A line MUST be normalized before hashing to ensure that LLM formatting hallucina
 3. **Case Sensitivity:** Normalization MUST NOT change casing; `Function` and `function` MUST produce different hashes.
 
 #### 3. Hashing Algorithm
-1. **Algorithm:** `xxHash32`.
+1. **Algorithm:** `xxHash32` (or high-performance FNV-1a).
 2. **Input:** The normalized UTF-8 string.
 3. **Output Format:**
-   - Truncate the hash to 8 bits (`hash % 256`).
-   - Represent as a **2-character lowercase hex string** (`00`-`ff`).
+   - Truncate the hash to ~18 bits (`hash % 456976`).
+   - Represent as a **4-character lowercase base26 string** (`aaaa`-`zzzz`).
 
 #### 4. Verification Logic
 The `verify(lineNo, content, expectedHash)` function MUST:

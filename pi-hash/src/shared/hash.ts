@@ -21,11 +21,23 @@ export function computeStringHash(str: string): number {
   return hash >>> 0;
 }
 
+/**
+ * Base26 encoding using only lowercase letters (a-z).
+ */
+function toBase26(n: number): string {
+  let s = "";
+  for (let i = 0; i < 4; i++) {
+    s = String.fromCharCode(97 + (n % 26)) + s;
+    n = Math.floor(n / 26);
+  }
+  return s;
+}
+
 export function computeLineHash(content: string): string {
   const normalized = normalizeForHash(content, false);
-  if (normalized === "") return "00";
+  if (normalized === "") return "aaaa";
   
   const hash = computeStringHash(normalized);
-  const truncated = hash % 256;
-  return truncated.toString(16).padStart(2, "0");
+  const truncated = hash % 456976; // 26^4
+  return toBase26(truncated);
 }
