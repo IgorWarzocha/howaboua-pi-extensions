@@ -38,7 +38,7 @@ function contextError(lines: string[], pathText: string, context: string, seed: 
   const sample: string[] = [];
   let index = start;
   while (index < stop) {
-    sample.push(`${index + 1}${computeLineHash(lines[index])}|${lines[index]}`);
+    sample.push(`${index + 1}:${computeLineHash(lines[index])}|${lines[index]}`);
     index += 1;
   }
   const error = new Error(
@@ -142,7 +142,7 @@ function anchorLines(lines: string[]): string[] {
   const out: string[] = [];
   let index = 0;
   while (index < lines.length) {
-    out.push(`${index + 1}${computeLineHash(lines[index])}|${lines[index]}`);
+    out.push(`${index + 1}:${computeLineHash(lines[index])}|${lines[index]}`);
     index += 1;
   }
   return out;
@@ -163,17 +163,17 @@ function mismatch(lines: string[], pathText: string, chunk: UpdateFileChunk): An
   let oldIndex = 0;
   while (oldIndex < chunk.oldLines.length) {
     const anchor = chunk.oldAnchors[oldIndex];
-    expected.push(`${anchor.line}${anchor.hash}|${chunk.oldLines[oldIndex]}`);
+    expected.push(`${anchor.line}:${anchor.hash}|${chunk.oldLines[oldIndex]}`);
     oldIndex += 1;
   }
   let index = start;
   while (index < stop) {
-    sample.push(`${index + 1}${computeLineHash(lines[index])}|${lines[index]}`);
+    sample.push(`${index + 1}:${computeLineHash(lines[index])}|${lines[index]}`);
     index += 1;
   }
   const error = new Error(
     `Patch Error: Failed to find anchored block in ${pathText}.` +
-      `\nExpected first anchor: ${first.line}${first.hash}|${chunk.oldLines[0] ?? ""}`,
+      `\nExpected first anchor: ${first.line}:${first.hash}|${chunk.oldLines[0] ?? ""}`,
   ) as AnchorError;
   error.expected = expected;
   error.actual = sample;

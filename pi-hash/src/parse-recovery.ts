@@ -26,7 +26,7 @@ function anchoredWindow(lines: string[], center: number): string[] {
   const out: string[] = [];
   let index = start;
   while (index < stop) {
-    out.push(`${index + 1}${computeLineHash(lines[index])}|${lines[index]}`);
+    out.push(`${index + 1}:${computeLineHash(lines[index])}|${lines[index]}`);
     index += 1;
   }
   return out;
@@ -71,4 +71,3 @@ export async function enrichParseError(cwd: string, patchText: string, error: un
   ];
   return details.join("\n");
 }
-

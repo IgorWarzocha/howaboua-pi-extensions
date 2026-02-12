@@ -27,6 +27,16 @@ const TodoParams = Type.Object({
     title: Type.Optional(Type.String({ description: "Short summary shown in lists" })),
     status: Type.Optional(Type.String({ description: "Todo status" })),
     tags: Type.Optional(Type.Array(Type.String({ description: "Todo tag" }))),
+    checklist: Type.Optional(
+        Type.Array(
+            Type.Object({
+                id: Type.String({ description: "Short item id (e.g., '1', '2', '3')" }),
+                title: Type.String({ description: "Item description" }),
+                status: Type.Optional(StringEnum(["unchecked", "checked"] as const, { description: "Item status, defaults to unchecked" })),
+            }),
+            { description: "Checklist items for this todo. When present, status is derived from checklist completion." },
+        ),
+    ),
     body: Type.Optional(
         Type.String({ description: "Long-form details (markdown). Update replaces; append adds." }),
     ),
@@ -123,6 +133,11 @@ export function registerTodoTool(pi: ExtensionAPI) {
                         status: params.status ?? "open",
                         created_at: new Date().toISOString(),
                         body: params.body ?? "",
+                        checklist: params.checklist?.map(item => ({
+                            id: item.id,
+                            title: item.title,
+                            status: item.status ?? "unchecked",
+                        })) as ChecklistItem[] | undefined,
                     };
 
                     await writeTodoFile(filePath, todo);
@@ -178,6 +193,14 @@ export function registerTodoTool(pi: ExtensionAPI) {
                     }
                     if (params.tags !== undefined) existing.tags = params.tags;
                     if (params.body !== undefined) existing.body = params.body;
+                    if (params.checklist !== undefined) {
+                        existing.checklist = params.checklist.map(item => ({
+                            id: item.id,
+                            title: item.title,
+                            status: item.status ?? "unchecked",
+                        })) as ChecklistItem[];
+                        existing.status = deriveTodoStatus(existing);
+                    }
                     if (!existing.created_at) existing.created_at = new Date().toISOString();
 
                     await writeTodoFile(filePath, existing);

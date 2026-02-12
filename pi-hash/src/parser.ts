@@ -15,18 +15,18 @@ import { InvalidPatchError, InvalidHunkError, type Hunk, type UpdateFileChunk } 
 
 function sanitizeAddedLine(line: string): string {
   let next = line;
-  while (/^\d+[a-z]{4}\|/.test(next)) {
-    next = next.replace(/^\d+[a-z]{4}\|/, "");
+  while (/^\d+:[0-9a-f]{2}\|/.test(next)) {
+    next = next.replace(/^\d+:[0-9a-f]{2}\|/, "");
   }
   return next;
 }
 
 function parseAnchoredBody(body: string, lineNumber: number): { line: string; lineNumber: number; hash: string } {
-  const match = body.match(/^(\d+)([a-z]{4})\|(.*)$/);
+  const match = body.match(/^(\d+):([0-9a-f]{2})\|(.*)$/);
   if (!match) {
     throw new InvalidHunkError(
       `Anchored line is invalid: '${body.slice(0, 120)}'.` +
-        `\nContext and removal lines MUST include LINEHASH| prefixes (e.g. '42abcd|content').` +
+        `\nContext and removal lines MUST include LINE:HASH| prefixes (e.g. '42:ab|content').` +
         `\nYou MUST run read and copy anchored lines exactly for update hunk body lines (' ' and '-').` +
         `\nIf you intend to replace most of the file, you SHOULD use Delete File + Add File in one apply_patch call.`,
       lineNumber,

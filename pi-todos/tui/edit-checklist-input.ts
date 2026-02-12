@@ -3,12 +3,12 @@ import type { Theme } from "@mariozechner/pi-coding-agent";
 import { DynamicBorder } from "@mariozechner/pi-coding-agent";
 import type { TodoRecord } from "../types.js";
 import { formatTodoId, renderChecklist } from "../format.js";
-aaaa|
+
 export class TodoEditChecklistInputComponent extends Container {
     private input: Input;
     private onSubmitCallback: (prompt: string) => void;
     private onCancelCallback: () => void;
-aaaa|
+
     constructor(
         tui: TUI,
         theme: Theme,
@@ -19,15 +19,15 @@ aaaa|
         super();
         this.onSubmitCallback = onSubmit;
         this.onCancelCallback = onCancel;
-aaaa|
+
         this.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
         this.addChild(new Spacer(1));
-aaaa|
+
         const title = todo.title || "(untitled)";
         this.addChild(new Text(theme.fg("accent", theme.bold(`Edit Checklist: ${formatTodoId(todo.id)}`)), 1, 0));
         this.addChild(new Text(theme.fg("muted", title), 1, 0));
         this.addChild(new Spacer(1));
-aaaa|
+
         if (todo.checklist?.length) {
             const checklistLines = renderChecklist(theme, todo.checklist);
             for (const line of checklistLines) {
@@ -35,7 +35,7 @@ aaaa|
             }
             this.addChild(new Spacer(1));
         }
-aaaa|
+
         this.addChild(
             new Text(
                 theme.fg("muted", "What would you like to do with the checklist?"),
@@ -44,7 +44,7 @@ aaaa|
             ),
         );
         this.addChild(new Spacer(1));
-aaaa|
+
         this.input = new Input();
         this.input.onSubmit = () => {
             const value = this.input.getValue().trim();
@@ -53,13 +53,13 @@ aaaa|
             }
         };
         this.addChild(this.input);
-aaaa|
+
         this.addChild(new Spacer(1));
         this.addChild(new Text(theme.fg("dim", "Enter to submit • Esc back")));
         this.addChild(new Spacer(1));
         this.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
     }
-aaaa|
+
     handleInput(keyData: string): void {
         const kb = getEditorKeybindings();
         if (kb.matches(keyData, "selectCancel")) {
@@ -68,7 +68,7 @@ aaaa|
         }
         this.input.handleInput(keyData);
     }
-aaaa|
+
     override invalidate(): void {
         super.invalidate();
     }

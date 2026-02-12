@@ -3,7 +3,7 @@ import type { TodoFrontMatter, TodoMenuAction, TodoOverlayAction, TodoQuickActio
 import { getTodosDir, listTodos, listTodosSync, ensureTodoExists, updateTodoStatus, deleteTodo, releaseTodoAssignment } from "./file-io.js";
 import { getTodoPath } from "./file-io.js";
 import { filterTodos } from "./filter.js";
-import { formatTodoId, formatTodoList, buildRefinePrompt, buildCreatePrompt, getTodoTitle } from "./format.js";
+import { formatTodoId, formatTodoList, buildRefinePrompt, buildCreatePrompt, buildEditChecklistPrompt, getTodoTitle } from "./format.js";
 import { copyTodoPathToClipboard, copyTodoTextToClipboard } from "./clipboard.js";
 import {
     TodoSelectorComponent,
@@ -11,6 +11,7 @@ import {
     TodoDeleteConfirmComponent,
     TodoDetailOverlayComponent,
     TodoCreateInputComponent,
+    TodoEditChecklistInputComponent,
 } from "./tui/index.js";
 
 export function registerTodoCommand(pi: ExtensionAPI) {
@@ -48,8 +49,9 @@ export function registerTodoCommand(pi: ExtensionAPI) {
                 let selector: TodoSelectorComponent | null = null;
                 let actionMenu: TodoActionMenuComponent | null = null;
                 let deleteConfirm: TodoDeleteConfirmComponent | null = null;
-                let createInput: TodoCreateInputComponent | null = null;
-                let activeComponent:
+    let createInput: TodoCreateInputComponent | null = null;
+    let editChecklistInput: TodoEditChecklistInputComponent | null = null;
+    let activeComponent:
                     | {
                             render: (width: number) => string[];
                             invalidate: () => void;
@@ -170,6 +172,22 @@ export function registerTodoCommand(pi: ExtensionAPI) {
                         const overlayAction = await openTodoOverlay(record);
                         if (overlayAction === "work") {
                             await applyTodoAction(record, "work");
+                            return;
+                        }
+                        if (overlayAction === "edit-checklist") {
+                            editChecklistInput = new TodoEditChecklistInputComponent(
+                                tui,
+                                theme,
+                                record,
+                                (userIntent) => {
+                                    nextPrompt = buildEditChecklistPrompt(record.id, record.title || "(untitled)", record.checklist || [], userIntent);
+                                    done();
+                                },
+                                () => {
+                                    setActiveComponent(actionMenu);
+                                },
+                            );
+                            setActiveComponent(editChecklistInput);
                             return;
                         }
                         if (actionMenu) {

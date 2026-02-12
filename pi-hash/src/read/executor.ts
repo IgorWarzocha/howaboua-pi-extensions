@@ -28,7 +28,7 @@ const MAX_BYTES = 50 * 1024;
 const MAX_MATCHES = 1000;
 
 function prefixLine(lineNo: number, content: string): string {
-  return `${lineNo}${computeLineHash(content)}|${content}`;
+  return `${lineNo}:${computeLineHash(content)}|${content}`;
 }
 
 function createMatcher(file: HashFileInput): (line: string) => boolean {
