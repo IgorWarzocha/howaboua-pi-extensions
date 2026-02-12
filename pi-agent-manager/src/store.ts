@@ -56,7 +56,7 @@ export function loadAgents(cwd: string): AgentConfig[] {
   const agents: AgentConfig[] = [];
   const dirs: { path: string; source: "user" | "project" }[] = [
     { path: path.join(os.homedir(), ".pi", "agent", "agents"), source: "user" },
-    { path: path.join(cwd, ".pi", "agents"), source: "project" },
+    ...(cwd ? [{ path: path.join(cwd, ".pi", "agents"), source: "project" as const }] : []),
   ];
 
   for (const { path: dir, source } of dirs) {

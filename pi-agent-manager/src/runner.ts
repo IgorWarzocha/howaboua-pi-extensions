@@ -3,7 +3,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { spawn } from "node:child_process";
 import type { AgentConfig } from "./types.js";
-import { PI_SESSIONS_DIR, EXTENSION_PATH, getSessionPath } from "./utils.js";
+import { PI_SESSIONS_DIR, getSessionPath } from "./utils.js";
 import { activeSubagentProcesses } from "./store.js";
 
 /**
@@ -22,7 +22,7 @@ export async function runSubagent(
   if (!fs.existsSync(PI_SESSIONS_DIR)) fs.mkdirSync(PI_SESSIONS_DIR, { recursive: true });
 
   const sessionFile = getSessionPath(sessionId);
-  const args = ["--mode", "json", "-p", "--extension", EXTENSION_PATH];
+  const args = ["--mode", "json", "-p"];
 
   if (task.includes("[AGENT_ARCHITECT_MODE]")) {
     args.push("--no-session");

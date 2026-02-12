@@ -120,7 +120,7 @@ export default function (pi: ExtensionAPI) {
       },
       required: [],
     } as any,
-    async execute(toolCallId, params, onUpdate, ctx, signal) {
+    async execute(toolCallId, params, signal, onUpdate, ctx) {
       const p = params as any;
       const tasksToRun: SubagentTask[] =
         p.tasks || (p.agent && p.task ? [{ agent: p.agent, task: p.task, cwd: p.cwd }] : []);

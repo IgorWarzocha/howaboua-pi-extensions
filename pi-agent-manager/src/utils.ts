@@ -5,7 +5,6 @@ import type { AgentConfig } from "./types.js";
 // --- Constants ---
 
 export const PI_SESSIONS_DIR = path.join(os.homedir(), ".pi", "agent", "sessions");
-export const EXTENSION_PATH = "/home/igorw/Work/pi/pi-extensions-dev/pi-agent-manager/src/index.ts";
 
 // --- Pure Helpers ---
 
