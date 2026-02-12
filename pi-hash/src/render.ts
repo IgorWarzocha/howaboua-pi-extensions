@@ -97,6 +97,23 @@ export function renderApplyPatchCall(args: unknown, parsePatch: (text: string) =
   }
 }
 
+function collapseText(text: string, expanded: boolean): { text: string; trimmed: boolean; hidden: number } {
+  if (expanded) return { text, trimmed: false, hidden: 0 };
+  const lines = text.split("\n");
+  const limit = 18;
+  if (lines.length <= limit) return { text, trimmed: false, hidden: 0 };
+  return { text: lines.slice(0, limit).join("\n"), trimmed: true, hidden: lines.length - limit };
+}
+
+function collapseError(text: string, expanded: boolean): string {
+  if (expanded) return text;
+  const lines = text.split("\n");
+  const limit = 6;
+  if (lines.length <= limit) return text;
+  const head = lines.slice(0, limit).join("\n");
+  return `${head}\n... (${lines.length - limit} more lines, ${keyHint("expandTools", "to expand")})`;
+}
+
 export function renderApplyPatchResult(result: any, expanded: boolean, isPartial: boolean, theme: any): Text {
   const rawTextContent = (result.content ?? [])
     .filter((block: any) => block.type === "text" && typeof block.text === "string")
@@ -111,14 +128,21 @@ export function renderApplyPatchResult(result: any, expanded: boolean, isPartial
   )
     ? summaryLines.filter((line: string, index: number) => index === 0 || !/^[AMD] /.test(line)).join("\n").trim()
     : rawTextContent;
-  if (isPartial) return new Text(theme.fg("warning", textContent || "Applying patch..."), 0, 0);
+  if (isPartial) return new Text(theme.fg("warning", collapseError(textContent || "Applying patch...", expanded)), 0, 0);
   const summary = result.details as ApplySummary | undefined;
   const successCount = (summary?.added.length ?? 0) + (summary?.modified.length ?? 0) + (summary?.deleted.length ?? 0);
   const failedCount = summary?.failed.length ?? 0;
   const tone = result.isError || (failedCount > 0 && successCount === 0) ? "error" : failedCount > 0 ? "warning" : "toolOutput";
-  let output = textContent ? theme.fg(tone, textContent) : "";
+  let output = "";
+  if (textContent) {
+    const collapsed = collapseText(textContent, expanded);
+    output = theme.fg(tone, collapsed.text);
+    if (collapsed.trimmed) {
+      output += `\n${theme.fg("muted", `... (${collapsed.hidden} more lines, ${keyHint("expandTools", "to expand")})`)}`;
+    }
+  }
   const fileDiffs = summary?.fileDiffs ?? [];
-  if (result.isError) return new Text(output || "Error", 0, 0);
+  if (result.isError) return new Text(theme.fg("error", collapseError(textContent || "Error", expanded)), 0, 0);
   if (fileDiffs.length > 0) {
     const visibleFileCount = expanded ? fileDiffs.length : Math.min(fileDiffs.length, 2);
     for (const fileDiff of fileDiffs.slice(0, visibleFileCount)) {
@@ -142,4 +166,3 @@ export function renderApplyPatchResult(result: any, expanded: boolean, isPartial
   }
   return new Text(output || theme.fg("toolOutput", "No output"), 0, 0);
 }
-

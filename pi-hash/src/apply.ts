@@ -18,13 +18,37 @@ type AnchorError = Error & {
   suggest?: string;
 };
 
+function sanitizeContext(context: string): string {
+  return context.replace(/^\d+[a-z]{4}\|/, "");
+}
+
 function findContext(lines: string[], context: string, start: number): number {
+  const target = sanitizeContext(context);
   let index = Math.max(0, start);
   while (index < lines.length) {
-    if (normalizeForHash(lines[index], false) === normalizeForHash(context, false)) return index;
+    if (normalizeForHash(lines[index], false) === normalizeForHash(target, false)) return index;
     index += 1;
   }
-  throw new Error(`Failed to find context '${context}'.`);
+  throw new Error(`Failed to find context '${target}'.`);
+}
+
+function contextError(lines: string[], pathText: string, context: string, seed: number): AnchorError {
+  const start = Math.max(0, seed - 4);
+  const stop = Math.min(lines.length, seed + 9);
+  const sample: string[] = [];
+  let index = start;
+  while (index < stop) {
+    sample.push(`${index + 1}${computeLineHash(lines[index])}|${lines[index]}`);
+    index += 1;
+  }
+  const error = new Error(
+    `Patch Error: Failed to resolve @@ context in ${pathText}.` +
+      `\nContext text: ${sanitizeContext(context)}`,
+  ) as AnchorError;
+  error.expected = [sanitizeContext(context)];
+  error.actual = sample;
+  error.suggest = `Use an exact current line for @@ context or omit @@ and rely on anchored ' ' / '-' lines. Nearby anchored lines: ${Math.max(1, start + 1)}-${stop}.`;
+  return error;
 }
 
 function linesEqual(fileLine: string, expected: string, expectedHash: string): boolean {
@@ -163,9 +187,14 @@ function computeReplacements(originalLines: string[], filePath: string, chunks: 
   for (const chunk of chunks) {
     const base = chunk.oldAnchors[0] ? chunk.oldAnchors[0].line - 1 : originalLines.length;
     const shifted = base + drift;
-    const seed = chunk.changeContext
-      ? findContext(originalLines, chunk.changeContext, Math.max(0, shifted))
-      : shifted;
+    let seed = shifted;
+    if (chunk.changeContext) {
+      try {
+        seed = findContext(originalLines, chunk.changeContext, Math.max(0, shifted));
+      } catch {
+        throw contextError(originalLines, filePath, chunk.changeContext, Math.max(0, shifted));
+      }
+    }
     let start = seed;
     try {
       start = locate(originalLines, chunk, seed);

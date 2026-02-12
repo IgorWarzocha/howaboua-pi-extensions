@@ -26,7 +26,9 @@ function parseAnchoredBody(body: string, lineNumber: number): { line: string; li
   if (!match) {
     throw new InvalidHunkError(
       `Anchored line is invalid: '${body.slice(0, 120)}'.` +
-        `\nContext and removal lines MUST include LINEHASH| prefixes (e.g. '42abcd|content').`,
+        `\nContext and removal lines MUST include LINEHASH| prefixes (e.g. '42abcd|content').` +
+        `\nYou MUST run read and copy anchored lines exactly for update hunk body lines (' ' and '-').` +
+        `\nIf you intend to replace most of the file, you SHOULD use Delete File + Add File in one apply_patch call.`,
       lineNumber,
     );
   }

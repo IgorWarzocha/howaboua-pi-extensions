@@ -7,6 +7,7 @@ import { detectBashWriteViolation } from "./src/bash-guard.js";
 import { parsePatch } from "./src/parser.js";
 import { applyHunks } from "./src/apply.js";
 import { renderApplyPatchCall, renderApplyPatchResult, formatSummary } from "./src/render.js";
+import { enrichParseError } from "./src/parse-recovery.js";
 
 export default function applyPatchExtension(pi: ExtensionAPI) {
   registerReadHashTool(pi);
@@ -91,7 +92,7 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
           details: summary,
         };
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage = await enrichParseError(ctx.cwd, params.patchText, error);
         return {
           content: [{ type: "text", text: errorMessage }],
           isError: true,
