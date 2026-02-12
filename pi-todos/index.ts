@@ -62,6 +62,7 @@ export default function todosExtension(pi: ExtensionAPI) {
 
             let nextPrompt: string | null = null;
             let rootTui: TUI | null = null;
+            let shouldSendImmediately = false;
             await ctx.ui.custom<void>((tui, theme, _kb, done) => {
                 rootTui = tui;
                 let selector: TodoSelectorComponent | null = null;
@@ -271,6 +272,7 @@ export default function todosExtension(pi: ExtensionAPI) {
                         theme,
                         (userPrompt) => {
                             nextPrompt = buildCreatePrompt(userPrompt);
+                            shouldSendImmediately = true;
                             done();
                         },
                         () => {
@@ -339,8 +341,12 @@ export default function todosExtension(pi: ExtensionAPI) {
             });
 
             if (nextPrompt) {
-                ctx.ui.setEditorText(nextPrompt);
-                if (rootTui) (rootTui as TUI).requestRender();
+                if (shouldSendImmediately) {
+                    pi.sendUserMessage(nextPrompt);
+                } else {
+                    ctx.ui.setEditorText(nextPrompt);
+                    if (rootTui) (rootTui as TUI).requestRender();
+                }
             }
         },
     });
