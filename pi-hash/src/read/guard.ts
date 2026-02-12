@@ -6,7 +6,7 @@ const BASH_READ_PATTERNS = [
   /^(?:\s*(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)*)?sed\b(?=.*(?:^|\s)-n(?:\s|$))(?=.*\bp(?:\s|$|'|"))/,
 ];
 
-const NUDGE = "Note: read provides multi-file reads, offset/limit, and in-file search with LINEHASH| anchors required by apply_hash. Prefer read over bash for file inspection.";
+const NUDGE = "Note: read provides multi-file reads, offset/limit, and in-file search with LINEHASH| anchors required by apply_patch. Prefer read over bash for file inspection.";
 
 function matchesBashRead(command: string): boolean {
   const chains = command.trim().split(/&&|\|\||;/g).map((s) => s.trim()).filter(Boolean);

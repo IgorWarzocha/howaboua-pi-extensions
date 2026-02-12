@@ -20,7 +20,7 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
 
   pi.on("session_start", () => {
     const current = new Set(pi.getActiveTools());
-    current.add("apply_hash");
+    current.add("apply_patch");
     current.delete("edit");
     current.delete("write");
     pi.setActiveTools([...current]);
@@ -36,7 +36,7 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
     if (event.toolName === "edit" || event.toolName === "write") {
       return {
         block: true,
-        reason: `The '${event.toolName}' tool is disabled. Use apply_hash for all file modifications.`,
+        reason: `The '${event.toolName}' tool is disabled. Use apply_patch for all file modifications.`,
       };
     }
 
@@ -51,12 +51,12 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
       }
     }
 
-    if (event.toolName === "apply_hash") {
+    if (event.toolName === "apply_patch") {
       if (patchCallsInTurn > 0) {
         return {
           block: true,
           reason:
-            "Multiple apply_hash calls in the same turn are blocked. You MUST batch all related file changes into one apply_hash envelope. You MUST NOT emit sequential apply_hash calls for the same request.",
+            "Multiple apply_patch calls in the same turn are blocked. You MUST batch all related file changes into one apply_patch envelope. You MUST NOT emit sequential apply_patch calls for the same request.",
         };
       }
       patchCallsInTurn += 1;
@@ -64,10 +64,10 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
   });
 
   pi.registerTool({
-    name: "apply_hash",
-    label: "apply_hash",
+    name: "apply_patch",
+    label: "apply_patch",
     description:
-      "Apply a patch envelope containing one or more file operations (Add, Update, Move, Delete). This tool MUST be used for all file modifications. You MUST include all related changes for a request in one call unless payload limits require splitting.",
+      "Apply a patch envelope for multi-file operations (Add, Update, Move, Delete). You MUST use this tool for ALL file modifications. Update hunk context (' ') and removal ('-') lines MUST include LINEHASH|CONTENT anchors. Addition lines ('+') MUST NOT include anchors. You MUST batch all related file changes in ONE call unless payload limits require splitting by independent files.",
     renderCall(args, theme) {
       return renderApplyPatchCall(args, parsePatch, theme);
     },
@@ -76,7 +76,7 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
     },
     parameters: Type.Object({
       patchText: Type.String({
-        description: "Patch text containing *** Begin Patch ... *** End Patch. It MUST include all related file operations for the current request in a single atomic envelope when feasible.",
+        description: "Patch text containing *** Begin Patch ... *** End Patch. The envelope MAY include Add/Update/Move/Delete across multiple files. Update hunks MUST anchor context/removal lines as LINEHASH|CONTENT.",
       }),
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {

@@ -111,7 +111,7 @@ export function renderApplyPatchCall(
 
   if (!patchText) {
     return new Text(
-      `${theme.fg("toolTitle", theme.bold("apply_hash"))} ${theme.fg("muted", "(awaiting patch)")}`,
+      `${theme.fg("toolTitle", theme.bold("apply_patch"))} ${theme.fg("muted", "(awaiting patch)")}`,
       0,
       0,
     );
@@ -127,14 +127,14 @@ export function renderApplyPatchCall(
     const suffix = files.length > 3 ? `, +${files.length - 3} more` : "";
     const opSummary = `A:${addCount} M:${updateCount} D:${deleteCount}`;
     return new Text(
-      `${theme.fg("toolTitle", theme.bold("apply_hash"))} ${theme.fg("muted", `(${opSummary})`)}` +
+      `${theme.fg("toolTitle", theme.bold("apply_patch"))} ${theme.fg("muted", `(${opSummary})`)}` +
         `${preview ? `\n${theme.fg("accent", preview)}${theme.fg("muted", suffix)}` : ""}`,
       0,
       0,
     );
   } catch {
     return new Text(
-      `${theme.fg("toolTitle", theme.bold("apply_hash"))} ${theme.fg("muted", "(patching)")}`,
+      `${theme.fg("toolTitle", theme.bold("apply_patch"))} ${theme.fg("muted", "(patching)")}`,
       0,
       0,
     );
