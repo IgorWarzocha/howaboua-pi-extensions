@@ -59,8 +59,7 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
   pi.registerTool({
     name: "apply_patch",
     label: "apply_patch",
-    description:
-      "Modify files. You MUST batch all related changes into ONE '*** Begin Patch ... *** End Patch' envelope (exact strings, no markdown bolding). File Sections: Each MUST start with a header: '*** Add File: <path>' (MUST NOT overwrite; use Delete+Add sequence for full replacement), '*** Update File: <path>' (For edits; MAY follow with '*** Move to: <new-path>'), or '*** Delete File: <path>'. Update Hunks: '@@ <context>' MUST be exact plain text from the file or empty (MUST NOT contain summaries or descriptive notes); ' ' and '-' MUST use exact 'LINEHASH|CONTENT' anchors from 'read' (example: '12abcz|const x = 1;'); '+' MUST NOT include LINEHASH anchors or line numbers. Batching: You MUST batch all related file changes in ONE call unless payload limits require splitting.",
+    description: `Modify files using anchored diffs. STRUCTURE: '*** Begin Patch' then file sections then '*** End Patch'. FILE SECTIONS: '*** Add File: <path>' (create, each line starts with '+'), '*** Update File: <path>' (edit with hunks), '*** Delete File: <path>' (remove). To rename: put '*** Move to: <new-path>' on the line immediately AFTER '*** Update File:', BEFORE any @@ hunks. UPDATE HUNKS: Start each hunk with '@@' on its own line (empty @@ is best). Body lines after @@: ' 1abcd|x' = context (copy exact from read), '- 1abcd|x' = remove (copy exact from read), '+x' = add (no anchor). CRITICAL: context and remove lines MUST include the LINEHASH prefix (e.g. ' 3keaa|Line 3' or '-3keaa|Line 3'), NOT just the content. The '-' or ' ' prefix goes BEFORE the line number. @@ markers do NOT support comments. Move requires at least one hunk. Always read file first, copy anchors exactly, batch all changes in one call.`,
     renderCall(args, theme) {
       return renderApplyPatchCall(args, parsePatch, theme);
     },
@@ -69,8 +68,7 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
     },
     parameters: Type.Object({
       patchText: Type.String({
-        description:
-          "Patch text starting with '*** Begin Patch' and ending with '*** End Patch'. Follow strict structure: headers prefixed with '*** ', context (' ') and removal ('-') lines MUST have LINEHASH| anchors, addition ('+') lines MUST NOT have anchors. @@ context MUST be plain text or empty.",
+        description: "Patch envelope. MUST start with '*** Begin Patch' and end with '*** End Patch'. Inside: file sections (*** Add/Update/Delete File: <path>). Update sections have @@ hunk markers. Body lines: ' ' or '-' prefix MUST include LINEHASH| anchor copied from read tool (e.g. ' 10abcd|content'). '+' prefix MUST NOT include anchor. No blank lines inside hunks.",
       }),
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {

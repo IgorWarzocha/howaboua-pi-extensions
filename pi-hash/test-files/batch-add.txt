@@ -1,0 +1,2 @@
+This file was added in a batch operation
+It has multiple lines
