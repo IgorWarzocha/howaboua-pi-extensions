@@ -59,7 +59,7 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
   pi.registerTool({
     name: "apply_patch",
     label: "apply_patch",
-    description: `Modify files using anchored diffs. STRUCTURE: '*** Begin Patch' then file sections then '*** End Patch'. FILE SECTIONS: '*** Add File: <path>' (create, each line starts with '+'), '*** Update File: <path>' (edit with hunks), '*** Delete File: <path>' (remove). To rename: put '*** Move to: <new-path>' on the line immediately AFTER '*** Update File:', BEFORE any @@ hunks. UPDATE HUNKS: Each hunk covers a CONTINUOUS section. For edits in different locations, use separate hunks with '@@' between them. Start each hunk with '@@' on its own line (empty @@ only - NO descriptive text after @@). Body lines after @@: ' 1:ab|x' = context (unchanged neighbor), '-1:ab|x' = remove (delete this line), '+x' = add (new content). CRITICAL: context lines are UNCHANGED neighbors - NEVER use the same line for both context and removal. To replace Line 5: use Line 4 as context, remove Line 5, add new content. The prefix (' ' or '-') goes immediately before the line number. Copy anchors EXACTLY from read output. Always read file first, batch all changes in one call.`,
+    description: `Modify files using anchored diffs. STRUCTURE: '*** Begin Patch' → file sections → '*** End Patch'. FILE SECTIONS: '*** Add File: <path>' (create), '*** Update File: <path>' (edit), '*** Delete File: <path>' (remove). To rename: add '*** Move to: <new-path>' after Update File line. UPDATE HUNKS: Start with '@@' on its own line. Body lines: ' 1:ab|x' = context (unchanged), '-1:ab|x' = remove, '+x' = add. Copy context/removal anchors EXACTLY from read output (LINE:HASH|content). Always read file first, batch all changes in one call.`,
     renderCall(args, theme) {
       return renderApplyPatchCall(args, parsePatch, theme);
     },
@@ -68,7 +68,7 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
     },
     parameters: Type.Object({
       patchText: Type.String({
-        description: "Patch envelope. MUST start with '*** Begin Patch' and end with '*** End Patch'. Inside: file sections (*** Add/Update/Delete File: <path>). Update sections have @@ hunk markers. Body lines: ' ' or '-' prefix MUST include LINE:HASH| anchor copied from read tool (e.g. ' 10:ab|content'). '+' prefix MUST NOT include anchor. No blank lines inside hunks.",
+        description: "Patch envelope starting with '*** Begin Patch' and ending with '*** End Patch'. Inside: file sections (*** Add/Update/Delete File: <path>). Update sections have @@ hunk markers. Body lines: ' ' or '-' prefix MUST include LINE:HASH| anchor from read tool. '+' prefix has no anchor.",
       }),
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {

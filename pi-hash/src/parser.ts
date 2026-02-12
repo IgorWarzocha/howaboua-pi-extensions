@@ -15,6 +15,7 @@ import { InvalidPatchError, InvalidHunkError, type Hunk, type UpdateFileChunk } 
 
 function sanitizeAddedLine(line: string): string {
   let next = line;
+  next = next.trimStart();
   while (/^\d+:[0-9a-f]{2}\|/.test(next)) {
     next = next.replace(/^\d+:[0-9a-f]{2}\|/, "");
   }
@@ -22,7 +23,8 @@ function sanitizeAddedLine(line: string): string {
 }
 
 function parseAnchoredBody(body: string, lineNumber: number): { line: string; lineNumber: number; hash: string } {
-  const match = body.match(/^(\d+):([0-9a-f]{2})\|(.*)$/);
+  const trimmed = body.trimStart();
+  const match = trimmed.match(/^(\d+):([0-9a-f]{2})\|(.*)$/);
   if (!match) {
     throw new InvalidHunkError(
       `Anchored line is invalid: '${body.slice(0, 120)}'.` +

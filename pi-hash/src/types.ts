@@ -45,6 +45,7 @@ export type ApplySummary = {
   failed: ApplyFailure[];
   live: ApplyLive[];
   fileDiffs: ApplyFileDiff[];
+  noops: ApplyNoop[];
 };
 
 export type ApplyFailure = {
@@ -58,4 +59,10 @@ export type ApplyFailure = {
 export type ApplyLive = {
   path: string;
   anchors: string[];
+};
+
+export type ApplyNoop = {
+  path: string;
+  line: number;
+  reason: string;
 };

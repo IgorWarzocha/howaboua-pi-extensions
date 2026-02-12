@@ -42,21 +42,21 @@ test("read-engine", async (t) => {
   await setup();
   t.after(teardown);
 
-  await t.test("normal read: all lines have LINEHASH| prefix", async () => {
+  await t.test("normal read: all lines have LINE:HASH| prefix", async () => {
     const result = await executeReadHash(FIXTURES, [{ path: "sample.ts" }]);
     const text = result.content[0].type === "text" ? result.content[0].text : "";
     const lines = text.split("\n");
     for (const line of lines) {
       if (line.startsWith("[") || line === "") continue;
-      assert.match(line, /^\d+[a-z]{4}\|/, `Line missing LINEHASH| prefix: ${line}`);
+      assert.match(line, /^\d+:[0-9a-f]{2}\|/, `Line missing LINE:HASH| prefix: ${line}`);
     }
   });
 
-  await t.test("normal read: empty lines get aaaa sentinel hash", async () => {
+  await t.test("normal read: empty lines get 00 sentinel hash", async () => {
     const result = await executeReadHash(FIXTURES, [{ path: "sample.ts" }]);
     const text = result.content[0].type === "text" ? result.content[0].text : "";
     const lines = text.split("\n");
-    const emptyHashLines = lines.filter((l) => /^\d+aaaa\|$/.test(l));
+    const emptyHashLines = lines.filter((l) => /^\d+:00\|$/.test(l));
     assert.ok(emptyHashLines.length >= 2, `Expected at least 2 empty-hash lines, got ${emptyHashLines.length}`);
   });
 
@@ -84,7 +84,7 @@ test("read-engine", async (t) => {
   await t.test("normal read: offset/limit selects correct range", async () => {
     const result = await executeReadHash(FIXTURES, [{ path: "sample.ts", offset: 3, limit: 3 }]);
     const text = result.content[0].type === "text" ? result.content[0].text : "";
-    const lines = text.split("\n").filter((l) => /^\d+[a-z]{4}\|/.test(l));
+    const lines = text.split("\n").filter((l) => /^\d+:[0-9a-f]{2}\|/.test(l));
     assert.strictEqual(lines.length, 3);
     assert.strictEqual(parseInt(lines[0], 10), 3);
     assert.strictEqual(parseInt(lines[2], 10), 5);
@@ -130,11 +130,11 @@ test("read-engine", async (t) => {
     assert.ok(result.details.files[0].error);
   });
 
-  await t.test("search: finds matches with LINEHASH| prefix", async () => {
+  await t.test("search: finds matches with LINE:HASH| prefix", async () => {
     const result = await executeReadHash(FIXTURES, [{ path: "sample.ts", search: "function" }]);
     const text = result.content[0].type === "text" ? result.content[0].text : "";
     assert.match(text, /Matches: 2/);
-    const hashLines = text.split("\n").filter((l) => /^\d+[a-z]{4}\|/.test(l));
+    const hashLines = text.split("\n").filter((l) => /^\d+:[0-9a-f]{2}\|/.test(l));
     assert.strictEqual(hashLines.length, 2);
   });
 
@@ -143,7 +143,7 @@ test("read-engine", async (t) => {
       { path: "sample.ts", search: "hello", contextBefore: 1, contextAfter: 1 },
     ]);
     const text = result.content[0].type === "text" ? result.content[0].text : "";
-    const hashLines = text.split("\n").filter((l) => /^\d+[a-z]{4}\|/.test(l));
+    const hashLines = text.split("\n").filter((l) => /^\d+:[0-9a-f]{2}\|/.test(l));
     assert.ok(hashLines.length >= 3, `Expected at least 3 lines (match + context), got ${hashLines.length}`);
   });
 
@@ -195,7 +195,7 @@ test("read-engine", async (t) => {
     const fullText = full.content[0].type === "text" ? full.content[0].text : "";
     const searchText = searched.content[0].type === "text" ? searched.content[0].text : "";
     const fullLine3 = fullText.split("\n").find((l) => l.startsWith("3"));
-    const searchLine3 = searchText.split("\n").filter((l) => /^\d+[a-z]{4}\|/.test(l)).find((l) => l.startsWith("3"));
+    const searchLine3 = searchText.split("\n").filter((l) => /^\d+:[0-9a-f]{2}\|/.test(l)).find((l) => l.startsWith("3"));
     assert.strictEqual(fullLine3, searchLine3, "Search hash for line 3 must match full-read hash");
   });
 

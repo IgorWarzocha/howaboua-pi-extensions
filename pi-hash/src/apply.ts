@@ -1,16 +1,12 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { Hunk, UpdateFileChunk, ApplySummary } from "./types.js";
+import type { ApplyNoop } from "./types.js";
 import { resolvePatchPath } from "./path-utils.js";
 import { buildNumberedDiff } from "./render.js";
 import { normalizeForHash } from "./shared/normalize.js";
 import { computeLineHash } from "./shared/hash.js";
-
-type ReplaceOp = {
-  start: number;
-  oldLength: number;
-  newLines: string[];
-};
+import { computeReplacementsWithHealing, type ReplaceOp } from "./healing.js";
 
 type AnchorError = Error & {
   expected?: string[];
@@ -84,7 +80,28 @@ function spiral(seed: number, max: number): number[] {
   return out;
 }
 
-function locate(lines: string[], chunk: UpdateFileChunk, seed: number): number {
+function buildUniqueLineByHash(lines: string[]): Map<string, number> {
+  const uniqueLineByHash = new Map<string, number>();
+  const seenDuplicateHashes = new Set<string>();
+  for (let i = 0; i < lines.length; i++) {
+    const hash = computeLineHash(lines[i]);
+    if (seenDuplicateHashes.has(hash)) continue;
+    if (uniqueLineByHash.has(hash)) {
+      uniqueLineByHash.delete(hash);
+      seenDuplicateHashes.add(hash);
+    } else {
+      uniqueLineByHash.set(hash, i + 1);
+    }
+  }
+  return uniqueLineByHash;
+}
+
+function locate(
+  lines: string[],
+  chunk: UpdateFileChunk,
+  seed: number,
+  uniqueLineByHash: Map<string, number>,
+): number {
   if (chunk.oldLines.length === 0) return Math.max(0, Math.min(seed, lines.length));
   const max = Math.max(0, lines.length - chunk.oldLines.length + 1);
   if (chunk.isEndOfFile) {
@@ -103,6 +120,13 @@ function locate(lines: string[], chunk: UpdateFileChunk, seed: number): number {
     if (matchChunkAt(lines, chunk, candidate)) hits.push(candidate);
   }
   if (hits.length === 0) {
+    const firstAnchor = chunk.oldAnchors[0];
+    if (firstAnchor) {
+      const relocated = uniqueLineByHash.get(firstAnchor.hash);
+      if (relocated !== undefined && matchChunkAt(lines, chunk, relocated - 1)) {
+        return relocated - 1;
+      }
+    }
     throw new Error("No anchor match found in +/-100 spiral window.");
   }
   const best = hits[0];
@@ -171,50 +195,88 @@ function mismatch(lines: string[], pathText: string, chunk: UpdateFileChunk): An
     sample.push(`${index + 1}:${computeLineHash(lines[index])}|${lines[index]}`);
     index += 1;
   }
+  const mismatchSet = new Map<number, { expected: string; actual: string }>();
+  for (const anchor of chunk.oldAnchors) {
+    const lineIdx = anchor.line - 1;
+    if (lineIdx >= 0 && lineIdx < lines.length) {
+      const actualHash = computeLineHash(lines[lineIdx]);
+      if (actualHash !== anchor.hash) {
+        mismatchSet.set(anchor.line, { expected: anchor.hash, actual: actualHash });
+      }
+    }
+  }
+  const contextLines = new Set<number>();
+  for (const lineNum of mismatchSet.keys()) {
+    for (let i = Math.max(1, lineNum - 2); i <= Math.min(lines.length, lineNum + 2); i++) {
+      contextLines.add(i);
+    }
+  }
+  if (contextLines.size === 0) {
+    for (let i = Math.max(1, around - 2); i <= Math.min(lines.length, around + 2); i++) {
+      contextLines.add(i);
+    }
+  }
+  const sortedContext = [...contextLines].sort((a, b) => a - b);
+  const messageLines: string[] = [];
+  const mismatchCount = mismatchSet.size;
+  messageLines.push(
+    `${mismatchCount > 0 ? mismatchCount : "Some"} line${mismatchCount !== 1 ? "s have" : " has"} changed since last read.` +
+      ` Use the updated LINE:HASH references shown below (>>> marks changed lines).`,
+  );
+  messageLines.push("");
+  let prevLine = 0;
+  for (const lineNum of sortedContext) {
+    if (prevLine > 0 && lineNum > prevLine + 1) {
+      messageLines.push("    ...");
+    }
+    prevLine = lineNum;
+    const content = lines[lineNum - 1];
+    const hash = computeLineHash(content);
+    const prefix = `${lineNum}:${hash}|${content}`;
+    if (mismatchSet.has(lineNum)) {
+      messageLines.push(`>>> ${prefix}`);
+    } else {
+      messageLines.push(`    ${prefix}`);
+    }
+  }
+  const remaps: string[] = [];
+  for (const [lineNum, { expected, actual }] of mismatchSet) {
+    remaps.push(`\t${lineNum}:${expected} → ${lineNum}:${actual}`);
+  }
+  if (remaps.length > 0) {
+    messageLines.push("");
+    messageLines.push("Quick fix — replace stale refs:");
+    messageLines.push(...remaps);
+  }
   const error = new Error(
-    `Patch Error: Failed to find anchored block in ${pathText}.` +
-      `\nExpected first anchor: ${first.line}:${first.hash}|${chunk.oldLines[0] ?? ""}`,
+    `Patch Error: Failed to find anchored block in ${pathText}.\n` + messageLines.join("\n"),
   ) as AnchorError;
   error.expected = expected;
   error.actual = sample;
-  error.suggest = `Retry apply_patch with anchored lines from ${Math.max(1, start + 1)}-${stop}.`;
+  error.suggest = remaps.length > 0
+    ? `Replace stale refs: ${remaps.join("; ")}`
+    : `Retry apply_patch with anchored lines from ${Math.max(1, start + 1)}-${stop}.`;
   return error;
 }
 
-function computeReplacements(originalLines: string[], filePath: string, chunks: UpdateFileChunk[]): ReplaceOp[] {
-  const replacements: ReplaceOp[] = [];
-  let drift = 0;
-  for (const chunk of chunks) {
-    const base = chunk.oldAnchors[0] ? chunk.oldAnchors[0].line - 1 : originalLines.length;
-    const shifted = base + drift;
-    let seed = shifted;
-    if (chunk.changeContext) {
-      try {
-        seed = findContext(originalLines, chunk.changeContext, Math.max(0, shifted));
-      } catch {
-        throw contextError(originalLines, filePath, chunk.changeContext, Math.max(0, shifted));
-      }
-    }
-    let start = seed;
-    try {
-      start = locate(originalLines, chunk, seed);
-    } catch {
-      throw mismatch(originalLines, filePath, chunk);
-    }
-    replacements.push({ start, oldLength: chunk.oldLines.length, newLines: [...chunk.newLines] });
-    drift += chunk.newLines.length - chunk.oldLines.length;
-  }
-  replacements.sort((lhs, rhs) => lhs.start - rhs.start);
-  return replacements;
-}
-
-function deriveUpdatedContent(
+function deriveUpdatedContentWithHealing(
   originalContent: string,
   filePath: string,
   chunks: UpdateFileChunk[],
+  noops: ApplyNoop[],
 ): { content: string; anchors: string[] } {
   const originalLines = originalContent.split("\n");
-  const replacements = computeReplacements(originalLines, filePath, chunks);
+  const replacements = computeReplacementsWithHealing(
+    originalLines,
+    filePath,
+    chunks,
+    noops,
+    locate,
+    findContext,
+    contextError,
+    mismatch,
+    buildUniqueLineByHash,
+  );
   const updatedLines = collapseEmpty(applyReplacements(originalLines, replacements));
   if (updatedLines[updatedLines.length - 1] !== "") updatedLines.push("");
   return { content: updatedLines.join("\n"), anchors: anchorLines(updatedLines) };
@@ -243,6 +305,7 @@ export async function applyHunks(cwd: string, hunks: Hunk[]): Promise<ApplySumma
     failed: [],
     live: [],
     fileDiffs: [],
+    noops: [],
   };
   for (const hunk of hunks) {
     try {
@@ -278,7 +341,7 @@ export async function applyHunks(cwd: string, hunks: Hunk[]): Promise<ApplySumma
       }
       const source = resolvePatchPath(cwd, hunk.filePath);
       const originalContent = await fs.readFile(source, "utf-8");
-      const next = deriveUpdatedContent(originalContent, source, hunk.chunks);
+      const next = deriveUpdatedContentWithHealing(originalContent, source, hunk.chunks, summary.noops);
       const diff = buildNumberedDiff(originalContent, next.content);
       if (hunk.moveToPath) {
         const destination = resolvePatchPath(cwd, hunk.moveToPath);
