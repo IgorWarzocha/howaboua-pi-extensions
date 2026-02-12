@@ -8,14 +8,17 @@ import { normalizeForHash } from "./normalize.js";
  * 
  * Let's use a standard fast string hash.
  */
+/**
+ * FNV-1a hash algorithm. 
+ * Better dispersion than DJB2 for small strings (common in code like '}', '{', 'else').
+ */
 export function computeStringHash(str: string): number {
-  let hash = 0;
+  let hash = 0x811c9dc5;
   for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash |= 0; // Convert to 32bit integer
+    hash ^= str.charCodeAt(i);
+    hash = (hash * 0x01000193) | 0;
   }
-  return hash >>> 0; // Convert to unsigned
+  return hash >>> 0;
 }
 
 export function computeLineHash(content: string): string {

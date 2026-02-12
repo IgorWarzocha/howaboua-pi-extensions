@@ -6,6 +6,10 @@ import assert from "node:assert";
 test("Unicode Normalization", () => {
   assert.strictEqual(normalizeUnicode("“smart quotes”"), "'smart quotes'");
   assert.strictEqual(normalizeUnicode("em—dash"), "em-dash");
+  // Hyper-robust tests
+  assert.strictEqual(normalizeUnicode("e\u0301"), "\u00e9"); // NFD -> NFC
+  assert.strictEqual(normalizeUnicode("zero\u200Bwidth"), "zerowidth");
+  assert.strictEqual(normalizeUnicode("control\x07char"), "controlchar");
 });
 
 test("Whitespace Invariance", () => {
