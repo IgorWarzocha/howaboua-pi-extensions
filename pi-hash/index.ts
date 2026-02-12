@@ -1,4 +1,6 @@
 import { type ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { registerReadHashTool } from "./src/read/tool.js";
+import { setupReadGuard } from "./src/read/guard.js";
 import { Type } from "@sinclair/typebox";
 import { APPLY_PATCH_PROMPT_INSTRUCTIONS } from "./src/constants.js";
 import { detectBashWriteViolation } from "./src/bash-guard.js";
@@ -7,6 +9,9 @@ import { applyHunks } from "./src/apply.js";
 import { renderApplyPatchCall, renderApplyPatchResult, formatSummary } from "./src/render.js";
 
 export default function applyPatchExtension(pi: ExtensionAPI) {
+  registerReadHashTool(pi);
+  setupReadGuard(pi);
+
   let patchCallsInTurn = 0;
 
   pi.on("turn_start", () => {
