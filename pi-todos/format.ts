@@ -1,6 +1,6 @@
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import { keyHint } from "@mariozechner/pi-coding-agent";
-import type { TodoFrontMatter, TodoRecord } from "./types.js";
+import type { ChecklistItem, TodoFrontMatter, TodoRecord } from "./types.js";
 import { TODO_ID_PREFIX } from "./constants.js";
 import { normalizeTodoId } from "./parser.js";
 
@@ -14,6 +14,20 @@ export function displayTodoId(id: string): string {
 
 export function isTodoClosed(status: string): boolean {
     return ["closed", "done"].includes(status.toLowerCase());
+}
+
+export function deriveTodoStatus(todo: TodoRecord): string {
+    if (!todo.checklist?.length) return todo.status;
+    const checked = todo.checklist.filter(i => i.status === "checked").length;
+    if (checked === 0) return "open";
+    if (checked === todo.checklist.length) return "done";
+    return "in-progress";
+}
+
+export function formatChecklistProgress(todo: TodoFrontMatter): string {
+    if (!todo.checklist?.length) return "";
+    const checked = todo.checklist.filter(i => i.status === "checked").length;
+    return ` (${checked}/${todo.checklist.length})`;
 }
 
 export function getTodoTitle(todo: TodoFrontMatter): string {
@@ -66,7 +80,8 @@ export function renderAssignmentSuffix(
 
 export function formatTodoHeading(todo: TodoFrontMatter): string {
     const tagText = todo.tags.length ? ` [${todo.tags.join(", ")}]` : "";
-    return `${formatTodoId(todo.id)} ${getTodoTitle(todo)}${tagText}${formatAssignmentSuffix(todo)}`;
+    const progress = formatChecklistProgress(todo);
+    return `${formatTodoId(todo.id)} ${getTodoTitle(todo)}${tagText}${formatAssignmentSuffix(todo)}${progress}`;
 }
 
 export function buildRefinePrompt(todoId: string, title: string): string {
@@ -89,6 +104,20 @@ export function buildCreatePrompt(userPrompt: string): string {
         "3. You MAY ask me clarifying questions if requirements are ambiguous\n\n" +
         "You MUST NOT just create a todo without proper context. Take time to understand the task first.\n\n" +
         `Task: ${userPrompt}`
+    );
+}
+
+export function buildEditChecklistPrompt(todoId: string, title: string, checklist: ChecklistItem[], userIntent: string): string {
+    const checklistText = checklist.map(item => {
+        const status = item.status === "checked" ? "[x]" : "[ ]";
+        return `  ${status} ${item.id}: ${item.title}`;
+    }).join("\n");
+    return (
+        `Update the checklist for ${formatTodoId(todoId)} "${title}" based on this request:\n` +
+        `"${userIntent}"\n\n` +
+        `Current checklist:\n${checklistText}\n\n` +
+        "Use the todo tool's `update` action to modify the checklist array. " +
+        "Assign short IDs to new items (e.g., \"1\", \"2\", \"3\")."
     );
 }
 
@@ -156,16 +185,22 @@ export function serializeTodoListForAgent(todos: TodoFrontMatter[]): string {
 }
 
 export function renderTodoHeading(theme: Theme, todo: TodoFrontMatter, currentSessionId?: string): string {
-    const closed = isTodoClosed(getTodoStatus(todo));
+    const derivedStatus = "checklist" in todo && todo.checklist?.length 
+        ? deriveTodoStatus(todo as TodoRecord) 
+        : getTodoStatus(todo);
+    const closed = isTodoClosed(derivedStatus);
     const titleColor = closed ? "dim" : "text";
     const tagText = todo.tags.length ? theme.fg("dim", ` [${todo.tags.join(", ")}]`) : "";
     const assignmentText = renderAssignmentSuffix(theme, todo, currentSessionId);
+    const progress = formatChecklistProgress(todo);
+    const progressText = progress ? theme.fg("muted", progress) : "";
     return (
         theme.fg("accent", formatTodoId(todo.id)) +
         " " +
         theme.fg(titleColor, getTodoTitle(todo)) +
         tagText +
-        assignmentText
+        assignmentText +
+        progressText
     );
 }
 
@@ -212,17 +247,22 @@ export function renderTodoDetail(theme: Theme, todo: TodoRecord, expanded: boole
     const summary = renderTodoHeading(theme, todo);
     if (!expanded) return summary;
 
+    const derivedStatus = deriveTodoStatus(todo);
     const tags = todo.tags.length ? todo.tags.join(", ") : "none";
     const createdAt = todo.created_at || "unknown";
     const bodyText = todo.body?.trim() ? todo.body.trim() : "No details yet.";
     const bodyLines = bodyText.split("\n");
 
+    const checklistLines = todo.checklist?.length ? renderChecklist(theme, todo.checklist) : [];
+
     const lines = [
         summary,
-        theme.fg("muted", `Status: ${getTodoStatus(todo)}`),
+        theme.fg("muted", `Status: ${derivedStatus}`),
         theme.fg("muted", `Tags: ${tags}`),
         theme.fg("muted", `Created: ${createdAt}`),
         "",
+        ...checklistLines,
+        checklistLines.length ? "" : "",
         theme.fg("muted", "Body:"),
         ...bodyLines.map((line) => theme.fg("text", `  ${line}`)),
     ];
@@ -232,4 +272,44 @@ export function renderTodoDetail(theme: Theme, todo: TodoRecord, expanded: boole
 
 export function appendExpandHint(theme: Theme, text: string): string {
     return `${text}\n${theme.fg("dim", `(${keyHint("expandTools", "to expand")})`)}`;
+}
+
+export function renderChecklist(theme: Theme, checklist: ChecklistItem[]): string[] {
+    if (!checklist.length) return [];
+    const lines: string[] = [];
+    const checked = checklist.filter(i => i.status === "checked").length;
+    lines.push(theme.fg("muted", `Progress: ${checked}/${checklist.length} items complete`));
+    lines.push("");
+    for (const item of checklist) {
+        const checkbox = item.status === "checked" 
+            ? theme.fg("success", "[x]") 
+            : theme.fg("dim", "[ ]");
+        const titleColor = item.status === "checked" ? "dim" : "text";
+        lines.push(`${checkbox} ${theme.fg(titleColor, item.title)}`);
+    }
+    return lines;
+}
+
+export function formatTickResult(todo: TodoRecord, tickedItem: ChecklistItem | undefined, remaining: ChecklistItem[], allComplete: boolean): string {
+    const title = getTodoTitle(todo);
+    const lines: string[] = [];
+
+    if (tickedItem) {
+        lines.push(`Ticked item ${tickedItem.id} "${tickedItem.title}".`);
+    }
+
+    if (allComplete) {
+        lines.push("");
+        lines.push(`${formatTodoId(todo.id)} "${title}" is now done.`);
+    } else if (remaining.length > 0) {
+        lines.push("");
+        lines.push(`Remaining in ${formatTodoId(todo.id)} "${title}":`);
+        for (const item of remaining) {
+            lines.push(`  [ ] ${item.title}`);
+        }
+        lines.push("");
+        lines.push("Continue working through the remaining items.");
+    }
+
+    return lines.join("\n");
 }

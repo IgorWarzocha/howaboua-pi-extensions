@@ -1,3 +1,9 @@
+export interface ChecklistItem {
+    id: string;
+    title: string;
+    status: "unchecked" | "checked";
+}
+
 export interface TodoFrontMatter {
     id: string;
     title: string;
@@ -5,6 +11,7 @@ export interface TodoFrontMatter {
     status: string;
     created_at: string;
     assigned_to_session?: string;
+    checklist?: ChecklistItem[];
 }
 
 export interface TodoRecord extends TodoFrontMatter {
@@ -32,9 +39,10 @@ export type TodoAction =
     | "append"
     | "delete"
     | "claim"
-    | "release";
+    | "release"
+    | "tick";
 
-export type TodoOverlayAction = "back" | "work";
+export type TodoOverlayAction = "back" | "work" | "edit-checklist";
 
 export type TodoMenuAction =
     | "work"
@@ -50,10 +58,11 @@ export type TodoMenuAction =
 export type TodoToolDetails =
     | { action: "list" | "list-all"; todos: TodoFrontMatter[]; currentSessionId?: string; error?: string }
     | {
-            action: "get" | "create" | "update" | "append" | "delete" | "claim" | "release";
-            todo: TodoRecord;
-            error?: string;
-      };
+          action: "get" | "create" | "update" | "append" | "delete" | "claim" | "release";
+          todo: TodoRecord;
+          error?: string;
+      }
+    | { action: "tick"; todo: TodoRecord; tickedItem?: ChecklistItem; remaining: ChecklistItem[]; allComplete: boolean; error?: string };
 
 export type TodoCreateCallback = (prompt: string) => void;
 

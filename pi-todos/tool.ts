@@ -3,10 +3,10 @@ import { Type } from "@sinclair/typebox";
 import { existsSync } from "node:fs";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Text } from "@mariozechner/pi-tui";
-import type { TodoAction, TodoRecord, TodoToolDetails } from "./types.js";
+import type { TodoAction, TodoRecord, TodoToolDetails, ChecklistItem } from "./types.js";
 import { getTodosDir, getTodosDirLabel, ensureTodosDir, listTodos, getTodoPath, ensureTodoExists, generateTodoId, writeTodoFile, appendTodoBody, claimTodoAssignment, releaseTodoAssignment, deleteTodo } from "./file-io.js";
 import { validateTodoId, normalizeTodoId } from "./parser.js";
-import { formatTodoId, splitTodosByAssignment, serializeTodoForAgent, serializeTodoListForAgent, renderTodoList, renderTodoDetail, appendExpandHint } from "./format.js";
+import { formatTodoId, splitTodosByAssignment, serializeTodoForAgent, serializeTodoListForAgent, renderTodoList, renderTodoDetail, appendExpandHint, deriveTodoStatus, formatTickResult } from "./format.js";
 
 const TodoParams = Type.Object({
     action: StringEnum([
@@ -19,6 +19,7 @@ const TodoParams = Type.Object({
         "delete",
         "claim",
         "release",
+        "tick",
     ] as const),
     id: Type.Optional(
         Type.String({ description: "Todo id (TODO-<hex> or raw hex filename)" }),
@@ -30,6 +31,7 @@ const TodoParams = Type.Object({
         Type.String({ description: "Long-form details (markdown). Update replaces; append adds." }),
     ),
     force: Type.Optional(Type.Boolean({ description: "Override another session's assignment" })),
+    item: Type.Optional(Type.String({ description: "Checklist item id to tick (required for tick action)" })),
 });
 
 export function registerTodoTool(pi: ExtensionAPI) {
@@ -40,11 +42,12 @@ export function registerTodoTool(pi: ExtensionAPI) {
         label: "Todo",
         description:
             `Manage file-based todos in ${todosDirLabel}. ` +
-            "Actions: list, list-all, get, create, update, append, delete, claim, release. " +
+            "Actions: list, list-all, get, create, update, append, delete, claim, release, tick. " +
             "Title is the short summary; body is long-form markdown notes. " +
-            "Use 'update' to replace body content, 'append' to add to it. " +
+            "Use 'update' to replace body content, 'append' to add to it, 'tick' to check off checklist items. " +
             "Todo ids are TODO-<hex>; id parameters MUST accept TODO-<hex> or raw hex. " +
             "You MUST claim tasks before working on them to avoid conflicts. " +
+            "When a todo has a checklist, use 'tick' to check off items. Status is derived from checklist completion. " +
             "You SHOULD close todos when complete.",
         parameters: TodoParams,
 
@@ -164,6 +167,15 @@ export function registerTodoTool(pi: ExtensionAPI) {
                     existing.id = normalizedId;
                     if (params.title !== undefined) existing.title = params.title;
                     if (params.status !== undefined) existing.status = params.status;
+                    if (params.status === "done" && existing.checklist?.length) {
+                        const checked = existing.checklist.filter(i => i.status === "checked").length;
+                        if (checked < existing.checklist.length) {
+                            return {
+                                content: [{ type: "text", text: `Error: Cannot set status to "done" when checklist has unchecked items. Use tick action to check off items. ${checked}/${existing.checklist.length} items complete.` }],
+                                details: { action: "update", error: "use tick action for checklist todos" },
+                            };
+                        }
+                    }
                     if (params.tags !== undefined) existing.tags = params.tags;
                     if (params.body !== undefined) existing.body = params.body;
                     if (!existing.created_at) existing.created_at = new Date().toISOString();
@@ -299,9 +311,69 @@ export function registerTodoTool(pi: ExtensionAPI) {
                         details: { action: "delete", todo: result as TodoRecord },
                     };
                 }
+                case "tick": {
+                    if (!params.id) {
+                        return {
+                            content: [{ type: "text", text: "Error: id required" }],
+                            details: { action: "tick", todo: undefined as never, remaining: [], allComplete: false, error: "id required" },
+                        };
+                    }
+                    if (!params.item) {
+                        return {
+                            content: [{ type: "text", text: "Error: item required for tick action" }],
+                            details: { action: "tick", todo: undefined as never, remaining: [], allComplete: false, error: "item required" },
+                        };
+                    }
+                    const validated = validateTodoId(params.id);
+                    if ("error" in validated) {
+                        return {
+                            content: [{ type: "text", text: validated.error }],
+                            details: { action: "tick", todo: undefined as never, remaining: [], allComplete: false, error: validated.error },
+                        };
+                    }
+                    const normalizedId = validated.id;
+                    const displayId = formatTodoId(normalizedId);
+                    const filePath = getTodoPath(todosDir, normalizedId);
+                    if (!existsSync(filePath)) {
+                        return {
+                            content: [{ type: "text", text: `Todo ${displayId} not found` }],
+                            details: { action: "tick", todo: undefined as never, remaining: [], allComplete: false, error: "not found" },
+                        };
+                    }
+                    const existing = await ensureTodoExists(filePath, normalizedId);
+                    if (!existing) {
+                        return {
+                            content: [{ type: "text", text: `Todo ${displayId} not found` }],
+                            details: { action: "tick", todo: undefined as never, remaining: [], allComplete: false, error: "not found" },
+                        };
+                    }
+                    if (!existing.checklist?.length) {
+                        return {
+                            content: [{ type: "text", text: `Error: Todo ${displayId} has no checklist. Use update action to add one.` }],
+                            details: { action: "tick", todo: existing, remaining: [], allComplete: false, error: "no checklist" },
+                        };
+                    }
+                    const itemIndex = existing.checklist.findIndex(i => i.id === params.item);
+                    if (itemIndex === -1) {
+                        return {
+                            content: [{ type: "text", text: `Error: Checklist item "${params.item}" not found in todo ${displayId}` }],
+                            details: { action: "tick", todo: existing, remaining: [], allComplete: false, error: "item not found" },
+                        };
+                    }
+                    const item = existing.checklist[itemIndex];
+                    item.status = item.status === "checked" ? "unchecked" : "checked";
+                    existing.status = deriveTodoStatus(existing);
+                    await writeTodoFile(filePath, existing);
+                    const remaining = existing.checklist.filter(i => i.status === "unchecked");
+                    const allComplete = remaining.length === 0;
+                    const tickedItem = item.status === "checked" ? item : undefined;
+                    return {
+                        content: [{ type: "text", text: formatTickResult(existing, tickedItem, remaining, allComplete) }],
+                        details: { action: "tick", todo: existing, tickedItem, remaining, allComplete },
+                    };
+                }
             }
         },
-
 
         renderCall(args, theme) {
             const action = typeof args.action === "string" ? args.action : "";

@@ -3,6 +3,7 @@ import type { Theme } from "@mariozechner/pi-coding-agent";
 import { getMarkdownTheme } from "@mariozechner/pi-coding-agent";
 import type { TodoRecord, TodoOverlayAction } from "../types.js";
 import { formatTodoId, isTodoClosed } from "../format.js";
+import { renderChecklist, formatChecklistProgress } from "../format.js";
 
 export class TodoDetailOverlayComponent {
     private todo: TodoRecord;
@@ -24,6 +25,10 @@ export class TodoDetailOverlayComponent {
 
     private getMarkdownText(): string {
         const body = this.todo.body?.trim();
+        const checklist = this.todo.checklist?.length ? renderChecklist(this.theme, this.todo.checklist).join("\n") : "";
+        if (checklist) {
+            return `${checklist}\n\n---\n\n${body || "_No details yet._"}`;
+        }
         return body ? body : "_No details yet._";
     }
 
@@ -34,6 +39,14 @@ export class TodoDetailOverlayComponent {
             return;
         }
         if (kb.matches(keyData, "selectConfirm")) {
+            if (this.todo.checklist?.length) {
+                this.onAction("edit-checklist");
+            } else {
+                this.onAction("work");
+            }
+            return;
+        }
+        if (this.todo.checklist?.length && keyData === "w") {
             this.onAction("work");
             return;
         }
@@ -138,6 +151,19 @@ export class TodoDetailOverlayComponent {
     }
 
     private buildActionLine(width: number): string {
+        if (this.todo.checklist?.length) {
+            const edit = this.theme.fg("accent", "enter") + this.theme.fg("muted", " edit checklist");
+            const work = this.theme.fg("dim", "w work");
+            const back = this.theme.fg("dim", "esc back");
+            let line = [edit, work, back].join(this.theme.fg("muted", " • "));
+            if (this.totalLines > this.viewHeight) {
+                const start = Math.min(this.totalLines, this.scrollOffset + 1);
+                const end = Math.min(this.totalLines, this.scrollOffset + this.viewHeight);
+                const scrollInfo = this.theme.fg("dim", ` ${start}-${end}/${this.totalLines}`);
+                line += scrollInfo;
+            }
+            return truncateToWidth(line, width);
+        }
         const work = this.theme.fg("accent", "enter") + this.theme.fg("muted", " work on todo");
         const back = this.theme.fg("dim", "esc back");
         const pieces = [work, back];

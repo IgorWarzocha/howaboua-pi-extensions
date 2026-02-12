@@ -1,4 +1,4 @@
-import type { TodoFrontMatter, TodoRecord } from "./types.js";
+import type { ChecklistItem, TodoFrontMatter, TodoRecord } from "./types.js";
 import { TODO_ID_PATTERN } from "./constants.js";
 
 export function parseFrontMatter(text: string, idFallback: string): TodoFrontMatter {
@@ -9,13 +9,14 @@ export function parseFrontMatter(text: string, idFallback: string): TodoFrontMat
         status: "open",
         created_at: "",
         assigned_to_session: undefined,
+        checklist: undefined,
     };
 
     const trimmed = text.trim();
     if (!trimmed) return data;
 
     try {
-        const parsed = JSON.parse(trimmed) as Partial<TodoFrontMatter> | null;
+        const parsed = JSON.parse(trimmed) as Record<string, unknown> | null;
         if (!parsed || typeof parsed !== "object") return data;
         if (typeof parsed.id === "string" && parsed.id) data.id = parsed.id;
         if (typeof parsed.title === "string") data.title = parsed.title;
@@ -27,11 +28,26 @@ export function parseFrontMatter(text: string, idFallback: string): TodoFrontMat
         if (Array.isArray(parsed.tags)) {
             data.tags = parsed.tags.filter((tag): tag is string => typeof tag === "string");
         }
+        if (Array.isArray(parsed.checklist)) {
+            data.checklist = parseChecklist(parsed.checklist);
+        }
     } catch {
         return data;
     }
 
     return data;
+}
+
+function parseChecklist(items: unknown[]): ChecklistItem[] {
+    const checklist: ChecklistItem[] = [];
+    for (const item of items) {
+        if (typeof item !== "object" || item === null) continue;
+        const obj = item as Record<string, unknown>;
+        if (typeof obj.id !== "string" || typeof obj.title !== "string") continue;
+        const status = obj.status === "checked" ? "checked" : "unchecked";
+        checklist.push({ id: obj.id, title: obj.title, status });
+    }
+    return checklist;
 }
 
 export function findJsonObjectEnd(content: string): number {
@@ -101,6 +117,7 @@ export function parseTodoContent(content: string, idFallback: string): TodoRecor
         status: parsed.status,
         created_at: parsed.created_at,
         assigned_to_session: parsed.assigned_to_session,
+        checklist: parsed.checklist,
         body: body ?? "",
     };
 }
@@ -114,6 +131,7 @@ export function serializeTodo(todo: TodoRecord): string {
             status: todo.status,
             created_at: todo.created_at,
             assigned_to_session: todo.assigned_to_session || undefined,
+            checklist: todo.checklist,
         },
         null,
         2,
