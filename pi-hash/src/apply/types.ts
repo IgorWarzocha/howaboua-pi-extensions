@@ -1,23 +1,23 @@
 export type Hunk =
-  | { type: "add"; filePath: string; contents: string }
+  | { type: "create"; filePath: string; contents: string }
   | { type: "delete"; filePath: string }
   | { type: "move"; filePath: string; moveToPath: string }
   | {
-      type: "update";
+      type: "edit";
       filePath: string;
       moveToPath?: string;
-      chunks: UpdateFileChunk[];
+      chunks: EditFileChunk[];
     };
 
-export type UpdateFileChunk = {
+export type EditFileChunk = {
   changeContext?: string;
   oldLines: string[];
-  oldAnchors: UpdateLineAnchor[];
+  oldAnchors: EditLineAnchor[];
   newLines: string[];
   isEndOfFile: boolean;
 };
 
-export type UpdateLineAnchor = {
+export type EditLineAnchor = {
   line: number;
   hash: string;
 };

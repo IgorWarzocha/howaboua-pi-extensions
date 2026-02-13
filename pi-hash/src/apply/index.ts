@@ -1,12 +1,12 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { Hunk, UpdateFileChunk, ApplySummary } from "../types.js";
-import type { ApplyNoop } from "../types.js";
-import { resolvePatchPath } from "../path-utils.js";
-import { buildNumberedDiff } from "../render.js";
+import type { Hunk, EditFileChunk, ApplySummary } from "./types.js";
+import type { ApplyNoop } from "./types.js";
+import { resolvePatchPath } from "./path-utils.js";
+import { buildNumberedDiff } from "./render.js";
 import { normalizeForHash } from "../shared/normalize.js";
 import { computeLineHash } from "../shared/hash.js";
-import { computeReplacementsWithHealing, type ReplaceOp } from "../healing.js";
+import { computeReplacementsWithHealing, type ReplaceOp } from "./healing.js";
 
 type AnchorError = Error & {
   expected?: string[];
@@ -52,7 +52,7 @@ function linesEqual(fileLine: string, expected: string, expectedHash: string): b
   return normalizeForHash(fileLine, false) === normalizeForHash(expected, false);
 }
 
-function matchChunkAt(lines: string[], chunk: UpdateFileChunk, start: number): boolean {
+function matchChunkAt(lines: string[], chunk: EditFileChunk, start: number): boolean {
   if (chunk.oldLines.length === 0) return true;
   if (start < 0 || start + chunk.oldLines.length > lines.length) return false;
   let index = 0;
@@ -98,7 +98,7 @@ function buildUniqueLineByHash(lines: string[]): Map<string, number> {
 
 function locate(
   lines: string[],
-  chunk: UpdateFileChunk,
+  chunk: EditFileChunk,
   seed: number,
   uniqueLineByHash: Map<string, number>,
 ): number {
@@ -176,7 +176,7 @@ function anchorsFromContent(content: string): string[] {
   return anchorLines(content.split("\n"));
 }
 
-function mismatch(lines: string[], pathText: string, chunk: UpdateFileChunk): AnchorError {
+function mismatch(lines: string[], pathText: string, chunk: EditFileChunk): AnchorError {
   const first = chunk.oldAnchors[0];
   if (!first) return new Error(`Patch Error: Failed to locate anchored block in ${pathText}.`);
   const around = Math.max(1, first.line - 1);
@@ -262,7 +262,7 @@ function mismatch(lines: string[], pathText: string, chunk: UpdateFileChunk): An
 function deriveUpdatedContentWithHealing(
   originalContent: string,
   filePath: string,
-  chunks: UpdateFileChunk[],
+  chunks: EditFileChunk[],
   noops: ApplyNoop[],
 ): { content: string; anchors: string[] } {
   const originalLines = originalContent.split("\n");
@@ -310,7 +310,7 @@ export async function applyHunks(cwd: string, hunks: Hunk[]): Promise<ApplySumma
   };
   for (const hunk of hunks) {
     try {
-      if (hunk.type === "add") {
+      if (hunk.type === "create") {
         const target = resolvePatchPath(cwd, hunk.filePath);
         let exists = false;
         try {
@@ -319,10 +319,10 @@ export async function applyHunks(cwd: string, hunks: Hunk[]): Promise<ApplySumma
         } catch {}
         if (exists) {
           throw new Error(
-            `Add File target already exists: ${hunk.filePath}. ` +
-              "You MUST NOT overwrite existing files via Add File. " +
-              "You SHOULD use Update File for edits. " +
-              "If you are sure you want full replacement, you MUST include Delete File + Add File for the same path in the SAME apply_patch call, with Delete File before Add File.",
+            `Create File target already exists: ${hunk.filePath}. ` +
+              "You MUST NOT overwrite existing files via Create File. " +
+              "You SHOULD use Edit File for edits. " +
+              "If you are sure you want full replacement, you MUST include Delete File + Create File for the same path in the SAME apply_patch call, with Delete File before Create File.",
           );
         }
         await fs.mkdir(path.dirname(target), { recursive: true });

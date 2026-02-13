@@ -59,7 +59,7 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
   pi.registerTool({
     name: "apply_patch",
     label: "apply_patch",
-    description: `Modify files using anchored diffs. STRUCTURE: '*** Begin Patch' → file sections → '*** End Patch'. FILE SECTIONS: '*** Add File: <path>' (create), '*** Update File: <path>' (edit), '*** Delete File: <path>' (remove). To rename: add '*** Move to: <new-path>' after Update File line. UPDATE HUNKS: Start with '@@' on its own line. Body lines: ' 1:ab|x' = context (unchanged), '-1:ab|x' = remove, '+x' = add. Copy context/removal anchors EXACTLY from read output (LINE:HASH|content). Always read file first, batch all changes in one call.`,
+    description: `Edit files using anchored diffs. STRUCTURE: '*** Begin Patch' → file sections → '*** End Patch'. FILE SECTIONS: '*** Create File: <path>' (create), '*** Edit File: <path>' (edit), '*** Delete File: <path>' (remove), '*** Move File: <path>' + '*** Move to: <new-path>' (rename). EDIT HUNKS: Start with '@@' on its own line. Body lines: ' 1:ab|x' = context (unchanged), '-1:ab|x' = remove, '+x' = add. Copy context/removal anchors EXACTLY from read output (LINE:HASH|content). Always read file first, batch all changes in one call.`,
     renderCall(args, theme) {
       return renderApplyPatchCall(args, parsePatch, theme);
     },
@@ -68,7 +68,7 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
     },
     parameters: Type.Object({
       patchText: Type.String({
-        description: "Patch envelope starting with '*** Begin Patch' and ending with '*** End Patch'. Inside: file sections (*** Add/Update/Delete File: <path>). Update sections have @@ hunk markers. Body lines: ' ' or '-' prefix MUST include LINE:HASH| anchor from read tool. '+' prefix has no anchor.",
+description: "Patch envelope starting with '*** Begin Patch' and ending with '*** End Patch'. Inside: file sections (*** Create/Edit/Delete/Move File: <path>). Edit sections have @@ hunk markers. Body lines: ' ' or '-' prefix MUST include LINE:HASH| anchor from read tool. '+' prefix has no anchor.",
       }),
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {

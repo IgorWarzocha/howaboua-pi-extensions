@@ -1,4 +1,4 @@
-import type { ApplyNoop, UpdateFileChunk } from "./types.js";
+import type { ApplyNoop, EditFileChunk } from "./types.js";
 import { computeLineHash } from "../shared/hash.js";
 
 const CONFUSABLE_HYPHENS_RE = /[\u2010\u2011\u2012\u2013\u2014\u2212\uFE63\uFF0D]/g;
@@ -153,7 +153,7 @@ export type ReplaceOp = {
   newLines: string[];
 };
 
-export function healChunkOverlaps(chunk: UpdateFileChunk): void {
+export function healChunkOverlaps(chunk: EditFileChunk): void {
 const removalLines = new Set<number>();
 const contextIndices = new Map<number, number>();
 for (let i = 0; i < chunk.oldAnchors.length; i++) {
@@ -180,12 +180,12 @@ chunk.newLines.splice(idx, 1);
 export function computeReplacementsWithHealing(
   originalLines: string[],
   filePath: string,
-  chunks: UpdateFileChunk[],
+  chunks: EditFileChunk[],
   noops: ApplyNoop[],
-  locateFn: (lines: string[], chunk: UpdateFileChunk, seed: number, uniqueLineByHash: Map<string, number>) => number,
+  locateFn: (lines: string[], chunk: EditFileChunk, seed: number, uniqueLineByHash: Map<string, number>) => number,
   findContextFn: (lines: string[], context: string, start: number) => number,
   contextErrorFn: (lines: string[], pathText: string, context: string, seed: number) => Error,
-  mismatchFn: (lines: string[], pathText: string, chunk: UpdateFileChunk) => Error,
+  mismatchFn: (lines: string[], pathText: string, chunk: EditFileChunk) => Error,
   buildUniqueLineByHashFn: (lines: string[]) => Map<string, number>,
 ): ReplaceOp[] {
   const uniqueLineByHash = buildUniqueLineByHashFn(originalLines);

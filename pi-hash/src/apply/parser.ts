@@ -2,9 +2,9 @@ import {
   BEGIN_PATCH_MARKER,
   END_PATCH_MARKER,
   END_PATCH_MARKER_LOOSE,
-  ADD_FILE_MARKER,
+  CREATE_FILE_MARKER,
   DELETE_FILE_MARKER,
-  UPDATE_FILE_MARKER,
+  EDIT_FILE_MARKER,
   MOVE_TO_MARKER,
   EOF_MARKER,
   MOVE_FILE_MARKER,
@@ -12,7 +12,7 @@ import {
   EMPTY_CHANGE_CONTEXT_MARKER,
 } from "./constants.js";
 import { ensureRelativePatchPath } from "./path-utils.js";
-import { InvalidPatchError, InvalidHunkError, type Hunk, type UpdateFileChunk } from "./types.js";
+import { InvalidPatchError, InvalidHunkError, type Hunk, type EditFileChunk } from "./types.js";
 
 function sanitizeAddedLine(line: string): string {
   let next = line;
@@ -30,8 +30,8 @@ function parseAnchoredBody(body: string, lineNumber: number): { line: string; li
     throw new InvalidHunkError(
       `Anchored line is invalid: '${body.slice(0, 120)}'.` +
         `\nContext and removal lines MUST include LINE:HASH| prefixes (e.g. '42:ab|content').` +
-        `\nYou MUST run read and copy anchored lines exactly for update hunk body lines (' ' and '-').` +
-        `\nIf you intend to replace most of the file, you SHOULD use Delete File + Add File in one apply_patch call.`,
+        `\nYou MUST run read and copy anchored lines exactly for edit hunk body lines (' ' and '-').` +
+        `\nIf you intend to replace most of the file, you SHOULD use Delete File + Create File in one apply_patch call.`,
       lineNumber,
     );
   }
@@ -57,7 +57,7 @@ function stripHeredoc(input: string): string {
 function assertNoAbsolutePaths(hunks: Hunk[]): void {
   for (const hunk of hunks) {
     ensureRelativePatchPath(hunk.filePath);
-    if (hunk.type === "update" && hunk.moveToPath) {
+    if (hunk.type === "edit" && hunk.moveToPath) {
       ensureRelativePatchPath(hunk.moveToPath);
 }
     if (hunk.type === "move") {
@@ -118,7 +118,7 @@ function checkPatchBoundaries(lines: string[]): void {
   const plusEndMarker = /^\+\*{2,3}\s*end\s*patch\s*$/i;
 
   if (plusEndMarker.test(lastLine)) {
-    // Auto-repair common model mistake: treating end marker as Add File content.
+    // Auto-repair: treating end marker as Create File content.
     lines[lastIndex] = END_PATCH_MARKER;
   }
 
@@ -168,9 +168,8 @@ function checkPatchBoundaries(lines: string[]): void {
 
 function parseOneHunk(lines: string[], lineNumber: number): { hunk: Hunk; consumedLines: number } {
   const firstLine = lines[0]?.trim() ?? "";
-
-  if (firstLine.startsWith(ADD_FILE_MARKER)) {
-    const filePath = firstLine.slice(ADD_FILE_MARKER.length);
+if (firstLine.startsWith(CREATE_FILE_MARKER)) {
+const filePath = firstLine.slice(CREATE_FILE_MARKER.length);
     let contents = "";
     let consumedLines = 1;
 
@@ -181,7 +180,7 @@ function parseOneHunk(lines: string[], lineNumber: number): { hunk: Hunk; consum
         continue;
       }
 
-      // Non-prefixed markers terminate the Add File block
+      // Non-prefixed markers terminate the Create File block
       if (addLine.startsWith("***")) break;
       if (addLine.startsWith("@@ ") || addLine === "@@") break;
       if (addLine.startsWith("-") || addLine.startsWith(" ")) break;
@@ -197,14 +196,14 @@ function parseOneHunk(lines: string[], lineNumber: number): { hunk: Hunk; consum
 
     if (consumedLines === 1) {
       throw new InvalidHunkError(
-        `Add file hunk for '${filePath}' has no content lines.` +
-          `\nEvery added line MUST start with '+'. For blank lines use '+' alone.` +
+        `Create file hunk for '${filePath}' has no content lines.` +
+          `\nEvery content line MUST start with '+'. For blank lines use '+' alone.` +
           `\nYou MUST NOT omit the '+' prefix on content lines.`,
         lineNumber,
       );
     }
 
-    return { hunk: { type: "add", filePath, contents }, consumedLines };
+    return { hunk: { type: "create", filePath, contents }, consumedLines };
   }
 
   if (firstLine.startsWith(DELETE_FILE_MARKER)) {
@@ -224,8 +223,8 @@ function parseOneHunk(lines: string[], lineNumber: number): { hunk: Hunk; consum
     return { hunk: { type: "move", filePath, moveToPath }, consumedLines: 2 };
   }
 
-  if (firstLine.startsWith(UPDATE_FILE_MARKER)) {
-    const filePath = firstLine.slice(UPDATE_FILE_MARKER.length);
+  if (firstLine.startsWith(EDIT_FILE_MARKER)) {
+    const filePath = firstLine.slice(EDIT_FILE_MARKER.length);
     let consumedLines = 1;
     let remaining = lines.slice(1);
 
@@ -237,7 +236,7 @@ function parseOneHunk(lines: string[], lineNumber: number): { hunk: Hunk; consum
       remaining = remaining.slice(1);
     }
 
-    const chunks: UpdateFileChunk[] = [];
+    const chunks: EditFileChunk[] = [];
     while (remaining.length > 0) {
       if (remaining[0].trim().length === 0) {
         consumedLines += 1;
@@ -245,8 +244,7 @@ function parseOneHunk(lines: string[], lineNumber: number): { hunk: Hunk; consum
         continue;
       }
       if (remaining[0].startsWith("***")) break;
-
-      const { chunk, consumedLines: consumedByChunk } = parseUpdateFileChunk(
+const { chunk, consumedLines: consumedByChunk } = parseEditFileChunk(
         remaining,
         lineNumber + consumedLines,
         chunks.length === 0,
@@ -255,35 +253,33 @@ function parseOneHunk(lines: string[], lineNumber: number): { hunk: Hunk; consum
       consumedLines += consumedByChunk;
       remaining = remaining.slice(consumedByChunk);
     }
-
     if (chunks.length === 0) {
       throw new InvalidHunkError(
-        `Update file hunk for '${filePath}' has no chunks.` +
+`Edit file hunk for '${filePath}' has no chunks.` +
           `\nEach chunk MUST start with '@@' or '@@ <context>'.` +
           `\nFor a pure rename without edits, use '*** Move File: <path>' instead.`,
         lineNumber,
       );
     }
 
-    return { hunk: { type: "update", filePath, moveToPath, chunks }, consumedLines };
+return { hunk: { type: "edit", filePath, moveToPath, chunks }, consumedLines };
   }
-
   throw new InvalidHunkError(
     `'${firstLine.slice(0, 100)}' is not a valid hunk header.` +
-      `\nYou MUST use one of: '${ADD_FILE_MARKER}<path>', '${DELETE_FILE_MARKER}<path>', '${UPDATE_FILE_MARKER}<path>', '${MOVE_FILE_MARKER}<path>'.` +
+`\nYou MUST use one of: '${CREATE_FILE_MARKER}<path>', '${DELETE_FILE_MARKER}<path>', '${EDIT_FILE_MARKER}<path>', '${MOVE_FILE_MARKER}<path>'.` +
       `\nYou MUST NOT place content lines outside of a file section.`,
     lineNumber,
   );
 }
 
-function parseUpdateFileChunk(
+function parseEditFileChunk(
   lines: string[],
   lineNumber: number,
   allowMissingContext: boolean,
-): { chunk: UpdateFileChunk; consumedLines: number } {
+): { chunk: EditFileChunk; consumedLines: number } {
   if (lines.length === 0) {
     throw new InvalidHunkError(
-      "Update hunk has no lines. You MUST provide at least one ' ', '+', or '-' line after the @@ marker.",
+      "Edit hunk has no lines. You MUST provide at least one ' ', '+', or '-' line after the @@ marker.",
       lineNumber,
     );
   }
@@ -300,7 +296,7 @@ function parseUpdateFileChunk(
     if (!allowMissingContext) {
       throw new InvalidHunkError(
         `Expected '@@' context marker, got: '${lines[0].slice(0, 80)}'.` +
-          `\nEach update chunk MUST start with '@@' or '@@ <context>'. You MUST NOT omit the @@ marker.`,
+          `\nEach edit chunk MUST start with '@@' or '@@ <context>'. You MUST NOT omit the @@ marker.`,
         lineNumber,
       );
     }
@@ -309,12 +305,11 @@ function parseUpdateFileChunk(
 
   if (startIndex >= lines.length) {
     throw new InvalidHunkError(
-      "Update hunk has @@ marker but no content lines. You MUST provide ' ', '+', or '-' lines after @@.",
+      "Edit hunk has @@ marker but no content lines. You MUST provide ' ', '+', or '-' lines after @@.",
       lineNumber + 1,
     );
   }
-
-  const chunk: UpdateFileChunk = {
+const chunk: EditFileChunk = {
     changeContext,
     oldLines: [],
     oldAnchors: [],
@@ -326,7 +321,7 @@ function parseUpdateFileChunk(
     if (line === EOF_MARKER) {
       if (parsedBodyLines === 0) {
         throw new InvalidHunkError(
-          "Update hunk has EOF marker but no content before it. You MUST provide content lines before the EOF marker.",
+          "Edit hunk has EOF marker but no content before it. You MUST provide content lines before the EOF marker.",
           lineNumber + 1,
         );
       }
@@ -337,7 +332,7 @@ function parseUpdateFileChunk(
 
     if (line.length === 0) {
       throw new InvalidHunkError(
-        "Unexpected empty line in update hunk. Every body line MUST start with ' ', '+', or '-'.",
+        "Unexpected empty line in edit hunk. Every body line MUST start with ' ', '+', or '-'.",
         lineNumber + startIndex + parsedBodyLines + 1,
       );
     }
@@ -366,7 +361,7 @@ function parseUpdateFileChunk(
 
     if (parsedBodyLines === 0) {
       throw new InvalidHunkError(
-        `Unexpected line in update hunk: '${line.slice(0, 80)}'.` +
+        `Unexpected line in edit hunk: '${line.slice(0, 80)}'.` +
           `\nEvery line MUST start with ' ' (context), '+' (add), or '-' (remove). You MUST NOT have unprefixed lines.`,
         lineNumber + 1,
       );
