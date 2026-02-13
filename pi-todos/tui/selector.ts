@@ -188,11 +188,11 @@ export class TodoSelectorComponent extends Container implements Focusable {
       if (kb.matches(keyData, "selectCancel")) {
         this.searchActive = false;
         this.searchInput.focused = false;
-        this.renderState();
+        this.searchInput.setValue("");
+        this.applyFilter("");
         return;
       }
       if (kb.matches(keyData, "selectUp") || kb.matches(keyData, "selectDown")) return;
-      if (keyData === "j" || keyData === "k" || keyData === "J" || keyData === "K") return;
       this.searchInput.handleInput(keyData);
       this.applyFilter(this.searchInput.getValue());
       return;
