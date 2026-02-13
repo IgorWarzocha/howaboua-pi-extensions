@@ -1,3 +1,6 @@
 # pi-todos agent notes
-- You MUST run `bun run verify` following a todo item completion.
+
 - Git operations for this extension MUST be executed from `pi-extensions-dev`.
+  When operating in this directory you MUST consider loading these workflows:
+- `extension-pr-from-subdir`
+- `pr-bot-review-triage`

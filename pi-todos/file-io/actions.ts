@@ -9,82 +9,117 @@ import { ensureTodoExists, writeTodoFile } from "./files.js";
 import { getTodoPath } from "./path.js";
 
 function notFound(id: string): { error: string } {
-    return { error: `Todo ${displayTodoId(id)} not found` };
+  return { error: `Todo ${displayTodoId(id)} not found` };
 }
 
 async function withExisting(
-    todosDir: string,
-    id: string,
-    ctx: ExtensionContext,
-    run: (todo: TodoRecord, filePath: string, sessionId: string) => Promise<TodoRecord | { error: string }>,
+  todosDir: string,
+  id: string,
+  ctx: ExtensionContext,
+  run: (
+    todo: TodoRecord,
+    filePath: string,
+    sessionId: string,
+  ) => Promise<TodoRecord | { error: string }>,
 ): Promise<TodoRecord | { error: string }> {
-    const validated = validateTodoId(id);
-    if ("error" in validated) return { error: validated.error };
-    const normalizedId = validated.id;
-    const filePath = getTodoPath(todosDir, normalizedId);
-    if (!existsSync(filePath)) return notFound(id);
-    const sessionId = ctx.sessionManager.getSessionId();
-    const result = await withTodoLock(todosDir, normalizedId, ctx, async () => {
-        const existing = await ensureTodoExists(filePath, normalizedId);
-        if (!existing) return notFound(id);
-        return run(existing, filePath, sessionId);
-    });
-    if (typeof result === "object" && "error" in result) return { error: result.error };
-    return result;
+  const validated = validateTodoId(id);
+  if ("error" in validated) return { error: validated.error };
+  const normalizedId = validated.id;
+  const filePath = getTodoPath(todosDir, normalizedId);
+  if (!existsSync(filePath)) return notFound(id);
+  const sessionId = ctx.sessionManager.getSessionId();
+  const result = await withTodoLock(todosDir, normalizedId, ctx, async () => {
+    const existing = await ensureTodoExists(filePath, normalizedId);
+    if (!existing) return notFound(id);
+    return run(existing, filePath, sessionId);
+  });
+  if (typeof result === "object" && "error" in result) return { error: result.error };
+  return result;
 }
 
-export async function updateTodoStatus(todosDir: string, id: string, status: string, ctx: ExtensionContext): Promise<TodoRecord | { error: string }> {
-    return withExisting(todosDir, id, ctx, async (existing, filePath) => {
-        existing.status = status;
-        clearAssignmentIfClosed(existing);
-        await writeTodoFile(filePath, existing);
-        return existing;
-    });
+export async function updateTodoStatus(
+  todosDir: string,
+  id: string,
+  status: string,
+  ctx: ExtensionContext,
+): Promise<TodoRecord | { error: string }> {
+  return withExisting(todosDir, id, ctx, async (existing, filePath) => {
+    existing.status = status;
+    clearAssignmentIfClosed(existing);
+    await writeTodoFile(filePath, existing);
+    return existing;
+  });
 }
 
-export async function claimTodoAssignment(todosDir: string, id: string, ctx: ExtensionContext, force = false): Promise<TodoRecord | { error: string }> {
-    return withExisting(todosDir, id, ctx, async (existing, filePath, sessionId) => {
-        if (isTodoClosed(existing.status)) return { error: `Todo ${displayTodoId(id)} is closed` };
-        const assigned = existing.assigned_to_session;
-        if (assigned && assigned !== sessionId && !force) {
-            return { error: `Todo ${displayTodoId(id)} is already assigned to session ${assigned}. Use force to override.` };
-        }
-        if (assigned !== sessionId) {
-            existing.assigned_to_session = sessionId;
-            await writeTodoFile(filePath, existing);
-        }
-        return existing;
-    });
+export async function claimTodoAssignment(
+  todosDir: string,
+  id: string,
+  ctx: ExtensionContext,
+  force = false,
+): Promise<TodoRecord | { error: string }> {
+  return withExisting(todosDir, id, ctx, async (existing, filePath, sessionId) => {
+    if (isTodoClosed(existing.status)) return { error: `Todo ${displayTodoId(id)} is closed` };
+    const assigned = existing.assigned_to_session;
+    if (assigned && assigned !== sessionId && !force) {
+      return {
+        error: `Todo ${displayTodoId(id)} is already assigned to session ${assigned}. Use force to override.`,
+      };
+    }
+    if (assigned !== sessionId) {
+      existing.assigned_to_session = sessionId;
+      await writeTodoFile(filePath, existing);
+    }
+    return existing;
+  });
 }
 
-export async function releaseTodoAssignment(todosDir: string, id: string, ctx: ExtensionContext, force = false): Promise<TodoRecord | { error: string }> {
-    return withExisting(todosDir, id, ctx, async (existing, filePath, sessionId) => {
-        const assigned = existing.assigned_to_session;
-        if (!assigned) return existing;
-        if (assigned !== sessionId && !force) {
-            return { error: `Todo ${displayTodoId(id)} is assigned to session ${assigned}. Use force to release.` };
-        }
-        existing.assigned_to_session = undefined;
-        await writeTodoFile(filePath, existing);
-        return existing;
-    });
+export async function releaseTodoAssignment(
+  todosDir: string,
+  id: string,
+  ctx: ExtensionContext,
+  force = false,
+): Promise<TodoRecord | { error: string }> {
+  return withExisting(todosDir, id, ctx, async (existing, filePath, sessionId) => {
+    const assigned = existing.assigned_to_session;
+    if (!assigned) return existing;
+    if (assigned !== sessionId && !force) {
+      return {
+        error: `Todo ${displayTodoId(id)} is assigned to session ${assigned}. Use force to release.`,
+      };
+    }
+    existing.assigned_to_session = undefined;
+    await writeTodoFile(filePath, existing);
+    return existing;
+  });
 }
 
-export async function deleteTodo(todosDir: string, id: string, ctx: ExtensionContext): Promise<TodoRecord | { error: string }> {
-    return withExisting(todosDir, id, ctx, async (existing, filePath) => {
-        await fs.unlink(filePath);
-        return existing;
-    });
+export async function deleteTodo(
+  todosDir: string,
+  id: string,
+  ctx: ExtensionContext,
+): Promise<TodoRecord | { error: string }> {
+  return withExisting(todosDir, id, ctx, async (existing, filePath) => {
+    await fs.unlink(filePath);
+    return existing;
+  });
 }
 
-export async function reopenTodoForUser(todosDir: string, id: string, ctx: ExtensionContext): Promise<TodoRecord | { error: string }> {
-    return withExisting(todosDir, id, ctx, async (existing, filePath) => {
-        if (existing.checklist?.length) {
-            existing.checklist = existing.checklist.map(item => ({ id: item.id, title: item.title, status: "unchecked" }));
-        }
-        existing.status = "open";
-        existing.assigned_to_session = undefined;
-        await writeTodoFile(filePath, existing);
-        return existing;
-    });
+export async function reopenTodoForUser(
+  todosDir: string,
+  id: string,
+  ctx: ExtensionContext,
+): Promise<TodoRecord | { error: string }> {
+  return withExisting(todosDir, id, ctx, async (existing, filePath) => {
+    if (existing.checklist?.length) {
+      existing.checklist = existing.checklist.map((item) => ({
+        id: item.id,
+        title: item.title,
+        status: "unchecked",
+      }));
+    }
+    existing.status = "open";
+    existing.assigned_to_session = undefined;
+    await writeTodoFile(filePath, existing);
+    return existing;
+  });
 }
