@@ -37,12 +37,30 @@ Use:
 - `/todo`
 
 In the UI you can:
-
-- switch between open and closed views
 - create, work, refine, complete, abandon, reopen, release, or delete
 - inspect details and edit checklist items
+- use explicit search mode for predictable keyboard navigation
 
-### 2. Use the tool in agent flows
+### 2. Keyboard workflow highlights
+
+`/todo` is optimized for terminal reliability.
+
+- list view:
+  - `Ctrl+X` opens leader mode (2s timeout, `Ctrl+X`/`x` cancels)
+  - `/` enters search mode
+  - while search is active, navigation keys are ignored and `Enter` exits search mode
+  - `j/k` and arrows navigate when not in search mode
+- detail view:
+  - `j/k` move action selection
+  - `J/K` scroll preview content
+  - `v` toggles preview visibility
+  - checklist edit is available through leader mode (`Ctrl+X` then `e`)
+- create view:
+  - `Enter` submits
+  - `Shift+Enter`, `Ctrl+Enter`, or `Alt+Enter` insert new lines
+  - input wraps across lines for longer task descriptions
+
+### 3. Use the tool in agent flows
 
 The `todo` tool supports these actions:
 
