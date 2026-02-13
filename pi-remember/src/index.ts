@@ -96,8 +96,8 @@ export default function piRememberExtension(pi: ExtensionAPI): void {
         : config.scope === "global"
           ? { source: "global" as const, dbPath: getGlobalDbPath() }
           : { source: "project" as const, dbPath: getProjectDbPath(ctx.cwd) };
-      const db = getDb(store.dbPath);
       const emb = await embedPassage(text);
+      const db = getDb(store.dbPath);
       const result = db
         .prepare("INSERT INTO memories (content, timestamp, embedding) VALUES (?, ?, ?)")
         .run(text, new Date().toISOString(), encodeEmbedding(emb));
