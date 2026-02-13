@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "bun build ./index.ts --target=node --format=esm --outfile ./dist/index.js --external @mariozechner/pi-ai --external @mariozechner/pi-coding-agent --external @mariozechner/pi-tui",
-    "typecheck": "bunx tsc --noEmit --skipLibCheck",
+    "typecheck": "bunx tsc -p ./tsconfig.json",
     "format:check": "oxfmt --check .",
     "format": "oxfmt .",
     "verify": "bun run typecheck && bun run format:check && bun run build"
