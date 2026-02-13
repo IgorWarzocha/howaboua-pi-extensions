@@ -1,6 +1,8 @@
- 1:88|# pi-hash
+ pi-hash
 
  Pi extension providing high-reliability file edits through a "Relocation Engine" and line-based hashing.
+
+ Inspired by https://blog.can.ac/2026/02/12/the-harness-problem/
 
  ## Protocol: Hashlines
 
