@@ -1,7 +1,0 @@
-{
-  "name": "pi-extensions-monorepo",
-  "private": true,
-  "workspaces": [
-    "*"
-  ]
-}
