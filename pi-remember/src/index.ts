@@ -68,10 +68,11 @@ export default function piRememberExtension(pi: ExtensionAPI): void {
           ctx.ui.notify("Usage: /remember forget <id> [--global]", "warning");
           return;
         }
-        const isGlobal = rest.includes("--global");
-        const deleted = deleteMemoryInStore(ctx.cwd, id, isGlobal ? "global" : "project");
-        const storeName = isGlobal ? "global" : "project";
-        ctx.ui.notify(deleted ? `Forgot id=${id} from ${storeName} store.` : `Memory id=${id} not found in ${storeName} store.`, deleted ? "info" : "warning");
+        const config = loadConfig(ctx.cwd);
+        const isGlobal = rest.includes("--global") || (config.scope === "global" && !rest.includes("--project"));
+        const source = isGlobal ? "global" : "project";
+        const deleted = deleteMemoryInStore(ctx.cwd, id, source);
+        ctx.ui.notify(deleted ? `Forgot id=${id} from ${source} store.` : `Memory id=${id} not found in ${source} store.`, deleted ? "info" : "warning");
         return;
       }
       ctx.ui.notify("Unknown subcommand. Use: list | search | forget", "warning");
