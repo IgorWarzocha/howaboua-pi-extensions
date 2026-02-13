@@ -27,8 +27,8 @@
   },
   "dependencies": {
     "@sinclair/typebox": "^0.34.41",
-    "better-sqlite3": "^11.8.1",
-    "fastembed": "^1.14.1"
+    "better-sqlite3": "^12.6.2",
+    "fastembed": "^2.1.0"
   },
   "devDependencies": {
     "@mariozechner/pi-coding-agent": "*",
