@@ -61,7 +61,8 @@ export async function acquireLock(
         return { error: `Failed to acquire lock: ${getErrorMessage(error)}` };
       }
       const stats = await fs.stat(lockPath).catch(() => null);
-      const lockAge = stats ? now - stats.mtimeMs : LOCK_TTL_MS + 1;
+      if (!stats) continue;
+      const lockAge = now - stats.mtimeMs;
       if (lockAge <= LOCK_TTL_MS) {
         const info = await readLockInfo(lockPath);
         const owner = info?.session ? ` (session ${info.session})` : "";

@@ -144,7 +144,12 @@ export async function runUpdateAction(
   if (assignmentError) return assignmentError;
   if (params.status !== undefined)
     return error("update", "Error: status updates are user-only. Use tick for checklist progress.");
-  if (params.title !== undefined) existing.title = params.title;
+  if (params.title !== undefined) {
+    const todos = await listTodos(todosDir);
+    const duplicate = todos.find((todo) => todo.id !== existing.id && todo.title === params.title);
+    if (duplicate) return error("update", "Error: todo title already exists. Use a unique title.");
+    existing.title = params.title;
+  }
   if (params.tags !== undefined) existing.tags = params.tags;
   if (params.body !== undefined) existing.body = params.body;
   if (params.checklist !== undefined) {
