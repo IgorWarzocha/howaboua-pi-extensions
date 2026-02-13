@@ -1,4 +1,4 @@
-import type { ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
+import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
 import type { ChecklistItem, TodoRecord } from "../types.js";
 import {
   appendTodoBody,
@@ -52,7 +52,16 @@ async function resolveTodoRef(
   return { id, filePath, todo };
 }
 
-export async function runListAction(todosDir: string, ctx: ExtensionCommandContext) {
+function ensureAssignedToCurrentSession(action: string, todo: TodoRecord, ctx: ExtensionContext) {
+  if (!todo.assigned_to_session) return null;
+  const sessionId = ctx.sessionManager.getSessionId();
+  if (todo.assigned_to_session === sessionId) return null;
+  return error(
+    action,
+    `Error: todo is assigned to session ${todo.assigned_to_session}. Claim with force to modify.`,
+  );
+}
+export async function runListAction(todosDir: string, ctx: ExtensionContext) {
   const todos = await listTodos(todosDir);
   const split = splitTodosByAssignment(todos);
   const listedTodos = [...split.assignedTodos, ...split.openTodos];
@@ -66,7 +75,7 @@ export async function runListAction(todosDir: string, ctx: ExtensionCommandConte
   };
 }
 
-export async function runListAllAction(todosDir: string, ctx: ExtensionCommandContext) {
+export async function runListAllAction(todosDir: string, ctx: ExtensionContext) {
   const todos = await listTodos(todosDir);
   return {
     content: [{ type: "text" as const, text: serializeTodoListForAgent(todos) }],
@@ -91,6 +100,9 @@ export async function runCreateAction(
   if (!params.checklist?.length)
     return error("create", "Error: checklist required for create action");
   await ensureTodosDir(todosDir);
+  const existingTodos = await listTodos(todosDir);
+  if (existingTodos.some((todo) => todo.title === params.title))
+    return error("create", "Error: todo title already exists. Use a unique title.");
   const id = await generateTodoId(todosDir);
   const todo: TodoRecord = {
     id,
@@ -123,10 +135,13 @@ export async function runUpdateAction(
     body?: string;
     checklist?: ChecklistItem[];
   },
+  ctx: ExtensionContext,
 ) {
   const resolved = await resolveTodoRef(todosDir, params);
   if ("error" in resolved) return error("update", resolved.error);
   const existing = resolved.todo;
+  const assignmentError = ensureAssignedToCurrentSession("update", existing, ctx);
+  if (assignmentError) return assignmentError;
   if (params.status !== undefined)
     return error("update", "Error: status updates are user-only. Use tick for checklist progress.");
   if (params.title !== undefined) existing.title = params.title;
@@ -152,9 +167,12 @@ export async function runUpdateAction(
 export async function runAppendAction(
   todosDir: string,
   params: { id?: string; title?: string; body?: string },
+  ctx: ExtensionContext,
 ) {
   const resolved = await resolveTodoRef(todosDir, params);
   if ("error" in resolved) return error("append", resolved.error);
+  const assignmentError = ensureAssignedToCurrentSession("append", resolved.todo, ctx);
+  if (assignmentError) return assignmentError;
   if (!params.body || !params.body.trim())
     return {
       content: [{ type: "text" as const, text: serializeTodoForAgent(resolved.todo) }],
@@ -170,7 +188,7 @@ export async function runAppendAction(
 export async function runClaimAction(
   todosDir: string,
   params: { id?: string; title?: string; force?: boolean },
-  ctx: ExtensionCommandContext,
+  ctx: ExtensionContext,
 ) {
   const resolved = await resolveTodoRef(todosDir, params);
   if ("error" in resolved) return error("claim", resolved.error);
@@ -185,7 +203,7 @@ export async function runClaimAction(
 export async function runReleaseAction(
   todosDir: string,
   params: { id?: string; title?: string; force?: boolean },
-  ctx: ExtensionCommandContext,
+  ctx: ExtensionContext,
 ) {
   const resolved = await resolveTodoRef(todosDir, params);
   if ("error" in resolved) return error("release", resolved.error);
@@ -200,6 +218,7 @@ export async function runReleaseAction(
 export async function runTickAction(
   todosDir: string,
   params: { id?: string; title?: string; item?: string },
+  ctx: ExtensionContext,
 ) {
   const resolved = await resolveTodoRef(todosDir, params);
   if ("error" in resolved)
@@ -215,6 +234,8 @@ export async function runTickAction(
       allComplete: false,
     });
   const existing = resolved.todo;
+  const assignmentError = ensureAssignedToCurrentSession("tick", existing, ctx);
+  if (assignmentError) return assignmentError;
   if (!existing.checklist?.length)
     return error("tick", "Error: Todo has no checklist. Use update action to add one.", {
       todo: existing,

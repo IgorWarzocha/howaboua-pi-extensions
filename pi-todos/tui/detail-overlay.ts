@@ -169,9 +169,9 @@ export class TodoDetailOverlayComponent {
     if (this.todo.checklist?.length) {
       const edit = this.theme.fg("accent", "enter") + this.theme.fg("muted", " edit checklist");
       const work = this.theme.fg("dim", "w work");
-      const abandon = this.theme.fg("error", "a abandon from actions");
+      const backAction = this.theme.fg("dim", "a back");
       const back = this.theme.fg("dim", "esc back");
-      let line = [edit, work, abandon, back].join(this.theme.fg("muted", " • "));
+      let line = [edit, work, backAction, back].join(this.theme.fg("muted", " • "));
       if (this.totalLines > this.viewHeight) {
         const start = Math.min(this.totalLines, this.scrollOffset + 1);
         const end = Math.min(this.totalLines, this.scrollOffset + this.viewHeight);

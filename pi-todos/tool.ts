@@ -20,7 +20,7 @@ export function registerTodoTool(pi: ExtensionAPI) {
       "You SHOULD close todos when complete.",
     parameters: TodoParams,
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
-      return runToolExecute(params as never, ctx as never);
+      return runToolExecute(params as Record<string, unknown>, ctx);
     },
     renderCall(args, theme) {
       return renderToolCall(args as never, theme as never);

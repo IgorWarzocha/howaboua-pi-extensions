@@ -49,9 +49,9 @@ export async function garbageCollectTodos(todosDir: string, settings: TodoSettin
           const parts = splitFrontMatter(content);
           const parsed = parseFrontMatter(parts.frontMatter, id);
           if (!isTodoClosed(parsed.status)) return;
-          const createdAt = Date.parse(parsed.created_at);
-          if (!Number.isFinite(createdAt)) return;
-          if (createdAt < cutoff) await fs.unlink(filePath);
+          const stats = await fs.stat(filePath);
+          if (!Number.isFinite(stats.mtimeMs)) return;
+          if (stats.mtimeMs < cutoff) await fs.unlink(filePath);
         } catch {
           return;
         }

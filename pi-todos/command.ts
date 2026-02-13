@@ -11,7 +11,7 @@ export function registerTodoCommand(pi: ExtensionAPI) {
     handler: async (args: string, ctx: ExtensionCommandContext) => {
       const todos = await listTodos(getTodosDir(ctx.cwd));
       if (!ctx.hasUI) {
-        console.log(formatTodoList(todos));
+        process.stdout.write(`${formatTodoList(todos)}\n`);
         return;
       }
       const nextPrompt = await runTodoUi(args, ctx);

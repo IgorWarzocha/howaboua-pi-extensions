@@ -18,6 +18,17 @@ async function readLockInfo(lockPath: string): Promise<LockInfo | null> {
   }
 }
 
+function getErrorCode(error: unknown): string | null {
+  if (typeof error !== "object" || error === null) return null;
+  if (!("code" in error)) return null;
+  const value = error.code;
+  return typeof value === "string" ? value : null;
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return "unknown error";
+}
 export async function acquireLock(
   todosDir: string,
   id: string,
@@ -45,9 +56,9 @@ export async function acquireLock(
           // ignore
         }
       };
-    } catch (error: any) {
-      if (error?.code !== "EEXIST") {
-        return { error: `Failed to acquire lock: ${error?.message ?? "unknown error"}` };
+    } catch (error: unknown) {
+      if (getErrorCode(error) !== "EEXIST") {
+        return { error: `Failed to acquire lock: ${getErrorMessage(error)}` };
       }
       const stats = await fs.stat(lockPath).catch(() => null);
       const lockAge = stats ? now - stats.mtimeMs : LOCK_TTL_MS + 1;
