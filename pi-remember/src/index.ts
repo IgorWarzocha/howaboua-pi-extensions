@@ -137,7 +137,8 @@ export default function piRememberExtension(pi: ExtensionAPI): void {
       global: Type.Optional(Type.Boolean({ description: "Delete from global store" })),
     }),
     async execute(_id, params, _signal, _onUpdate, ctx) {
-      const source = params.global ? "global" : "project";
+      const config = loadConfig(ctx.cwd);
+      const source = params.global ? "global" : (config.scope === "global" ? "global" : "project");
       const deleted = deleteMemoryInStore(ctx.cwd, params.id, source);
       if (!deleted) return { content: [{ type: "text", text: `Memory id=${params.id} not found in ${source}.` }], details: {} };
       return { content: [{ type: "text", text: `Forgot id=${params.id} from ${source}.` }], details: {} };
@@ -145,7 +146,7 @@ export default function piRememberExtension(pi: ExtensionAPI): void {
   });
 
   pi.on("input", async (event) => {
-    const text = event.text.replace(/\n?<memory_context>[\s\S]*?<\/memory_context>\n?/g, "\n").trimEnd();
+    const text = event.text.replace(/\n?<user_memories>[\s\S]*?<\/user_memories>\n?/g, "\n").trimEnd();
     if (text === event.text) return { action: "continue" };
     return { action: "transform", text, images: event.images };
   });
@@ -154,6 +155,6 @@ export default function piRememberExtension(pi: ExtensionAPI): void {
     if (!config.enabled) return undefined;
     const block = await buildMemoryBlock(event.prompt, config, ctx.cwd, searchMemories);
     if (!block) return undefined;
-    return { message: { customType: "memory-context", content: block, display: false } };
+    return { message: { customType: "user-memories", content: block, display: false } };
   });
 }

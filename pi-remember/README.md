@@ -7,7 +7,7 @@ Pi extension for semantic long-term memory using local embeddings.
 - `remember` tool: store memory items
 - `recall` tool: semantic search across memory
 - `forget` tool: delete memory by ID
-- Appends semantic `<memory_context>` as hidden context via `before_agent_start` custom message (`display: false`)
+- Appends semantic `<user_memories>` as hidden context via `before_agent_start` custom message (`display: false`)
 
 ## Storage
 
