@@ -207,7 +207,6 @@ healChunkOverlaps(chunk);
       try {
         seed = findContextFn(originalLines, chunk.changeContext, Math.max(0, shifted));
       } catch {
-       // Context not found - fall back to anchor-based positioning
       }
     }
     let start = seed;

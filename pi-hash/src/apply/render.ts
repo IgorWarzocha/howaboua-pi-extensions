@@ -41,40 +41,42 @@ export function buildNumberedDiff(oldContent: string, newContent: string): strin
 }
 
 export function formatSummary(summary: ApplySummary): string {
-  const successCount = (summary.created?.length ?? 0) + (summary.edited?.length ?? 0) + (summary.moved?.length ?? 0) + (summary.deleted?.length ?? 0);
-  const failedCount = summary.failed?.length ?? 0;
-  const title = failedCount === 0
-    ? "Success. Updated the following files:"
-    : successCount === 0
-      ? "Failed. No files were updated:"
-      : "Partial success. Updated the following files:";
-  const lines = [title];
-  for (const file of summary.created) lines.push(`C ${file}`);
-  for (const file of summary.edited) lines.push(`E ${file}`);
-  for (const file of summary.moved) lines.push(`MV ${file}`);
-  for (const file of summary.deleted) lines.push(`D ${file}`);
-  if (summary.failed?.length > 0) {
-    lines.push("Partial failures:");
-    for (const failed of summary.failed) {
-      lines.push(`F ${failed.path}: ${failed.error}`);
-      if (failed.expected && failed.expected.length > 0) {
-        lines.push(`@ ${failed.path} (expected)`);
-        for (const line of failed.expected) lines.push(`  ${line}`);
-      }
-      if (failed.actual && failed.actual.length > 0) {
-        lines.push(`@ ${failed.path} (actual)`);
-        for (const line of failed.actual) lines.push(`  ${line}`);
-      }
-      if (failed.suggest) lines.push(`Hint: ${failed.suggest}`);
-    }
-  }
+  const lines: string[] = [];
+  
   if (summary.live?.length > 0) {
-    lines.push("Updated anchors:");
+    const isError = summary.failed?.length > 0;
+    lines.push(isError ? "CURRENT ANCHORS (USE TO FIX AND RETRY):" : "UPDATED ANCHORS (USE FOR SUBSEQUENT EDITS):");
+    const paths = new Set<string>();
     for (const live of summary.live) {
+      if (paths.has(live.path)) continue;
+      paths.add(live.path);
       lines.push(`@ ${live.path}`);
       for (const line of live.anchors) lines.push(`  ${line}`);
     }
+    lines.push("");
   }
+  
+  const successCount = (summary.created?.length ?? 0) + (summary.edited?.length ?? 0) + (summary.moved?.length ?? 0) + (summary.deleted?.length ?? 0);
+  const failedCount = summary.failed?.length ?? 0;
+  const title = failedCount === 0
+    ? "SUCCESS:"
+    : successCount === 0
+      ? "FAILED:"
+      : "PARTIAL SUCCESS:";
+  lines.push(title);
+  for (const file of summary.created) lines.push(`  + ${file}`);
+  for (const file of summary.edited) lines.push(`  * ${file}`);
+  for (const file of summary.moved) lines.push(`  > ${file}`);
+  for (const file of summary.deleted) lines.push(`  - ${file}`);
+  
+  if (summary.failed?.length > 0) {
+    lines.push("\nFAILURES:");
+    for (const failed of summary.failed) {
+      lines.push(`  ! ${failed.path}: ${failed.error}`);
+      if (failed.suggest) lines.push(`    HINT: ${failed.suggest}`);
+    }
+  }
+  
   return `${lines.join("\n")}\n`;
 }
 

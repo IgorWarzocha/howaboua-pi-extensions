@@ -27,17 +27,25 @@ function parseAnchoredBody(body: string, lineNumber: number): { line: string; li
   const match = trimmed.match(/^(\d+):([0-9a-f]{2})\|(.*)$/);
   if (!match) {
     throw new InvalidHunkError(
-      `Anchored line is invalid: '${body.slice(0, 120)}'.` +
-        `\nContext and removal lines MUST include LINE:HASH| prefixes (e.g. '42:ab|content').` +
-        `\nYou MUST run read and copy anchored lines exactly for edit hunk body lines (' ' and '-').` +
-        `\nIf you intend to replace most of the file, you SHOULD use Delete File + Create File in one apply_patch call.`,
+      `INVALID ANCHOR FORMAT: '${body.slice(0, 120)}'` +
+        `\n` +
+        `\nREQUIREMENT: Context (' ') and removal ('-') lines MUST include LINE:HASH| prefix.` +
+        `\nCORRECT FORMAT: '42:ab|content' where 42 is the line number and ab is the hash.` +
+        `\n` +
+        `\nACTION REQUIRED:` +
+        `\n1. Copy anchored lines EXACTLY from the error context above` +
+        `\n2. Use those anchors in your context (' ') and removal ('-') lines` +
+        `\n` +
+        `\nNOTE: If you intend to replace most of the file, you SHOULD use Delete File + Create File.`,
       lineNumber,
     );
   }
   const rawLine = Number.parseInt(match[1], 10);
   if (!Number.isFinite(rawLine) || rawLine < 1) {
     throw new InvalidHunkError(
-      `Anchored line number MUST be >= 1. Got '${match[1]}'.`,
+      `INVALID LINE NUMBER: '${match[1]}'` +
+        `\nLine numbers MUST be positive integers starting from 1.` +
+        `\nYou MUST use the exact line numbers from the read tool output.`,
       lineNumber,
     );
   }

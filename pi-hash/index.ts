@@ -59,7 +59,7 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
   pi.registerTool({
     name: "apply_patch",
     label: "apply_patch",
-     description: `Edit files with anchored diffs. Returns updated LINE:HASH anchors on success — you MUST use these for subsequent edits, NEVER re-read. STRUCTURE: '*** Begin Patch' → file sections → '*** End Patch'. SECTIONS: '*** Create File: <path>', '*** Edit File: <path>', '*** Delete File: <path>', '*** Move File: <path>' + '*** Move to: <new-path>'. HUNKS: Optional '@@ <text>' positioning hint, then body: ' ' or '-' lines MUST have LINE:HASH| anchor, '+' lines have no anchor. You MUST batch ALL changes into ONE call.`,
+    description: `Apply file modifications using anchored diffs with automatic Biome formatting. The tool SHALL return updated LINE:HASH anchors upon success. You MUST use these returned anchors for all subsequent edits to the same files. You SHALL NOT re-read files after successful application. STRUCTURE: The patchText MUST begin with '*** Begin Patch' and end with '*** End Patch'. SECTIONS: Each file modification MUST use one of: '*** Create File: <path>', '*** Edit File: <path>', '*** Delete File: <path>', or '*** Move File: <path>' followed by '*** Move to: <new-path>'. HUNKS: Each Edit File section MAY contain one or more hunks starting with '@@ <context>' for positioning. Body lines: Context (' ') and removal ('-') lines MUST include the exact LINE:HASH| anchor from the read tool. Addition ('+') lines MUST NOT include anchors. You MUST batch ALL file changes into a single apply_patch call.`,
     renderCall(args, theme) {
       return renderApplyPatchCall(args, parsePatch, theme);
     },
@@ -68,7 +68,7 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
     },
     parameters: Type.Object({
       patchText: Type.String({
-description: "Patch envelope starting with '*** Begin Patch' and ending with '*** End Patch'. Inside: file sections (*** Create/Edit/Delete/Move File: <path>). Edit sections have @@ hunk markers. Body lines: ' ' or '-' prefix MUST include LINE:HASH| anchor from read tool. '+' prefix has no anchor.",
+        description: "The patch envelope. This parameter MUST be a string starting with exactly '*** Begin Patch' and ending with exactly '*** End Patch'. Inside the envelope: file sections using '*** Create File: <path>', '*** Edit File: <path>', '*** Delete File: <path>', or '*** Move File: <path>'. For Edit File sections: hunk markers '@@ <context>' are OPTIONAL but RECOMMENDED for positioning. Body lines MUST use prefixes: ' ' for context lines with LINE:HASH| anchor, '-' for removal lines with LINE:HASH| anchor, '+' for addition lines WITHOUT anchors.",
       }),
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
