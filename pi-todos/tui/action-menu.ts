@@ -29,6 +29,7 @@ export class TodoActionMenuComponent extends Container {
                     { value: "delete", label: "delete", description: "Delete todo" },
                 ]
                 : [
+                    { value: "refine", label: "refine", description: "Refine todo scope" },
                     { value: "complete", label: "complete", description: "Mark todo as completed" },
                     { value: "abandon", label: "abandon", description: "Mark todo as abandoned" },
                 ]),

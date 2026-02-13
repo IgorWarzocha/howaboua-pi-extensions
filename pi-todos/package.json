@@ -5,11 +5,11 @@
   "keywords": ["pi-extension"],
   "type": "module",
   "scripts": {
-    "build": "echo '[WARNING] Built artifacts MUST NOT be read; verify only file length/size.' && bun build ./index.ts --target=node --format=esm --outfile ./dist/index.js --external @mariozechner/pi-ai --external @mariozechner/pi-coding-agent --external @mariozechner/pi-tui && echo '[OK] Build finished. DO NOT read dist/index.js; run: wc -l dist/index.js && ls -lh dist/index.js'",
-    "check:types": "bunx tsc --noEmit --skipLibCheck",
-    "check:format": "oxfmt --check .",
+    "build": "bun build ./index.ts --target=node --format=esm --outfile ./dist/index.js --external @mariozechner/pi-ai --external @mariozechner/pi-coding-agent --external @mariozechner/pi-tui",
+    "typecheck": "bunx tsc --noEmit --skipLibCheck",
+    "format:check": "oxfmt --check .",
     "format": "oxfmt .",
-    "check": "bun run check:types && bun run check:format"
+    "verify": "bun run typecheck && bun run format:check && bun run build"
   },
   "peerDependencies": {
     "@mariozechner/pi-ai": "*",

@@ -3,15 +3,21 @@ import type { Theme } from "@mariozechner/pi-coding-agent";
 import type { TodoFrontMatter } from "../types.js";
 import { formatTodoId, isTodoClosed, renderAssignmentSuffix } from "../format.js";
 
-export function buildHeader(theme: Theme, todos: TodoFrontMatter[]): string {
-    const openCount = todos.filter((todo) => !isTodoClosed(todo.status)).length;
-    const closedCount = todos.length - openCount;
-    return theme.fg("accent", theme.bold(`Todos (${openCount} open, ${closedCount} closed)`));
+export function buildHeader(theme: Theme, todos: TodoFrontMatter[], mode: "open" | "closed"): string {
+    if (mode === "open") {
+        return theme.fg("accent", theme.bold(`Open todos (${todos.length})`));
+    }
+    const abandoned = todos.filter((todo) => todo.status.toLowerCase() === "abandoned").length;
+    const done = todos.filter((todo) => todo.status.toLowerCase() === "done").length;
+    const closed = todos.filter((todo) => todo.status.toLowerCase() === "closed").length;
+    return theme.fg("accent", theme.bold(`Closed todos (${todos.length}; abandoned ${abandoned}, done ${done}, closed ${closed})`));
 }
 
 export function buildHints(theme: Theme, mode: "open" | "closed"): string {
-    const sweep = mode === "closed" ? " • Ctrl+Alt+A sweep abandoned • Ctrl+Alt+D sweep completed" : "";
-    return theme.fg("dim", `Type to search • ↑↓ select • Enter actions • Tab switch list${sweep} • Ctrl+Alt+C create • Ctrl+Alt+W work • Ctrl+Alt+R refine • Esc close`);
+    if (mode === "open") {
+        return theme.fg("dim", "Type to search • ↑↓ select • Enter actions • Tab switch list • Ctrl+Alt+C create • Ctrl+Alt+W work • Ctrl+Alt+R refine • Esc close");
+    }
+    return theme.fg("dim", "Type to search • ↑↓ select • Enter actions • Tab switch list • Ctrl+Alt+A sweep abandoned • Ctrl+Alt+D sweep completed+closed • Ctrl+Alt+C create • Ctrl+Alt+W work • Esc close");
 }
 
 export function renderList(
@@ -52,7 +58,7 @@ export function renderList(
 }
 
 export function renderAll(tui: TUI, headerText: Text, hintText: Text, listContainer: { clear: () => void; addChild: (node: Text) => void }, theme: Theme, todos: TodoFrontMatter[], selectedIndex: number, mode: "open" | "closed", currentSessionId?: string): void {
-    headerText.setText(buildHeader(theme, todos));
+    headerText.setText(buildHeader(theme, todos, mode));
     hintText.setText(buildHints(theme, mode));
     renderList(listContainer, theme, todos, selectedIndex, currentSessionId);
     tui.requestRender();

@@ -37,11 +37,12 @@ export async function runTodoUi(args: string, ctx: ExtensionCommandContext): Pro
         };
         const runListCommand = async (action: "sweep-abandoned" | "sweep-completed") => {
             const updated = await listTodos(todosDir);
-            const target = action === "sweep-abandoned" ? "abandoned" : "done";
-            const ids = updated.filter(todo => todo.status === target).map(todo => todo.id);
+            const ids = updated
+                .filter(todo => action === "sweep-abandoned" ? todo.status === "abandoned" : (todo.status === "done" || todo.status === "closed"))
+                .map(todo => todo.id);
             for (const id of ids) await deleteTodo(todosDir, id, ctx);
             await refresh();
-            ctx.ui.notify(action === "sweep-abandoned" ? `Deleted ${ids.length} abandoned todos` : `Deleted ${ids.length} completed todos`, "info");
+            ctx.ui.notify(action === "sweep-abandoned" ? `Deleted ${ids.length} abandoned todos` : `Deleted ${ids.length} completed/closed todos`, "info");
         };
         const resolve = async (todo: TodoFrontMatter): Promise<TodoRecord | null> => {
             const record = await ensureTodoExists(getTodoPath(todosDir, todo.id), todo.id);
