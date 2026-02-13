@@ -83,7 +83,7 @@ export async function runTodoUi(
     const showDetailView = (record: TodoRecord, source: "open" | "closed") => {
       const preview = new TodoDetailPreviewComponent(tui, theme, record);
       const detailFooter = record.checklist?.length
-        ? "Enter confirm • Esc back • v toggle preview • j/k scroll preview • Ctrl+X leader • e edit checklist"
+        ? "Enter confirm • Esc back • v toggle preview • j/k scroll preview • Ctrl+X leader (then e edit checklist)"
         : "Enter confirm • Esc back • v toggle preview • j/k scroll preview • Ctrl+X leader";
       const leaderFooter = record.checklist?.length
         ? "Leader: w work • r refine • c complete • a abandon • v toggle preview • e edit checklist • x cancel"
