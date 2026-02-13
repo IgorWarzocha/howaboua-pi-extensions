@@ -14,7 +14,7 @@ function extractUpdatePath(lines: string[], lineNumber: number): string | undefi
   let index = Math.min(lines.length - 1, Math.max(0, lineNumber - 1));
   while (index >= 0) {
     const line = lines[index].trim();
-    if (line.startsWith("*** Update File: ")) return line.slice("*** Update File: ".length);
+    if (line.startsWith("*** Edit File: ")) return line.slice("*** Edit File: ".length);
     index -= 1;
   }
   return undefined;

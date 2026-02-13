@@ -85,14 +85,14 @@ export function renderApplyPatchCall(args: unknown, parsePatch: (text: string) =
   if (!patchText) return new Text(`${theme.fg("toolTitle", theme.bold("apply_patch"))} ${theme.fg("muted", "(awaiting patch)")}`, 0, 0);
   try {
     const hunks = parsePatch(patchText);
-    const addCount = hunks.filter((h: any) => h.type === "add").length;
-    const updateCount = hunks.filter((h: any) => h.type === "update").length;
+    const createCount = hunks.filter((h: any) => h.type === "create").length;
+    const editCount = hunks.filter((h: any) => h.type === "edit").length;
     const moveCount = hunks.filter((h: any) => h.type === "move").length;
     const deleteCount = hunks.filter((h: any) => h.type === "delete").length;
     const files = hunks.map((h: any) => h.filePath);
     const preview = files.slice(0, 3).join(", ");
     const suffix = files.length > 3 ? `, +${files.length - 3} more` : "";
-        const opSummary = `C:${addCount} E:${updateCount} MV:${moveCount} D:${deleteCount}`;
+        const opSummary = `C:${createCount} E:${editCount} MV:${moveCount} D:${deleteCount}`;
     return new Text(`${theme.fg("toolTitle", theme.bold("apply_patch"))} ${theme.fg("muted", `(${opSummary})`)}${preview ? `\n${theme.fg("accent", preview)}${theme.fg("muted", suffix)}` : ""}`, 0, 0);
   } catch {
     return new Text(`${theme.fg("toolTitle", theme.bold("apply_patch"))} ${theme.fg("muted", "(patching)")}`, 0, 0);

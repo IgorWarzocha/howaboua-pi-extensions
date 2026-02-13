@@ -15,7 +15,7 @@ type AnchorError = Error & {
 };
 
 function sanitizeContext(context: string): string {
-  return context.replace(/^\d+[a-z]{4}\|/, "");
+  return context.replace(/^\d+:[a-f]{2}\|/, "");
 }
 
 function findContext(lines: string[], context: string, start: number): number {
