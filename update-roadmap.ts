@@ -2,7 +2,7 @@
  import { join } from 'path';
  
  const ROADMAP_PATH = 'ROADMAP.md';
- const TODOS_DIR = 'roadmap';
+ const TODOS_DIR = 'todo';
  
  function updateRoadmap() {
    try {
@@ -36,7 +36,7 @@
      });
  
      const markdown = "# Project Roadmap\n\n" + 
-       items.map(item => `- [${item.title}](roadmap/${item.file}) (${item.status})`).join('\n') + 
+       items.map(item => `- [${item.title}](todo/${item.file}) (${item.status})`).join('\n') + 
        "\n";
  
      writeFileSync(ROADMAP_PATH, markdown);
