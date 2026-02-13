@@ -1,4 +1,12 @@
-import { Container, type Focusable, Input, Spacer, Text, TUI } from "@mariozechner/pi-tui";
+import {
+  Container,
+  type Focusable,
+  Input,
+  Spacer,
+  Text,
+  TUI,
+  getEditorKeybindings,
+} from "@mariozechner/pi-tui";
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import { DynamicBorder } from "@mariozechner/pi-coding-agent";
 import type { TodoFrontMatter, TodoQuickAction } from "../types.js";
@@ -25,6 +33,9 @@ export class TodoSelectorComponent extends Container implements Focusable {
   private onTabCallback?: () => void;
   private onCommandCallback?: (action: "sweep-abandoned" | "sweep-completed") => void;
   private mode: "open" | "closed";
+  private leaderActive = false;
+  private leaderTimer: ReturnType<typeof setTimeout> | null = null;
+  private searchActive = false;
   private _focused = false;
 
   get focused(): boolean {
@@ -33,7 +44,7 @@ export class TodoSelectorComponent extends Container implements Focusable {
 
   set focused(value: boolean) {
     this._focused = value;
-    this.searchInput.focused = value;
+    this.searchInput.focused = value && this.searchActive;
   }
 
   constructor(
@@ -68,7 +79,11 @@ export class TodoSelectorComponent extends Container implements Focusable {
     this.addChild(new Spacer(1));
     this.searchInput = new Input();
     if (initialSearchInput) this.searchInput.setValue(initialSearchInput);
-    this.searchInput.onSubmit = () => this.confirmSelection();
+    this.searchInput.onSubmit = () => {
+      this.searchActive = false;
+      this.searchInput.focused = false;
+      this.renderState();
+    };
     this.addChild(this.searchInput);
     this.addChild(new Spacer(1));
     this.listContainer = new Container();
@@ -86,23 +101,56 @@ export class TodoSelectorComponent extends Container implements Focusable {
     this.applyFilter(this.searchInput.getValue());
   }
 
-  getSearchValue(): string {
-    return this.searchInput.getValue();
-  }
-
   private getSelectedItem(): TodoFrontMatter | null {
     if (this.selectedIndex === 0)
       return { id: CREATE_ITEM_ID, title: "", tags: [], status: "", created_at: "" };
     return this.filteredTodos[this.selectedIndex - 1] ?? null;
   }
 
+  private clearLeader(): void {
+    if (this.leaderTimer) clearTimeout(this.leaderTimer);
+    this.leaderTimer = null;
+    this.leaderActive = false;
+    this.renderState();
+  }
+
+  private startLeader(): void {
+    if (this.leaderActive) return this.clearLeader();
+    this.leaderActive = true;
+    if (this.leaderTimer) clearTimeout(this.leaderTimer);
+    this.leaderTimer = setTimeout(() => this.clearLeader(), 2000);
+    this.renderState();
+  }
+
+  private startSearch(): void {
+    this.searchActive = true;
+    this.searchInput.focused = this._focused;
+    this.renderState();
+  }
+
+  private runLeader(keyData: string): boolean {
+    const selected = this.filteredTodos[this.selectedIndex - 1] ?? null;
+    if (keyData === "x" || keyData === "X") return (this.clearLeader(), true);
+    if (keyData === "c" || keyData === "C")
+      return (this.onQuickAction?.(null, "create"), this.clearLeader(), true);
+    if ((keyData === "w" || keyData === "W") && selected)
+      return (this.onQuickAction?.(selected, "work"), this.clearLeader(), true);
+    if ((keyData === "r" || keyData === "R") && selected)
+      return (this.onQuickAction?.(selected, "refine"), this.clearLeader(), true);
+    if ((keyData === "v" || keyData === "V") && selected)
+      return (this.onSelectCallback(selected), this.clearLeader(), true);
+    if ((keyData === "a" || keyData === "A") && this.mode === "closed")
+      return (this.onCommandCallback?.("sweep-abandoned"), this.clearLeader(), true);
+    if ((keyData === "d" || keyData === "D") && this.mode === "closed")
+      return (this.onCommandCallback?.("sweep-completed"), this.clearLeader(), true);
+    this.clearLeader();
+    return false;
+  }
+
   private confirmSelection(): void {
     const selected = this.getSelectedItem();
     if (!selected) return;
-    if (selected.id === CREATE_ITEM_ID) {
-      this.onQuickAction?.(null, "create");
-      return;
-    }
+    if (selected.id === CREATE_ITEM_ID) return this.onQuickAction?.(null, "create");
     this.onSelectCallback(selected);
   }
 
@@ -123,40 +171,50 @@ export class TodoSelectorComponent extends Container implements Focusable {
       this.selectedIndex,
       this.mode,
       this.currentSessionId,
+      this.leaderActive,
     );
   }
 
   handleInput(keyData: string): void {
+    if (!this.searchActive && keyData === "/") return this.startSearch();
+    if (this.searchActive) {
+      const kb = getEditorKeybindings();
+      if (kb.matches(keyData, "selectConfirm")) {
+        this.searchActive = false;
+        this.searchInput.focused = false;
+        this.renderState();
+        return;
+      }
+      if (kb.matches(keyData, "selectCancel")) {
+        this.searchActive = false;
+        this.searchInput.focused = false;
+        this.searchInput.setValue("");
+        this.applyFilter("");
+        return;
+      }
+      if (kb.matches(keyData, "selectUp") || kb.matches(keyData, "selectDown")) return;
+      this.searchInput.handleInput(keyData);
+      this.applyFilter(this.searchInput.getValue());
+      return;
+    }
     const totalItems = this.filteredTodos.length + 1;
     const intent = mapIntent(keyData, this.mode);
+    if (this.leaderActive) {
+      if (intent === "leader") return this.clearLeader();
+      if (this.runLeader(keyData)) return;
+    }
+    if (intent === "leader") return this.startLeader();
     if (intent === "up") {
       this.selectedIndex = this.selectedIndex === 0 ? totalItems - 1 : this.selectedIndex - 1;
-      this.renderState();
-      return;
+      return this.renderState();
     }
     if (intent === "down") {
       this.selectedIndex = this.selectedIndex === totalItems - 1 ? 0 : this.selectedIndex + 1;
-      this.renderState();
-      return;
+      return this.renderState();
     }
     if (intent === "confirm") return this.confirmSelection();
     if (intent === "cancel") return this.onCancelCallback();
     if (intent === "tab") return this.onTabCallback?.();
-    if (intent === "create") return this.onQuickAction?.(null, "create");
-    if (intent === "sweep-abandoned") return this.onCommandCallback?.("sweep-abandoned");
-    if (intent === "sweep-completed") return this.onCommandCallback?.("sweep-completed");
-    if (intent === "refine") {
-      const selected = this.filteredTodos[this.selectedIndex - 1];
-      if (selected) this.onQuickAction?.(selected, "refine");
-      return;
-    }
-    if (intent === "work") {
-      const selected = this.filteredTodos[this.selectedIndex - 1];
-      if (selected) this.onQuickAction?.(selected, "work");
-      return;
-    }
-    this.searchInput.handleInput(keyData);
-    this.applyFilter(this.searchInput.getValue());
   }
 
   override invalidate(): void {

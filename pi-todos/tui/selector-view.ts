@@ -8,9 +8,7 @@ export function buildHeader(
   todos: TodoFrontMatter[],
   mode: "open" | "closed",
 ): string {
-  if (mode === "open") {
-    return theme.fg("accent", theme.bold(`Open todos (${todos.length})`));
-  }
+  if (mode === "open") return theme.fg("accent", theme.bold(`Open todos (${todos.length})`));
   const abandoned = todos.filter((todo) => todo.status.toLowerCase() === "abandoned").length;
   const done = todos.filter((todo) => todo.status.toLowerCase() === "done").length;
   const closed = todos.filter((todo) => todo.status.toLowerCase() === "closed").length;
@@ -22,16 +20,18 @@ export function buildHeader(
   );
 }
 
-export function buildHints(theme: Theme, mode: "open" | "closed"): string {
-  if (mode === "open") {
+export function buildHints(theme: Theme, mode: "open" | "closed", leaderActive = false): string {
+  if (leaderActive) {
     return theme.fg(
-      "dim",
-      "Type to search • ↑↓ select • Enter actions • Tab switch list • Ctrl+Alt+C create • Ctrl+Alt+W work • Ctrl+Alt+R refine • Esc close",
+      "warning",
+      mode === "open"
+        ? "Leader: c create • w work • r refine • v view • x cancel"
+        : "Leader: c create • w work • r refine • v view • a sweep abandoned • d sweep completed • x cancel",
     );
   }
   return theme.fg(
     "dim",
-    "Type to search • ↑↓ select • Enter actions • Tab switch list • Ctrl+Alt+A sweep abandoned • Ctrl+Alt+D sweep completed+closed • Ctrl+Alt+C create • Ctrl+Alt+W work • Esc close",
+    "Press / to search • ↑↓ or j/k select • Enter view • Tab switch list • Ctrl+X leader • Esc close",
   );
 }
 
@@ -97,9 +97,10 @@ export function renderAll(
   selectedIndex: number,
   mode: "open" | "closed",
   currentSessionId?: string,
+  leaderActive = false,
 ): void {
   headerText.setText(buildHeader(theme, todos, mode));
-  hintText.setText(buildHints(theme, mode));
+  hintText.setText(buildHints(theme, mode, leaderActive));
   renderList(listContainer, theme, todos, selectedIndex, currentSessionId);
   tui.requestRender();
 }

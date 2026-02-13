@@ -11,7 +11,7 @@
     "typecheck": "bunx tsc -p ./tsconfig.json",
     "format:check": "oxfmt --check .",
     "format": "oxfmt .",
-    "verify": "bun run typecheck && bun run format:check && bun run build"
+    "verify": "bun run format && bun run typecheck && bun run format:check && bun run build"
   },
   "dependencies": {
     "@sinclair/typebox": "^0.34.41"
