@@ -20,7 +20,7 @@ import {
 
 export default function piRememberExtension(pi: ExtensionAPI): void {
   pi.registerCommand("remember", {
-    description: "Open memory manager UI. Subcommands: list, search <query>, forget <id> [--global]",
+    description: "Open memory manager UI. Subcommands: list, search <query>, forget <id>",
     handler: async (args, ctx) => {
       const trimmed = args.trim();
       if (!trimmed) {
@@ -69,8 +69,7 @@ export default function piRememberExtension(pi: ExtensionAPI): void {
           return;
         }
         const config = loadConfig(ctx.cwd);
-        const isGlobal = rest.includes("--global") || (config.scope === "global" && !rest.includes("--project"));
-        const source = isGlobal ? "global" : "project";
+        const source = config.scope === "global" ? "global" : "project";
         const deleted = deleteMemoryInStore(ctx.cwd, id, source);
         ctx.ui.notify(deleted ? `Forgot id=${id} from ${source} store.` : `Memory id=${id} not found in ${source} store.`, deleted ? "info" : "warning");
         return;
