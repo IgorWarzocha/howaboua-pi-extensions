@@ -7,6 +7,7 @@ import {
   UPDATE_FILE_MARKER,
   MOVE_TO_MARKER,
   EOF_MARKER,
+  MOVE_FILE_MARKER,
   CHANGE_CONTEXT_MARKER,
   EMPTY_CHANGE_CONTEXT_MARKER,
 } from "./constants.js";
@@ -58,8 +59,11 @@ function assertNoAbsolutePaths(hunks: Hunk[]): void {
     ensureRelativePatchPath(hunk.filePath);
     if (hunk.type === "update" && hunk.moveToPath) {
       ensureRelativePatchPath(hunk.moveToPath);
+}
+    if (hunk.type === "move") {
+      ensureRelativePatchPath(hunk.moveToPath);
     }
-  }
+}
 }
 
 export function parsePatch(patchText: string): Hunk[] {
@@ -207,6 +211,18 @@ function parseOneHunk(lines: string[], lineNumber: number): { hunk: Hunk; consum
     const filePath = firstLine.slice(DELETE_FILE_MARKER.length);
     return { hunk: { type: "delete", filePath }, consumedLines: 1 };
   }
+  if (firstLine.startsWith(MOVE_FILE_MARKER)) {
+    const filePath = firstLine.slice(MOVE_FILE_MARKER.length);
+    const toLine = lines[1];
+    if (!toLine?.trim().startsWith(MOVE_TO_MARKER)) {
+      throw new InvalidHunkError(
+        `Move file for '${filePath}' MUST be followed by '${MOVE_TO_MARKER}<new-path>'.`,
+        lineNumber,
+      );
+    }
+    const moveToPath = toLine.trim().slice(MOVE_TO_MARKER.length);
+    return { hunk: { type: "move", filePath, moveToPath }, consumedLines: 2 };
+  }
 
   if (firstLine.startsWith(UPDATE_FILE_MARKER)) {
     const filePath = firstLine.slice(UPDATE_FILE_MARKER.length);
@@ -244,7 +260,7 @@ function parseOneHunk(lines: string[], lineNumber: number): { hunk: Hunk; consum
       throw new InvalidHunkError(
         `Update file hunk for '${filePath}' has no chunks.` +
           `\nEach chunk MUST start with '@@' or '@@ <context>'.` +
-          `\nLines MUST start with ' ' (context), '+' (add), or '-' (remove).`,
+          `\nFor a pure rename without edits, use '*** Move File: <path>' instead.`,
         lineNumber,
       );
     }
@@ -254,7 +270,7 @@ function parseOneHunk(lines: string[], lineNumber: number): { hunk: Hunk; consum
 
   throw new InvalidHunkError(
     `'${firstLine.slice(0, 100)}' is not a valid hunk header.` +
-      `\nYou MUST use one of: '${ADD_FILE_MARKER}<path>', '${DELETE_FILE_MARKER}<path>', '${UPDATE_FILE_MARKER}<path>'.` +
+      `\nYou MUST use one of: '${ADD_FILE_MARKER}<path>', '${DELETE_FILE_MARKER}<path>', '${UPDATE_FILE_MARKER}<path>', '${MOVE_FILE_MARKER}<path>'.` +
       `\nYou MUST NOT place content lines outside of a file section.`,
     lineNumber,
   );
@@ -305,9 +321,7 @@ function parseUpdateFileChunk(
     newLines: [],
     isEndOfFile: false,
   };
-
   let parsedBodyLines = 0;
-
   for (const line of lines.slice(startIndex)) {
     if (line === EOF_MARKER) {
       if (parsedBodyLines === 0) {
@@ -359,6 +373,5 @@ function parseUpdateFileChunk(
     }
     break;
   }
-
   return { chunk, consumedLines: parsedBodyLines + startIndex };
 }

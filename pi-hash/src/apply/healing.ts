@@ -1,5 +1,5 @@
 import type { ApplyNoop, UpdateFileChunk } from "./types.js";
-import { computeLineHash } from "./shared/hash.js";
+import { computeLineHash } from "../shared/hash.js";
 
 const CONFUSABLE_HYPHENS_RE = /[\u2010\u2011\u2012\u2013\u2014\u2212\uFE63\uFF0D]/g;
 
@@ -153,6 +153,30 @@ export type ReplaceOp = {
   newLines: string[];
 };
 
+export function healChunkOverlaps(chunk: UpdateFileChunk): void {
+const removalLines = new Set<number>();
+const contextIndices = new Map<number, number>();
+for (let i = 0; i < chunk.oldAnchors.length; i++) {
+const anchor = chunk.oldAnchors[i];
+if (i < chunk.newLines.length && chunk.oldLines[i] === chunk.newLines[i]) {
+contextIndices.set(anchor.line, i);
+} else {
+removalLines.add(anchor.line);
+}
+}
+const toRemove: number[] = [];
+for (const lineNum of removalLines) {
+const idx = contextIndices.get(lineNum);
+if (idx !== undefined) toRemove.push(idx);
+}
+toRemove.sort((a, b) => b - a);
+for (const idx of toRemove) {
+chunk.oldLines.splice(idx, 1);
+chunk.oldAnchors.splice(idx, 1);
+chunk.newLines.splice(idx, 1);
+}
+}
+
 export function computeReplacementsWithHealing(
   originalLines: string[],
   filePath: string,
@@ -168,6 +192,7 @@ export function computeReplacementsWithHealing(
   const replacements: ReplaceOp[] = [];
   const explicitlyTouchedLines = new Set<number>();
   for (const chunk of chunks) {
+healChunkOverlaps(chunk);
     for (const anchor of chunk.oldAnchors) {
       explicitlyTouchedLines.add(anchor.line);
     }

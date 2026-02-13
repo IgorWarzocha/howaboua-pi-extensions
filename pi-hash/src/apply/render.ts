@@ -41,18 +41,19 @@ export function buildNumberedDiff(oldContent: string, newContent: string): strin
 }
 
 export function formatSummary(summary: ApplySummary): string {
-  const successCount = summary.added.length + summary.modified.length + summary.deleted.length;
-  const failedCount = summary.failed.length;
+  const successCount = (summary.created?.length ?? 0) + (summary.edited?.length ?? 0) + (summary.moved?.length ?? 0) + (summary.deleted?.length ?? 0);
+  const failedCount = summary.failed?.length ?? 0;
   const title = failedCount === 0
     ? "Success. Updated the following files:"
     : successCount === 0
       ? "Failed. No files were updated:"
       : "Partial success. Updated the following files:";
   const lines = [title];
-  for (const file of summary.added) lines.push(`A ${file}`);
-  for (const file of summary.modified) lines.push(`M ${file}`);
+  for (const file of summary.created) lines.push(`C ${file}`);
+  for (const file of summary.edited) lines.push(`E ${file}`);
+  for (const file of summary.moved) lines.push(`MV ${file}`);
   for (const file of summary.deleted) lines.push(`D ${file}`);
-  if (summary.failed.length > 0) {
+  if (summary.failed?.length > 0) {
     lines.push("Partial failures:");
     for (const failed of summary.failed) {
       lines.push(`F ${failed.path}: ${failed.error}`);
@@ -67,7 +68,7 @@ export function formatSummary(summary: ApplySummary): string {
       if (failed.suggest) lines.push(`Hint: ${failed.suggest}`);
     }
   }
-  if (summary.live.length > 0) {
+  if (summary.live?.length > 0) {
     lines.push("Updated anchors:");
     for (const live of summary.live) {
       lines.push(`@ ${live.path}`);
@@ -86,11 +87,12 @@ export function renderApplyPatchCall(args: unknown, parsePatch: (text: string) =
     const hunks = parsePatch(patchText);
     const addCount = hunks.filter((h: any) => h.type === "add").length;
     const updateCount = hunks.filter((h: any) => h.type === "update").length;
+    const moveCount = hunks.filter((h: any) => h.type === "move").length;
     const deleteCount = hunks.filter((h: any) => h.type === "delete").length;
     const files = hunks.map((h: any) => h.filePath);
     const preview = files.slice(0, 3).join(", ");
     const suffix = files.length > 3 ? `, +${files.length - 3} more` : "";
-    const opSummary = `A:${addCount} M:${updateCount} D:${deleteCount}`;
+        const opSummary = `C:${addCount} E:${updateCount} MV:${moveCount} D:${deleteCount}`;
     return new Text(`${theme.fg("toolTitle", theme.bold("apply_patch"))} ${theme.fg("muted", `(${opSummary})`)}${preview ? `\n${theme.fg("accent", preview)}${theme.fg("muted", suffix)}` : ""}`, 0, 0);
   } catch {
     return new Text(`${theme.fg("toolTitle", theme.bold("apply_patch"))} ${theme.fg("muted", "(patching)")}`, 0, 0);
@@ -126,12 +128,12 @@ export function renderApplyPatchResult(result: any, expanded: boolean, isPartial
     summaryLines[0] === "Partial success. Updated the following files:" ||
     summaryLines[0] === "Failed. No files were updated:"
   )
-    ? summaryLines.filter((line: string, index: number) => index === 0 || !/^[AMD] /.test(line)).join("\n").trim()
+    ? summaryLines.filter((line: string, index: number) => index === 0 || !/^[CEDMV] /.test(line)).join("\n").trim()
     : rawTextContent;
   if (isPartial) return new Text(theme.fg("warning", collapseError(textContent || "Applying patch...", expanded)), 0, 0);
   const summary = result.details as ApplySummary | undefined;
-  const successCount = (summary?.added.length ?? 0) + (summary?.modified.length ?? 0) + (summary?.deleted.length ?? 0);
-  const failedCount = summary?.failed.length ?? 0;
+    const successCount = (summary?.created?.length ?? 0) + (summary?.edited?.length ?? 0) + (summary?.moved?.length ?? 0) + (summary?.deleted?.length ?? 0);
+  const failedCount = summary?.failed?.length ?? 0;
   const tone = result.isError || (failedCount > 0 && successCount === 0) ? "error" : failedCount > 0 ? "warning" : "toolOutput";
   let output = "";
   if (textContent) {

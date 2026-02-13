@@ -1,6 +1,7 @@
 export type Hunk =
   | { type: "add"; filePath: string; contents: string }
   | { type: "delete"; filePath: string }
+  | { type: "move"; filePath: string; moveToPath: string }
   | {
       type: "update";
       filePath: string;
@@ -32,15 +33,16 @@ export class InvalidHunkError extends Error {
 }
 
 export type ApplyFileDiff = {
-  status: "A" | "M" | "D";
+  status: "C" | "E" | "D" | "MV";
   path: string;
   moveFrom?: string;
   diff: string;
 };
 
 export type ApplySummary = {
-  added: string[];
-  modified: string[];
+  created: string[];
+  edited: string[];
+  moved: string[];
   deleted: string[];
   failed: ApplyFailure[];
   live: ApplyLive[];

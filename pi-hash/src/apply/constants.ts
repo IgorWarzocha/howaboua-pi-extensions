@@ -10,6 +10,7 @@ export const END_PATCH_MARKER_LOOSE = /^\*{2,3}\s*end\s*patch\s*$/i;
 export const ADD_FILE_MARKER = "\x2a\x2a\x2a Add File: ";
 export const DELETE_FILE_MARKER = "\x2a\x2a\x2a Delete File: ";
 export const UPDATE_FILE_MARKER = "\x2a\x2a\x2a Update File: ";
+export const MOVE_FILE_MARKER = "\x2a\x2a\x2a Move File: ";
 export const MOVE_TO_MARKER = "\x2a\x2a\x2a Move to: ";
 export const EOF_MARKER = "\x2a\x2a\x2a End of File";
 export const CHANGE_CONTEXT_MARKER = "@@ ";

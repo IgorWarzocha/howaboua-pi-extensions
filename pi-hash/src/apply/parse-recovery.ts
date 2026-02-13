@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import { resolvePatchPath } from "./path-utils.js";
-import { computeLineHash } from "./shared/hash.js";
-import { normalizeForHash } from "./shared/normalize.js";
+import { computeLineHash } from "../shared/hash.js";
+import { normalizeForHash } from "../shared/normalize.js";
 import { InvalidHunkError } from "./types.js";
 
 function extractInvalidLine(message: string): string | undefined {

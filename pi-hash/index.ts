@@ -3,10 +3,10 @@ import { registerReadHashTool } from "./src/read/tool.js";
 import { setupReadGuard } from "./src/read/guard.js";
 import { Type } from "@sinclair/typebox";
 import { detectBashWriteViolation } from "./src/bash-guard.js";
-import { parsePatch } from "./src/parser.js";
-import { applyHunks } from "./src/apply.js";
-import { renderApplyPatchCall, renderApplyPatchResult, formatSummary } from "./src/render.js";
-import { enrichParseError } from "./src/parse-recovery.js";
+import { parsePatch } from "./src/apply/parser.js";
+import { applyHunks } from "./src/apply/index.js";
+import { renderApplyPatchCall, renderApplyPatchResult, formatSummary } from "./src/apply/render.js";
+import { enrichParseError } from "./src/apply/parse-recovery.js";
 
 export default function applyPatchExtension(pi: ExtensionAPI) {
   registerReadHashTool(pi);
@@ -75,7 +75,7 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
       try {
         const hunks = parsePatch(params.patchText);
         const summary = await applyHunks(ctx.cwd, hunks);
-        const successCount = summary.added.length + summary.modified.length + summary.deleted.length;
+        const successCount = summary.created.length + summary.edited.length + summary.moved.length + summary.deleted.length;
         const allFailed = summary.failed.length > 0 && successCount === 0;
         return {
           content: [{ type: "text", text: formatSummary(summary) }],

@@ -1,12 +1,12 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { Hunk, UpdateFileChunk, ApplySummary } from "./types.js";
-import type { ApplyNoop } from "./types.js";
-import { resolvePatchPath } from "./path-utils.js";
-import { buildNumberedDiff } from "./render.js";
-import { normalizeForHash } from "./shared/normalize.js";
-import { computeLineHash } from "./shared/hash.js";
-import { computeReplacementsWithHealing, type ReplaceOp } from "./healing.js";
+import type { Hunk, UpdateFileChunk, ApplySummary } from "../types.js";
+import type { ApplyNoop } from "../types.js";
+import { resolvePatchPath } from "../path-utils.js";
+import { buildNumberedDiff } from "../render.js";
+import { normalizeForHash } from "../shared/normalize.js";
+import { computeLineHash } from "../shared/hash.js";
+import { computeReplacementsWithHealing, type ReplaceOp } from "../healing.js";
 
 type AnchorError = Error & {
   expected?: string[];
@@ -299,8 +299,9 @@ export async function applyHunks(cwd: string, hunks: Hunk[]): Promise<ApplySumma
     throw new Error("No files were modified. You MUST include at least one file section in the patch.");
   }
   const summary: ApplySummary = {
-    added: [],
-    modified: [],
+    created: [],
+    edited: [],
+    moved: [],
     deleted: [],
     failed: [],
     live: [],
@@ -326,8 +327,8 @@ export async function applyHunks(cwd: string, hunks: Hunk[]): Promise<ApplySumma
         }
         await fs.mkdir(path.dirname(target), { recursive: true });
         await fs.writeFile(target, hunk.contents, "utf-8");
-        summary.added.push(hunk.filePath);
-        summary.fileDiffs.push({ status: "A", path: hunk.filePath, diff: buildNumberedDiff("", hunk.contents) });
+        summary.created.push(hunk.filePath);
+        summary.fileDiffs.push({ status: "C", path: hunk.filePath, diff: buildNumberedDiff("", hunk.contents) });
         upsertLive(summary, hunk.filePath, anchorsFromContent(hunk.contents));
         continue;
       }
@@ -337,6 +338,23 @@ export async function applyHunks(cwd: string, hunks: Hunk[]): Promise<ApplySumma
         await fs.unlink(target);
         summary.deleted.push(hunk.filePath);
         summary.fileDiffs.push({ status: "D", path: hunk.filePath, diff: "" });
+        continue;
+      }
+      if (hunk.type === "move") {
+        const source = resolvePatchPath(cwd, hunk.filePath);
+        const originalContent = await fs.readFile(source, "utf-8");
+        const destination = resolvePatchPath(cwd, hunk.moveToPath);
+        await fs.mkdir(path.dirname(destination), { recursive: true });
+        await fs.writeFile(destination, originalContent, "utf-8");
+        try {
+          await fs.unlink(source);
+        } catch (error) {
+          await fs.unlink(destination);
+          throw error;
+        }
+        summary.moved.push(hunk.moveToPath);
+        summary.fileDiffs.push({ status: "MV", path: hunk.moveToPath, moveFrom: hunk.filePath, diff: "" });
+        upsertLive(summary, hunk.moveToPath, anchorsFromContent(originalContent));
         continue;
       }
       const source = resolvePatchPath(cwd, hunk.filePath);
@@ -353,14 +371,14 @@ export async function applyHunks(cwd: string, hunks: Hunk[]): Promise<ApplySumma
           await fs.unlink(destination);
           throw error;
         }
-        summary.modified.push(hunk.moveToPath);
-        summary.fileDiffs.push({ status: "M", path: hunk.moveToPath, moveFrom: hunk.filePath, diff });
+        summary.edited.push(hunk.moveToPath);
+        summary.fileDiffs.push({ status: "E", path: hunk.moveToPath, moveFrom: hunk.filePath, diff });
         upsertLive(summary, hunk.moveToPath, next.anchors);
         continue;
       }
       await fs.writeFile(source, next.content, "utf-8");
-      summary.modified.push(hunk.filePath);
-      summary.fileDiffs.push({ status: "M", path: hunk.filePath, diff });
+      summary.edited.push(hunk.filePath);
+      summary.fileDiffs.push({ status: "E", path: hunk.filePath, diff });
       upsertLive(summary, hunk.filePath, next.anchors);
     } catch (error) {
       const typed = error as AnchorError;
