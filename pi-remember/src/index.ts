@@ -20,7 +20,7 @@ import {
 
 export default function piRememberExtension(pi: ExtensionAPI): void {
   pi.registerCommand("remember", {
-    description: "Open memory manager UI. Arguments: list | search <query> | forget <id>",
+    description: "Open memory manager UI. Subcommands: list, search <query>, forget <id> [--global]",
     handler: async (args, ctx) => {
       const trimmed = args.trim();
       if (!trimmed) {
@@ -65,13 +65,13 @@ export default function piRememberExtension(pi: ExtensionAPI): void {
       if (sub === "forget") {
         const id = Number(rest[0]);
         if (!Number.isFinite(id)) {
-          ctx.ui.notify("Usage: /remember forget <id>", "warning");
+          ctx.ui.notify("Usage: /remember forget <id> [--global]", "warning");
           return;
         }
-        const db = getDb(getProjectDbPath(ctx.cwd));
-        db.prepare("DELETE FROM memories WHERE id = ?").run(id);
-        db.close();
-        ctx.ui.notify(`Deleted id=${id} from project store (if present).`, "info");
+        const isGlobal = rest.includes("--global");
+        const deleted = deleteMemoryInStore(ctx.cwd, id, isGlobal ? "global" : "project");
+        const storeName = isGlobal ? "global" : "project";
+        ctx.ui.notify(deleted ? `Forgot id=${id} from ${storeName} store.` : `Memory id=${id} not found in ${storeName} store.`, deleted ? "info" : "warning");
         return;
       }
       ctx.ui.notify("Unknown subcommand. Use: list | search | forget", "warning");
@@ -137,17 +137,10 @@ export default function piRememberExtension(pi: ExtensionAPI): void {
       global: Type.Optional(Type.Boolean({ description: "Delete from global store" })),
     }),
     async execute(_id, params, _signal, _onUpdate, ctx) {
-      const store = params.global
-        ? ({ source: "global", dbPath: getGlobalDbPath() } as const)
-        : ({ source: "project", dbPath: getProjectDbPath(ctx.cwd) } as const);
-      if (!fs.existsSync(store.dbPath)) return { content: [{ type: "text", text: "No memory store found." }], details: {} };
-      const db = getDb(store.dbPath);
-      const before = db.prepare("SELECT COUNT(*) as c FROM memories").get() as { c: number };
-      db.prepare("DELETE FROM memories WHERE id = ?").run(params.id);
-      const after = db.prepare("SELECT COUNT(*) as c FROM memories").get() as { c: number };
-      db.close();
-      if (before.c === after.c) return { content: [{ type: "text", text: `Memory id=${params.id} not found in ${store.source}.` }], details: {} };
-      return { content: [{ type: "text", text: `Forgot id=${params.id} from ${store.source}.` }], details: {} };
+      const source = params.global ? "global" : "project";
+      const deleted = deleteMemoryInStore(ctx.cwd, params.id, source);
+      if (!deleted) return { content: [{ type: "text", text: `Memory id=${params.id} not found in ${source}.` }], details: {} };
+      return { content: [{ type: "text", text: `Forgot id=${params.id} from ${source}.` }], details: {} };
     },
   });
 

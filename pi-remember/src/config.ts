@@ -22,7 +22,7 @@ function parseScope(value: unknown): Scope | null {
 export function loadConfig(cwd: string): RememberConfig {
   const globalPath = path.join(os.homedir(), ".pi", "agent", "remember.json");
   const projectPath = path.join(cwd, ".agents", "remember.json");
-  const base: RememberConfig = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+  const base: RememberConfig = structuredClone(DEFAULT_CONFIG);
   for (const p of [globalPath, projectPath]) {
     if (!fs.existsSync(p)) continue;
     try {
@@ -35,7 +35,9 @@ export function loadConfig(cwd: string): RememberConfig {
         if (typeof parsed.inject.lowThreshold === "number") base.inject.lowThreshold = parsed.inject.lowThreshold;
         if (typeof parsed.inject.highThreshold === "number") base.inject.highThreshold = parsed.inject.highThreshold;
       }
-    } catch {}
+    } catch (err) {
+      throw new Error(`Malformed config at ${p}: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
   return base;
 }

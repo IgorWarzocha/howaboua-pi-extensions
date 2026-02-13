@@ -10,11 +10,7 @@ import {
   Text,
   type SettingItem,
 } from "@mariozechner/pi-tui";
-
-type Source = "global" | "project";
-
-type Item = { id: number; content: string; timestamp: string; source: string };
-
+import type { MemoryItem, RememberConfig, Source } from "./types.js";
 type Action =
   | { type: "cancel" }
   | { type: "delete"; id: number; source: Source }
@@ -23,21 +19,13 @@ type Action =
   | { type: "status" }
   | { type: "refresh" };
 
-type Config = {
-  enabled: boolean;
-  scope: "global" | "project" | "both";
-  inject: { count: number; lowThreshold: number; highThreshold: number };
-};
-
-type Store = { source: Source; dbPath: string };
-
 type Deps = {
-  loadConfig: (cwd: string) => Config;
-  listAllMemories: (cwd: string, scope: Config["scope"]) => Item[];
+  loadConfig: (cwd: string) => RememberConfig;
+  listAllMemories: (cwd: string, scope: RememberConfig["scope"]) => MemoryItem[];
   searchMemories: (
     cwd: string,
     query: string,
-    scope: Config["scope"],
+    scope: RememberConfig["scope"],
   ) => Promise<Array<{ id: number; content: string; score: number; source: string }>>;
   getProjectDbPath: (cwd: string) => string;
   getGlobalDbPath: () => string;
@@ -48,7 +36,7 @@ type Deps = {
   deleteMemoryInStore: (cwd: string, id: number, source: Source) => boolean;
 };
 
-function format(item: Item, theme: Theme): string {
+function format(item: MemoryItem, theme: Theme): string {
   const source = theme.fg("dim", `[${item.source}]`);
   const id = theme.fg("accent", `#${String(item.id)}`);
   const content = item.content.length > 90 ? `${item.content.slice(0, 87)}...` : item.content;
@@ -141,7 +129,7 @@ export async function openRememberManager(ctx: ExtensionCommandContext, deps: De
       const text = await ctx.ui.input("Add memory", "One factual sentence");
       if (!text?.trim()) continue;
       const global = config.scope === "both" ? await ctx.ui.confirm("Store", "Store in global scope? (No = project)") : config.scope === "global";
-      const store: Store = global ? { source: "global", dbPath: deps.getGlobalDbPath() } : { source: "project", dbPath: deps.getProjectDbPath(ctx.cwd) };
+      const store: { source: Source; dbPath: string } = global ? { source: "global", dbPath: deps.getGlobalDbPath() } : { source: "project", dbPath: deps.getProjectDbPath(ctx.cwd) };
       const db = deps.getDb(store.dbPath);
       const emb = await deps.embedPassage(text.trim());
       const inserted = db
