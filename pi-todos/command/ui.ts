@@ -1,10 +1,11 @@
 import type { ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import type { TodoFrontMatter, TodoMenuAction, TodoRecord } from "../types.js";
-import { buildCreatePrompt, isTodoClosed } from "../format.js";
+import { buildCreatePrompt, buildEditChecklistPrompt, isTodoClosed } from "../format.js";
 import { deleteTodo, ensureTodoExists, getTodoPath, getTodosDir, listTodos } from "../file-io.js";
 import {
   TodoActionMenuComponent,
   TodoCreateInputComponent,
+  TodoEditChecklistInputComponent,
   TodoDetailPreviewComponent,
   TodoSelectorComponent,
 } from "../tui/index.js";
@@ -24,6 +25,7 @@ export async function runTodoUi(
     let openSelector: TodoSelectorComponent | null = null;
     let closedSelector: TodoSelectorComponent | null = null;
     let createInput: TodoCreateInputComponent | null = null;
+    let editInput: TodoEditChecklistInputComponent | null = null;
     let active: {
       render: (width: number) => string[];
       invalidate: () => void;
@@ -80,6 +82,12 @@ export async function runTodoUi(
     };
     const showDetailView = (record: TodoRecord, source: "open" | "closed") => {
       const preview = new TodoDetailPreviewComponent(tui, theme, record);
+      const detailFooter = record.checklist?.length
+        ? "Enter confirm • Esc back • v toggle preview • j/k scroll preview • Ctrl+X leader • e edit checklist"
+        : "Enter confirm • Esc back • v toggle preview • j/k scroll preview • Ctrl+X leader";
+      const leaderFooter = record.checklist?.length
+        ? "Leader: w work • r refine • c complete • a abandon • v toggle preview • e edit checklist • x cancel"
+        : "Leader: w work • r refine • c complete • a abandon • v toggle preview • x cancel";
       let previewVisible = true;
       let leaderActive = false;
       let leaderTimer: ReturnType<typeof setTimeout> | null = null;
@@ -87,9 +95,7 @@ export async function runTodoUi(
         if (leaderTimer) clearTimeout(leaderTimer);
         leaderTimer = null;
         leaderActive = false;
-        detailMenu.setFooter(
-          "Enter confirm • Esc back • v toggle preview • j/k scroll preview • Ctrl+X leader",
-        );
+        detailMenu.setFooter(detailFooter);
         tui.requestRender();
       };
       const startLeader = () => {
@@ -97,10 +103,7 @@ export async function runTodoUi(
         leaderActive = true;
         if (leaderTimer) clearTimeout(leaderTimer);
         leaderTimer = setTimeout(() => clearLeader(), 2000);
-        detailMenu.setFooter(
-          "Leader: w work • r refine • c complete • a abandon • v toggle preview • x cancel",
-          "warning",
-        );
+        detailMenu.setFooter(leaderFooter, "warning");
         tui.requestRender();
       };
       const detailMenu = new TodoActionMenuComponent(
@@ -112,8 +115,7 @@ export async function runTodoUi(
         () => setActive(source === "closed" ? closedSelector : openSelector),
         {
           showView: false,
-          footer:
-            "Enter confirm • Esc back • v toggle preview • j/k scroll preview • Ctrl+X leader",
+          footer: detailFooter,
         },
       );
       const detailView = {
@@ -152,6 +154,10 @@ export async function runTodoUi(
               tui.requestRender();
               return;
             }
+            if ((data === "e" || data === "E") && record.checklist?.length) {
+              clearLeader();
+              return showEditChecklistInput(record, source);
+            }
             return clearLeader();
           }
           if (data === "\u0018" || matchesKey(data, Key.ctrl("x"))) return startLeader();
@@ -174,7 +180,6 @@ export async function runTodoUi(
             tui.requestRender();
             return;
           }
-          // TODO: Support mouse wheel scrolling for the preview panel.
           detailMenu.handleInput(data);
         },
         focused,
@@ -209,6 +214,20 @@ export async function runTodoUi(
         () => setActive(openSelector),
       );
       setActive(createInput);
+    };
+    const showEditChecklistInput = (record: TodoRecord, source: "open" | "closed") => {
+      editInput = new TodoEditChecklistInputComponent(
+        tui,
+        theme,
+        record,
+        (userPrompt) => {
+          const checklist = record.checklist || [];
+          setPrompt(buildEditChecklistPrompt(record.title || "(untitled)", checklist, userPrompt));
+          done();
+        },
+        () => showDetailView(record, source),
+      );
+      setActive(editInput);
     };
     openSelector = new TodoSelectorComponent(
       tui,

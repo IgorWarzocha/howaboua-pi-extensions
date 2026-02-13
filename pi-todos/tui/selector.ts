@@ -1,4 +1,12 @@
-import { Container, type Focusable, Input, Spacer, Text, TUI } from "@mariozechner/pi-tui";
+import {
+  Container,
+  type Focusable,
+  Input,
+  Spacer,
+  Text,
+  TUI,
+  getEditorKeybindings,
+} from "@mariozechner/pi-tui";
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import { DynamicBorder } from "@mariozechner/pi-coding-agent";
 import type { TodoFrontMatter, TodoQuickAction } from "../types.js";
@@ -170,14 +178,20 @@ export class TodoSelectorComponent extends Container implements Focusable {
   handleInput(keyData: string): void {
     if (!this.searchActive && keyData === "/") return this.startSearch();
     if (this.searchActive) {
-      const intent = mapIntent(keyData, this.mode);
-      if (intent === "confirm" || intent === "cancel") {
+      const kb = getEditorKeybindings();
+      if (kb.matches(keyData, "selectConfirm")) {
         this.searchActive = false;
         this.searchInput.focused = false;
         this.renderState();
         return;
       }
-      if (intent === "up" || intent === "down") return;
+      if (kb.matches(keyData, "selectCancel")) {
+        this.searchActive = false;
+        this.searchInput.focused = false;
+        this.renderState();
+        return;
+      }
+      if (kb.matches(keyData, "selectUp") || kb.matches(keyData, "selectDown")) return;
       this.searchInput.handleInput(keyData);
       this.applyFilter(this.searchInput.getValue());
       return;
@@ -200,8 +214,6 @@ export class TodoSelectorComponent extends Container implements Focusable {
     if (intent === "confirm") return this.confirmSelection();
     if (intent === "cancel") return this.onCancelCallback();
     if (intent === "tab") return this.onTabCallback?.();
-    this.searchInput.handleInput(keyData);
-    this.applyFilter(this.searchInput.getValue());
   }
 
   override invalidate(): void {
