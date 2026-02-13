@@ -24,7 +24,6 @@ function applyRfcKeywordReplacements(text: string): string {
 
   for (const key of keys) {
     const replacement = RFC_KEYWORDS[key];
-    if (!replacement) continue;
     const pattern = new RegExp(`\\b${escapeRegex(key)}\\b`, "gi");
     result = result.replace(pattern, replacement);
   }
@@ -36,19 +35,23 @@ export default function rfcKeywordsExtension(pi: ExtensionAPI): void {
   pi.on("input", (event) => {
     if (!event.text) return { action: "continue" as const };
 
-    if (event.text.startsWith("/")) {
-      const firstSpace = event.text.indexOf(" ");
-      if (firstSpace === -1) return { action: "continue" as const };
-      const command = event.text.slice(0, firstSpace);
-      const args = event.text.slice(firstSpace + 1);
-      const transformedArgs = applyRfcKeywordReplacements(args);
-      if (transformedArgs === args) return { action: "continue" as const };
-      return { action: "transform" as const, text: `${command} ${transformedArgs}` };
-    }
+     let textToProcess = event.text;
+     let prefix = "";
 
-    const transformed = applyRfcKeywordReplacements(event.text);
-    if (transformed === event.text) return { action: "continue" as const };
+     if (textToProcess.startsWith("/")) {
+       const spaceIndex = textToProcess.indexOf(" ");
+       if (spaceIndex === -1) return { action: "continue" as const };
 
-    return { action: "transform" as const, text: transformed };
+       prefix = textToProcess.slice(0, spaceIndex + 1);
+       textToProcess = textToProcess.slice(spaceIndex + 1);
+     }
+
+     const transformedText = applyRfcKeywordReplacements(textToProcess);
+
+     if (transformedText === textToProcess) {
+       return { action: "continue" as const };
+     }
+
+     return { action: "transform" as const, text: `${prefix}${transformedText}` };
   });
 }
