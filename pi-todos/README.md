@@ -37,6 +37,7 @@ Use:
 - `/todo`
 
 In the UI you can:
+
 - create, work, refine, complete, abandon, reopen, release, or delete
 - inspect details and edit checklist items
 - use explicit search mode for predictable keyboard navigation
