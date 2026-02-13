@@ -8,20 +8,24 @@ export class TodoActionMenuComponent extends Container {
   private selectList: SelectList;
   private onSelectCallback: (action: TodoMenuAction) => void;
   private onCancelCallback: () => void;
+  private theme: Theme;
+  private footerText: Text;
 
   constructor(
     theme: Theme,
     todo: TodoRecord,
     onSelect: (action: TodoMenuAction) => void,
     onCancel: () => void,
+    opts?: { showView?: boolean; footer?: string },
   ) {
     super();
+    this.theme = theme;
     this.onSelectCallback = onSelect;
     this.onCancelCallback = onCancel;
 
     const closed = isTodoClosed(todo.status);
     const title = todo.title || "(untitled)";
-    const options: SelectItem[] = [
+    const items: SelectItem[] = [
       { value: "work", label: "work", description: "Work on todo" },
       ...(closed
         ? [
@@ -36,13 +40,15 @@ export class TodoActionMenuComponent extends Container {
       ...(todo.assigned_to_session
         ? [{ value: "release", label: "release", description: "Release assignment" }]
         : []),
-      { value: "view", label: "view", description: "View details" },
+      ...(opts?.showView === false
+        ? []
+        : [{ value: "view", label: "view", description: "View details" }]),
     ];
 
     this.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
     this.addChild(new Text(theme.fg("accent", theme.bold(`Actions for "${title}"`))));
 
-    this.selectList = new SelectList(options, options.length, {
+    this.selectList = new SelectList(items, items.length, {
       selectedPrefix: (text) => theme.fg("accent", text),
       selectedText: (text) => theme.fg("accent", text),
       description: (text) => theme.fg("muted", text),
@@ -54,12 +60,17 @@ export class TodoActionMenuComponent extends Container {
     this.selectList.onCancel = () => this.onCancelCallback();
 
     this.addChild(this.selectList);
-    this.addChild(new Text(theme.fg("dim", "Enter to confirm • Esc back")));
+    this.footerText = new Text(theme.fg("dim", opts?.footer ?? "Enter to confirm • Esc back"));
+    this.addChild(this.footerText);
     this.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
   }
 
   handleInput(keyData: string): void {
     this.selectList.handleInput(keyData);
+  }
+
+  setFooter(value: string, tone: "dim" | "warning" = "dim"): void {
+    this.footerText.setText(this.theme.fg(tone, value));
   }
 
   override invalidate(): void {

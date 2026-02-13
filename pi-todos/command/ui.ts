@@ -1,14 +1,14 @@
 import type { ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
-import type { TodoFrontMatter, TodoMenuAction, TodoOverlayAction, TodoRecord } from "../types.js";
-import { buildCreatePrompt, buildEditChecklistPrompt, isTodoClosed } from "../format.js";
+import type { TodoFrontMatter, TodoMenuAction, TodoRecord } from "../types.js";
+import { buildCreatePrompt, isTodoClosed } from "../format.js";
 import { deleteTodo, ensureTodoExists, getTodoPath, getTodosDir, listTodos } from "../file-io.js";
 import {
   TodoActionMenuComponent,
   TodoCreateInputComponent,
-  TodoDetailOverlayComponent,
-  TodoEditChecklistInputComponent,
+  TodoDetailPreviewComponent,
   TodoSelectorComponent,
 } from "../tui/index.js";
+import { Key, matchesKey } from "@mariozechner/pi-tui";
 import { applyTodoAction, handleQuickAction } from "./actions.js";
 
 export async function runTodoUi(
@@ -23,9 +23,7 @@ export async function runTodoUi(
   await ctx.ui.custom<void>((tui, theme, _kb, done) => {
     let openSelector: TodoSelectorComponent | null = null;
     let closedSelector: TodoSelectorComponent | null = null;
-    let actionMenu: TodoActionMenuComponent | null = null;
     let createInput: TodoCreateInputComponent | null = null;
-    let editInput: TodoEditChecklistInputComponent | null = null;
     let active: {
       render: (width: number) => string[];
       invalidate: () => void;
@@ -80,70 +78,125 @@ export async function runTodoUi(
       ctx.ui.notify("Todo not found", "error");
       return null;
     };
-    const openOverlay = async (record: TodoRecord): Promise<TodoOverlayAction> => {
-      const action = await ctx.ui.custom<TodoOverlayAction>(
-        (overlayTui, overlayTheme, _overlayKb, overlayDone) =>
-          new TodoDetailOverlayComponent(overlayTui, overlayTheme, record, overlayDone),
-        { overlay: true, overlayOptions: { width: "80%", maxHeight: "80%", anchor: "center" } },
-      );
-      return action ?? "back";
-    };
-    const handleSelection = async (
-      record: TodoRecord,
-      action: TodoMenuAction,
-      source: "open" | "closed",
-    ) => {
-      if (action === "view") {
-        const overlayAction = await openOverlay(record);
-        if (overlayAction === "work")
-          return void (await applyTodoAction(
-            todosDir,
-            ctx,
-            refresh,
-            done,
-            record,
-            "work",
-            setPrompt,
-          ));
-        if (overlayAction === "edit-checklist") {
-          editInput = new TodoEditChecklistInputComponent(
-            tui,
-            theme,
-            record,
-            (userIntent) => {
-              setPrompt(
-                buildEditChecklistPrompt(
-                  record.title || "(untitled)",
-                  record.checklist || [],
-                  userIntent,
-                ),
-              );
-              done();
-            },
-            () => setActive(actionMenu),
-          );
-          return setActive(editInput);
-        }
-        return setActive(source === "closed" ? closedSelector : openSelector);
-      }
-      const result = await applyTodoAction(todosDir, ctx, refresh, done, record, action, setPrompt);
-      if (result === "stay") setActive(source === "closed" ? closedSelector : openSelector);
-    };
-    const showActionMenu = async (
-      todo: TodoFrontMatter | TodoRecord,
-      source: "open" | "closed",
-    ) => {
-      const record = "body" in todo ? todo : await resolve(todo);
-      if (!record) return;
-      actionMenu = new TodoActionMenuComponent(
+    const showDetailView = (record: TodoRecord, source: "open" | "closed") => {
+      const preview = new TodoDetailPreviewComponent(tui, theme, record);
+      let previewVisible = true;
+      let leaderActive = false;
+      let leaderTimer: ReturnType<typeof setTimeout> | null = null;
+      const clearLeader = () => {
+        if (leaderTimer) clearTimeout(leaderTimer);
+        leaderTimer = null;
+        leaderActive = false;
+        detailMenu.setFooter(
+          "Enter confirm • Esc back • v toggle preview • j/k scroll preview • Ctrl+X leader",
+        );
+        tui.requestRender();
+      };
+      const startLeader = () => {
+        if (leaderActive) return clearLeader();
+        leaderActive = true;
+        if (leaderTimer) clearTimeout(leaderTimer);
+        leaderTimer = setTimeout(() => clearLeader(), 2000);
+        detailMenu.setFooter(
+          "Leader: w work • r refine • c complete • a abandon • v toggle preview • x cancel",
+          "warning",
+        );
+        tui.requestRender();
+      };
+      const detailMenu = new TodoActionMenuComponent(
         theme,
         record,
         (action) => {
           void handleSelection(record, action, source);
         },
         () => setActive(source === "closed" ? closedSelector : openSelector),
+        {
+          showView: false,
+          footer:
+            "Enter confirm • Esc back • v toggle preview • j/k scroll preview • Ctrl+X leader",
+        },
       );
-      setActive(actionMenu);
+      const detailView = {
+        render(width: number) {
+          const rows = tui.terminal.rows || 24;
+          const maxHeight = Math.max(10, Math.floor(rows * 0.55));
+          const previewLines = previewVisible ? preview.render(width, maxHeight) : [];
+          const menuLines = detailMenu.render(width);
+          if (!previewVisible) return [...menuLines];
+          return [...previewLines, "", ...menuLines];
+        },
+        invalidate() {
+          preview.invalidate();
+          detailMenu.invalidate();
+        },
+        handleInput(data: string) {
+          if (leaderActive) {
+            if (
+              data === "x" ||
+              data === "X" ||
+              data === "\u0018" ||
+              matchesKey(data, Key.ctrl("x"))
+            )
+              return clearLeader();
+            if (data === "w" || data === "W")
+              return (clearLeader(), void handleSelection(record, "work", source));
+            if (data === "r" || data === "R")
+              return (clearLeader(), void handleSelection(record, "refine", source));
+            if (data === "c" || data === "C")
+              return (clearLeader(), void handleSelection(record, "complete", source));
+            if (data === "a" || data === "A")
+              return (clearLeader(), void handleSelection(record, "abandon", source));
+            if (data === "v" || data === "V") {
+              clearLeader();
+              previewVisible = !previewVisible;
+              tui.requestRender();
+              return;
+            }
+            return clearLeader();
+          }
+          if (data === "\u0018" || matchesKey(data, Key.ctrl("x"))) return startLeader();
+          if (data === "v") {
+            previewVisible = !previewVisible;
+            tui.requestRender();
+            return;
+          }
+          if (data === "k") return detailMenu.handleInput("\u001b[A");
+          if (data === "j") return detailMenu.handleInput("\u001b[B");
+          if (data === "K") {
+            if (!previewVisible) return detailMenu.handleInput("\u001b[A");
+            preview.scrollBy(-1);
+            tui.requestRender();
+            return;
+          }
+          if (data === "J") {
+            if (!previewVisible) return detailMenu.handleInput("\u001b[B");
+            preview.scrollBy(1);
+            tui.requestRender();
+            return;
+          }
+          // TODO: Support mouse wheel scrolling for the preview panel.
+          detailMenu.handleInput(data);
+        },
+        focused,
+      };
+      setActive(detailView);
+    };
+    const handleSelection = async (
+      record: TodoRecord,
+      action: TodoMenuAction,
+      source: "open" | "closed",
+    ) => {
+      if (action === "view") return showDetailView(record, source);
+      const result = await applyTodoAction(todosDir, ctx, refresh, done, record, action, setPrompt);
+      if (result === "stay") setActive(source === "closed" ? closedSelector : openSelector);
+    };
+    const openDetailFromTodo = async (
+      todo: TodoFrontMatter | TodoRecord,
+      source: "open" | "closed",
+    ) => {
+      const record = "body" in todo ? todo : await resolve(todo);
+      if (!record) return;
+      showDetailView(record, source);
     };
     const showCreateInput = () => {
       createInput = new TodoCreateInputComponent(
@@ -161,7 +214,7 @@ export async function runTodoUi(
       tui,
       theme,
       listOpen(todos),
-      (todo) => void showActionMenu(todo, "open"),
+      (todo) => void openDetailFromTodo(todo, "open"),
       () => done(),
       searchTerm || undefined,
       currentSessionId,
@@ -174,7 +227,7 @@ export async function runTodoUi(
       tui,
       theme,
       listClosed(todos),
-      (todo) => void showActionMenu(todo, "closed"),
+      (todo) => void openDetailFromTodo(todo, "closed"),
       () => done(),
       undefined,
       currentSessionId,
