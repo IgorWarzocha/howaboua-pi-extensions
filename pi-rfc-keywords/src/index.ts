@@ -24,7 +24,7 @@ function applyRfcKeywordReplacements(text: string): string {
 
   for (const key of keys) {
     const replacement = RFC_KEYWORDS[key];
-    const pattern = new RegExp(`\\b${escapeRegex(key)}\\b`, "gi");
+     const pattern = new RegExp(`(?<!\\p{L})${escapeRegex(key)}(?!\\p{L})`, "giu");
     result = result.replace(pattern, replacement);
   }
 
