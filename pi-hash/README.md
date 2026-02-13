@@ -1,34 +1,34 @@
- 1:90|# pi-hash
+ 1:88|# pi-hash
 
- Pi extension providing a high-reliability "Relocation Engine" for file edits using line-based anchored hashing. It replaces standard `read`/`edit` tools with robust versions that ensure edits land exactly where intended, even if files have drifted.
+ Pi extension providing high-reliability file edits through a "Relocation Engine" and line-based hashing.
 
- ## Core Protocol: The Hashline
+ ## Protocol: Hashlines
 
- Every line in the system is uniquely addressed via a `LINE:HASH` anchor.
- - **Format**: `LINE:HASH|CONTENT` (e.g., `42:a3bc|const x = 10;`).
- - **Hashing**: Uses FNV-1a (32-bit) mapped to a 4-character lowercase base26 string (`aaaa`-`zzzz`).
- - **Normalization**: Lines are normalized before hashing (Unicode NFC, smart quote conversion, and absolute whitespace stripping) to ensure format-invariant stability.
+ Every line is addressed via a `LINE:HASH` anchor.
+ - **Format**: `LINE:HASH|CONTENT` (e.g., `1:a0|# pi-hash`).
+ - **Hashing**: Uses `xxHash32` (or `FNV-1a` fallback) truncated to **2-character hex** (`00-ff`).
+ - **Normalization**: Prior to hashing, lines undergo Unicode NFC normalization, smart-character conversion (quotes, dashes, ellipsis), and absolute whitespace stripping.
 
- ## Tools
+ ## Tooling
 
- ### `read` (Enforced Hashing)
- - **Hashed Output**: All file reads return anchored lines.
- - **Integrated Grep**: High-performance search with `regex`, `caseSensitive`, and context (`contextBefore`/`contextAfter`) support.
- - **Multi-Read**: Batch reading of multiple files in a single call.
- - **Safety**: Intercepts `bash` commands like `cat`, `head`, and `tail` to prevent the ingestion of "hash-less" code.
+ ### `read`
+ - Returns hashed output for all file reads.
+ - Supports integrated `grep` with regex and context (`contextBefore`/`contextAfter`).
+ - Batches multiple file reads into a single tool result.
 
- ### `apply_patch` (The Relocation Engine)
- - **Spiral Search**: If a target line drifts, the engine performs an outward-expanding search (+/- 100 lines) to find the correct anchor.
- - **Cumulative Drift**: Automatically adjusts target lines for multiple hunks in a single file by tracking net line-count shifts.
- - **Transactional Integrity**: Per-file atomic application. If any hunk fails to relocate or verify, the entire file operation is rolled back.
- - **Live Sync**: Tool results return updated anchors for all modified blocks, allowing the model to continue editing without re-reading.
+ ### `apply_patch`
+ - **Relocation Engine**: Employs a **spiral search** (+/- 100 lines) and unique-hash fallback to find anchors if line numbers have drifted.
+ - **Cumulative Drift**: Adjusts target lines for sequential chunks in the same file.
+ - **Healing**:
+   - Indentation inheritance from original context.
+   - Multi-line wrap restoration.
+   - Automated merge expansion for single-line changes.
+ - **Transactional**: Per-file atomic edits. Results return "Live Sync" anchors for subsequent modifications.
 
- ## Security: Bash Guards
+ ## Security
 
- The extension implements proactive guards to enforce the hashing protocol:
- - **Read Guard**: Blocks shell commands that bypass `read` (e.g., `grep`, `sed -n`).
- - **Write Guard**: Blocks direct file mutations (e.g., `echo >`, `tee`, `sed -i`) to ensure all changes go through the relocation engine.
+ - **Bash Guard**: Intercepts shell commands that attempt direct file writes (`tee`, `truncate`, `sed -i`, `dd of=`, and `>`/`>>` redirects), redirecting the agent to use `apply_patch`.
 
  ## Installation
 
- Symlink the extension directory into your `.pi/extensions` folder.
+ Symlink the `pi-hash` directory into `.pi/extensions/`.
