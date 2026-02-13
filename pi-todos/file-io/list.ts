@@ -15,6 +15,7 @@ function toTodo(id: string, content: string, modifiedAt: string): TodoFrontMatte
     created_at: parsed.created_at,
     modified_at: modifiedAt,
     assigned_to_session: parsed.assigned_to_session,
+    checklist: parsed.checklist,
   };
 }
 

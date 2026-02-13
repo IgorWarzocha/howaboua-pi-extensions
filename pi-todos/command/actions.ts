@@ -83,6 +83,6 @@ export function handleQuickAction(
   if (!todo) return;
   const title = getTodoTitle(todo);
   if (action === "refine") setPrompt(buildRefinePrompt(title));
-  else if (action === "work") setPrompt(`work on todo "${title}"`);
+  if (action === "work") setPrompt(`work on todo "${title}"`);
   done();
 }

@@ -37,7 +37,8 @@ export async function appendTodoBody(
   text: string,
 ): Promise<TodoRecord> {
   const spacer = todo.body.trim().length ? "\n\n" : "";
-  todo.body = `${todo.body.replace(/\s+$/, "")}${spacer}${text.trim()}\n`;
-  await writeTodoFile(filePath, todo);
-  return todo;
+  const body = `${todo.body.replace(/\s+$/, "")}${spacer}${text.trim()}\n`;
+  const updated: TodoRecord = { ...todo, body };
+  await writeTodoFile(filePath, updated);
+  return updated;
 }

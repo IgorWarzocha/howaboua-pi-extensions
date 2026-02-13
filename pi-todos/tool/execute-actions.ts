@@ -18,6 +18,7 @@ import {
   serializeTodoListForAgent,
   splitTodosByAssignment,
 } from "../format.js";
+import { withTodoLock } from "../lock.js";
 import { validateTodoId } from "../parser.js";
 
 function error(action: string, message: string, extra: Record<string, unknown> = {}) {
@@ -52,15 +53,13 @@ async function resolveTodoRef(
   return { id, filePath, todo };
 }
 
-function ensureAssignedToCurrentSession(action: string, todo: TodoRecord, ctx: ExtensionContext) {
+function ensureAssignedToCurrentSession(todo: TodoRecord, ctx: ExtensionContext): string | null {
   if (!todo.assigned_to_session) return null;
   const sessionId = ctx.sessionManager.getSessionId();
   if (todo.assigned_to_session === sessionId) return null;
-  return error(
-    action,
-    `Error: todo is assigned to session ${todo.assigned_to_session}. Claim with force to modify.`,
-  );
+  return `Error: todo is assigned to session ${todo.assigned_to_session}. Claim with force to modify.`;
 }
+
 export async function runListAction(todosDir: string, ctx: ExtensionContext) {
   const todos = await listTodos(todosDir);
   const split = splitTodosByAssignment(todos);
@@ -139,33 +138,40 @@ export async function runUpdateAction(
 ) {
   const resolved = await resolveTodoRef(todosDir, params);
   if ("error" in resolved) return error("update", resolved.error);
-  const existing = resolved.todo;
-  const assignmentError = ensureAssignedToCurrentSession("update", existing, ctx);
-  if (assignmentError) return assignmentError;
+  const assignmentError = ensureAssignedToCurrentSession(resolved.todo, ctx);
+  if (assignmentError) return error("update", assignmentError);
   if (params.status !== undefined)
     return error("update", "Error: status updates are user-only. Use tick for checklist progress.");
-  if (params.title !== undefined) {
-    const todos = await listTodos(todosDir);
-    const duplicate = todos.find((todo) => todo.id !== existing.id && todo.title === params.title);
-    if (duplicate) return error("update", "Error: todo title already exists. Use a unique title.");
-    existing.title = params.title;
-  }
-  if (params.tags !== undefined) existing.tags = params.tags;
-  if (params.body !== undefined) existing.body = params.body;
-  if (params.checklist !== undefined) {
-    if (!params.checklist.length) return error("update", "Error: checklist MUST NOT be empty");
-    existing.checklist = params.checklist.map((item) => ({
-      id: item.id,
-      title: item.title,
-      status: item.status ?? "unchecked",
-    }));
-    existing.status = deriveTodoStatus(existing);
-  }
-  if (!existing.created_at) existing.created_at = new Date().toISOString();
-  await writeTodoFile(resolved.filePath, existing);
+  const result = await withTodoLock(todosDir, resolved.id, ctx, async () => {
+    const current = await ensureTodoExists(resolved.filePath, resolved.id);
+    if (!current) return { error: "Todo not found" };
+    const currentAssignmentError = ensureAssignedToCurrentSession(current, ctx);
+    if (currentAssignmentError) return { error: currentAssignmentError };
+    if (params.title !== undefined) {
+      const todos = await listTodos(todosDir);
+      const duplicate = todos.find((todo) => todo.id !== current.id && todo.title === params.title);
+      if (duplicate) return { error: "Error: todo title already exists. Use a unique title." };
+      current.title = params.title;
+    }
+    if (params.tags !== undefined) current.tags = params.tags;
+    if (params.body !== undefined) current.body = params.body;
+    if (params.checklist !== undefined) {
+      if (!params.checklist.length) return { error: "Error: checklist MUST NOT be empty" };
+      current.checklist = params.checklist.map((item) => ({
+        id: item.id,
+        title: item.title,
+        status: item.status ?? "unchecked",
+      }));
+      current.status = deriveTodoStatus(current);
+    }
+    if (!current.created_at) current.created_at = new Date().toISOString();
+    await writeTodoFile(resolved.filePath, current);
+    return current;
+  });
+  if (typeof result === "object" && "error" in result) return error("update", result.error);
   return {
-    content: [{ type: "text" as const, text: serializeTodoForAgent(existing) }],
-    details: { action: "update", todo: existing },
+    content: [{ type: "text" as const, text: serializeTodoForAgent(result) }],
+    details: { action: "update", todo: result },
   };
 }
 
@@ -176,14 +182,23 @@ export async function runAppendAction(
 ) {
   const resolved = await resolveTodoRef(todosDir, params);
   if ("error" in resolved) return error("append", resolved.error);
-  const assignmentError = ensureAssignedToCurrentSession("append", resolved.todo, ctx);
-  if (assignmentError) return assignmentError;
+  const assignmentError = ensureAssignedToCurrentSession(resolved.todo, ctx);
+  if (assignmentError) return error("append", assignmentError);
   if (!params.body || !params.body.trim())
     return {
       content: [{ type: "text" as const, text: serializeTodoForAgent(resolved.todo) }],
       details: { action: "append", todo: resolved.todo },
     };
-  const updated = await appendTodoBody(resolved.filePath, resolved.todo, params.body);
+  const body = params.body;
+  const updated = await withTodoLock(todosDir, resolved.id, ctx, async () => {
+    const current = await ensureTodoExists(resolved.filePath, resolved.id);
+    if (!current) return { error: "Todo not found" };
+    const currentAssignmentError = ensureAssignedToCurrentSession(current, ctx);
+    if (currentAssignmentError) return { error: currentAssignmentError };
+    return appendTodoBody(resolved.filePath, current, body);
+  });
+  if (typeof updated === "object" && "error" in updated)
+    return error("append", updated.error ?? "Error: append failed");
   return {
     content: [{ type: "text" as const, text: serializeTodoForAgent(updated) }],
     details: { action: "append", todo: updated },
@@ -239,8 +254,13 @@ export async function runTickAction(
       allComplete: false,
     });
   const existing = resolved.todo;
-  const assignmentError = ensureAssignedToCurrentSession("tick", existing, ctx);
-  if (assignmentError) return assignmentError;
+  const assignmentError = ensureAssignedToCurrentSession(existing, ctx);
+  if (assignmentError)
+    return error("tick", assignmentError, {
+      todo: existing,
+      remaining: [],
+      allComplete: false,
+    });
   if (!existing.checklist?.length)
     return error("tick", "Error: Todo has no checklist. Use update action to add one.", {
       todo: existing,
@@ -254,20 +274,39 @@ export async function runTickAction(
       remaining: [],
       allComplete: false,
     });
-  const item = existing.checklist[index];
-  item.status = item.status === "checked" ? "unchecked" : "checked";
-  existing.status = deriveTodoStatus(existing);
-  await writeTodoFile(resolved.filePath, existing);
-  const remaining = existing.checklist.filter((i) => i.status === "unchecked");
+  const updated = await withTodoLock(todosDir, resolved.id, ctx, async () => {
+    const current = await ensureTodoExists(resolved.filePath, resolved.id);
+    if (!current) return { error: "Todo not found" };
+    const currentAssignmentError = ensureAssignedToCurrentSession(current, ctx);
+    if (currentAssignmentError) return { error: currentAssignmentError };
+    if (!current.checklist?.length)
+      return { error: "Error: Todo has no checklist. Use update action to add one." };
+    const currentIndex = current.checklist.findIndex((i) => i.id === params.item);
+    if (currentIndex === -1)
+      return { error: `Error: Checklist item "${params.item}" not found in todo` };
+    const item = current.checklist[currentIndex];
+    item.status = item.status === "checked" ? "unchecked" : "checked";
+    current.status = deriveTodoStatus(current);
+    await writeTodoFile(resolved.filePath, current);
+    return { todo: current, item };
+  });
+  if (typeof updated === "object" && "error" in updated)
+    return error("tick", updated.error ?? "Error: tick failed", {
+      todo: existing,
+      remaining: [],
+      allComplete: false,
+    });
+  const checklist = updated.todo.checklist ?? [];
+  const remaining = checklist.filter((i) => i.status === "unchecked");
   const allComplete = remaining.length === 0;
-  const tickedItem = item.status === "checked" ? item : undefined;
+  const tickedItem = updated.item.status === "checked" ? updated.item : undefined;
   return {
     content: [
       {
         type: "text" as const,
-        text: formatTickResult(existing, tickedItem, remaining, allComplete),
+        text: formatTickResult(updated.todo, tickedItem, remaining, allComplete),
       },
     ],
-    details: { action: "tick", todo: existing, tickedItem, remaining, allComplete },
+    details: { action: "tick", todo: updated.todo, tickedItem, remaining, allComplete },
   };
 }

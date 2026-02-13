@@ -13,6 +13,9 @@
     "format": "oxfmt .",
     "verify": "bun run typecheck && bun run format:check && bun run build"
   },
+  "dependencies": {
+    "@sinclair/typebox": "^0.34.41"
+  },
   "peerDependencies": {
     "@mariozechner/pi-ai": "*",
     "@mariozechner/pi-coding-agent": "*",
