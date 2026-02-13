@@ -1,16 +1,16 @@
 import type { ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import type { TodoFrontMatter, TodoMenuAction, TodoQuickAction, TodoRecord } from "../types.js";
-import { buildRefinePrompt, formatTodoId, getTodoTitle } from "../format.js";
+import { buildRefinePrompt, getTodoTitle } from "../format.js";
 import { deleteTodo, releaseTodoAssignment, reopenTodoForUser, updateTodoStatus } from "../file-io.js";
 
 export async function applyTodoAction(todosDir: string, ctx: ExtensionCommandContext, refresh: () => Promise<void>, done: () => void, record: TodoRecord, action: TodoMenuAction, setPrompt: (value: string) => void): Promise<"stay" | "exit"> {
     if (action === "refine") {
-        setPrompt(buildRefinePrompt(record.id, record.title || "(untitled)"));
+        setPrompt(buildRefinePrompt(record.title || "(untitled)"));
         done();
         return "exit";
     }
     if (action === "work") {
-        setPrompt(`work on todo ${formatTodoId(record.id)} "${record.title || "(untitled)"}"`);
+        setPrompt(`work on todo "${record.title || "(untitled)"}"`);
         done();
         return "exit";
     }
@@ -22,7 +22,7 @@ export async function applyTodoAction(todosDir: string, ctx: ExtensionCommandCon
             return "stay";
         }
         await refresh();
-        ctx.ui.notify(`Released todo ${formatTodoId(record.id)}`, "info");
+        ctx.ui.notify(`Released todo "${record.title || "(untitled)"}"`, "info");
         return "stay";
     }
     if (action === "delete") {
@@ -32,7 +32,7 @@ export async function applyTodoAction(todosDir: string, ctx: ExtensionCommandCon
             return "stay";
         }
         await refresh();
-        ctx.ui.notify(`Deleted todo ${formatTodoId(record.id)}`, "info");
+        ctx.ui.notify(`Deleted todo "${record.title || "(untitled)"}"`, "info");
         return "stay";
     }
     if (action === "reopen") {
@@ -42,7 +42,7 @@ export async function applyTodoAction(todosDir: string, ctx: ExtensionCommandCon
             return "stay";
         }
         await refresh();
-        ctx.ui.notify(`Reopened todo ${formatTodoId(record.id)} and reset checklist`, "info");
+        ctx.ui.notify(`Reopened todo "${record.title || "(untitled)"}" and reset checklist`, "info");
         return "stay";
     }
     const status = action === "complete" ? "done" : "abandoned";
@@ -52,7 +52,7 @@ export async function applyTodoAction(todosDir: string, ctx: ExtensionCommandCon
         return "stay";
     }
     await refresh();
-    ctx.ui.notify(`${action === "complete" ? "Completed" : "Abandoned"} todo ${formatTodoId(record.id)}`, "info");
+    ctx.ui.notify(`${action === "complete" ? "Completed" : "Abandoned"} todo "${record.title || "(untitled)"}"`, "info");
     return "stay";
 }
 
@@ -60,7 +60,7 @@ export function handleQuickAction(todo: TodoFrontMatter | null, action: TodoQuic
     if (action === "create") return showCreateInput();
     if (!todo) return;
     const title = getTodoTitle(todo);
-    if (action === "refine") setPrompt(buildRefinePrompt(todo.id, title));
-    else if (action === "work") setPrompt(`work on todo ${formatTodoId(todo.id)} "${title}"`);
+    if (action === "refine") setPrompt(buildRefinePrompt(title));
+    else if (action === "work") setPrompt(`work on todo "${title}"`);
     done();
 }

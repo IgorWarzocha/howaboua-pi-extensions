@@ -10,6 +10,7 @@ export interface TodoFrontMatter {
     tags: string[];
     status: string;
     created_at: string;
+    modified_at?: string;
     assigned_to_session?: string;
     checklist?: ChecklistItem[];
 }

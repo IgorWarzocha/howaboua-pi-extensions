@@ -1,6 +1,6 @@
 import type { ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import type { TodoFrontMatter, TodoMenuAction, TodoOverlayAction, TodoRecord } from "../types.js";
-import { buildCreatePrompt, buildEditChecklistPrompt, formatTodoId, isTodoClosed } from "../format.js";
+import { buildCreatePrompt, buildEditChecklistPrompt, isTodoClosed } from "../format.js";
 import { deleteTodo, ensureTodoExists, getTodoPath, getTodosDir, listTodos } from "../file-io.js";
 import { TodoActionMenuComponent, TodoCreateInputComponent, TodoDetailOverlayComponent, TodoEditChecklistInputComponent, TodoSelectorComponent } from "../tui/index.js";
 import { applyTodoAction, handleQuickAction } from "./actions.js";
@@ -47,7 +47,7 @@ export async function runTodoUi(args: string, ctx: ExtensionCommandContext): Pro
         const resolve = async (todo: TodoFrontMatter): Promise<TodoRecord | null> => {
             const record = await ensureTodoExists(getTodoPath(todosDir, todo.id), todo.id);
             if (record) return record;
-            ctx.ui.notify(`Todo ${formatTodoId(todo.id)} not found`, "error");
+            ctx.ui.notify("Todo not found", "error");
             return null;
         };
         const openOverlay = async (record: TodoRecord): Promise<TodoOverlayAction> => {
@@ -60,7 +60,7 @@ export async function runTodoUi(args: string, ctx: ExtensionCommandContext): Pro
                 if (overlayAction === "work") return void (await applyTodoAction(todosDir, ctx, refresh, done, record, "work", setPrompt));
                 if (overlayAction === "edit-checklist") {
                     editInput = new TodoEditChecklistInputComponent(tui, theme, record, (userIntent) => {
-                        setPrompt(buildEditChecklistPrompt(record.id, record.title || "(untitled)", record.checklist || [], userIntent));
+                        setPrompt(buildEditChecklistPrompt(record.title || "(untitled)", record.checklist || [], userIntent));
                         done();
                     }, () => setActive(actionMenu));
                     return setActive(editInput);

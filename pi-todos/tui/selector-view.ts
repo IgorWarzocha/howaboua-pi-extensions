@@ -1,7 +1,7 @@
 import { Text, type TUI } from "@mariozechner/pi-tui";
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import type { TodoFrontMatter } from "../types.js";
-import { formatTodoId, isTodoClosed, renderAssignmentSuffix } from "../format.js";
+import { isTodoClosed, renderAssignmentSuffix } from "../format.js";
 
 export function buildHeader(theme: Theme, todos: TodoFrontMatter[], mode: "open" | "closed"): string {
     if (mode === "open") {
@@ -49,7 +49,7 @@ export function renderList(
         const statusColor = todo.status.toLowerCase() === "abandoned" ? "error" : closed ? "dim" : "success";
         const tagText = todo.tags.length ? ` [${todo.tags.join(", ")}]` : "";
         const assignmentText = renderAssignmentSuffix(theme, todo, currentSessionId);
-        const line = prefix + theme.fg("accent", formatTodoId(todo.id)) + " " + theme.fg(titleColor, todo.title || "(untitled)") + theme.fg("muted", tagText) + assignmentText + " " + theme.fg(statusColor, `(${todo.status || "open"})`);
+        const line = prefix + theme.fg(titleColor, todo.title || "(untitled)") + theme.fg("muted", tagText) + assignmentText + " " + theme.fg(statusColor, `(${todo.status || "open"})`);
         listContainer.addChild(new Text(line, 0, 0));
     }
     if (startIndex > 0 || endIndex < totalItems) {

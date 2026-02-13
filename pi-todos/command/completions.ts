@@ -1,6 +1,5 @@
 import { getTodosDir, listTodosSync } from "../file-io.js";
 import { filterTodos } from "../filter.js";
-import { formatTodoId } from "../format.js";
 
 export function getTodoCompletions(argumentPrefix: string) {
     const todos = listTodosSync(getTodosDir(process.cwd()));
@@ -12,7 +11,7 @@ export function getTodoCompletions(argumentPrefix: string) {
         const tags = todo.tags.length ? ` • ${todo.tags.join(", ")}` : "";
         return {
             value: title,
-            label: `${formatTodoId(todo.id)} ${title}`,
+            label: `${title}`,
             description: `${todo.status || "open"}${tags}`,
         };
     });

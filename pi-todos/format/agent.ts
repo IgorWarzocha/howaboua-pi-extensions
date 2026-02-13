@@ -1,5 +1,5 @@
 import type { TodoFrontMatter, TodoRecord } from "../types.js";
-import { formatTodoHeading, formatTodoId, getTodoStatus, isTodoClosed } from "./base.js";
+import { formatTodoHeading, getTodoStatus, isTodoClosed } from "./base.js";
 
 export function splitTodosByAssignment(todos: TodoFrontMatter[]): {
     assignedTodos: TodoFrontMatter[];
@@ -48,7 +48,8 @@ export function buildProgressHint(todo: TodoRecord): string | undefined {
 }
 
 export function serializeTodoForAgent(todo: TodoRecord): string {
-    const payload: Record<string, unknown> = { ...todo, id: formatTodoId(todo.id) };
+    const payload: Record<string, unknown> = { ...todo };
+    delete payload.id;
     const hint = buildProgressHint(todo);
     if (hint) payload.agent_hint = hint;
     return JSON.stringify(payload, null, 2);
@@ -56,7 +57,14 @@ export function serializeTodoForAgent(todo: TodoRecord): string {
 
 export function serializeTodoListForAgent(todos: TodoFrontMatter[]): string {
     const split = splitTodosByAssignment(todos);
-    const mapTodo = (todo: TodoFrontMatter) => ({ ...todo, id: formatTodoId(todo.id) });
+    const mapTodo = (todo: TodoFrontMatter) => ({
+        title: todo.title,
+        tags: todo.tags,
+        status: todo.status,
+        created_at: todo.created_at,
+        assigned_to_session: todo.assigned_to_session,
+        checklist: todo.checklist,
+    });
     return JSON.stringify(
         {
             assigned: split.assignedTodos.map(mapTodo),

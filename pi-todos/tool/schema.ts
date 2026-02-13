@@ -3,8 +3,8 @@ import { Type } from "@sinclair/typebox";
 
 export const TodoParams = Type.Object({
     action: StringEnum(["list", "list-all", "get", "create", "update", "append", "claim", "release", "tick"] as const),
-    id: Type.Optional(Type.String({ description: "Todo id (TODO-<hex> or raw hex filename)" })),
-    title: Type.Optional(Type.String({ description: "Short summary shown in lists" })),
+    id: Type.Optional(Type.String({ description: "Internal todo reference" })),
+    title: Type.Optional(Type.String({ description: "Todo title; used for lookup when id is omitted" })),
     status: Type.Optional(Type.String({ description: "Todo status" })),
     tags: Type.Optional(Type.Array(Type.String({ description: "Todo tag" }))),
     checklist: Type.Optional(

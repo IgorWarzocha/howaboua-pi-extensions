@@ -41,17 +41,42 @@ export function clearAssignmentIfClosed(todo: TodoFrontMatter): void {
 }
 
 export function sortTodos(todos: TodoFrontMatter[]): TodoFrontMatter[] {
+    const rank = (todo: TodoFrontMatter): number => {
+        const status = todo.status.toLowerCase();
+        if (status === "done") return 0;
+        if (status === "closed") return 1;
+        if (status === "abandoned") return 2;
+        return 3;
+    };
+    const openRank = (todo: TodoFrontMatter): number => {
+        const status = todo.status.toLowerCase();
+        if (status === "in-progress") return 0;
+        if (status === "open") return 1;
+        return 2;
+    };
+    const modified = (todo: TodoFrontMatter): number => {
+        const value = Date.parse(todo.modified_at || todo.created_at || "");
+        if (!Number.isFinite(value)) return 0;
+        return value;
+    };
     return [...todos].sort((a, b) => {
         const aClosed = isTodoClosed(a.status);
         const bClosed = isTodoClosed(b.status);
         if (aClosed !== bClosed) return aClosed ? 1 : -1;
-        const aAssigned = !aClosed && Boolean(a.assigned_to_session);
-        const bAssigned = !bClosed && Boolean(b.assigned_to_session);
-        if (aAssigned !== bAssigned) return aAssigned ? -1 : 1;
+        if (!aClosed) {
+            const aOpenRank = openRank(a);
+            const bOpenRank = openRank(b);
+            if (aOpenRank !== bOpenRank) return aOpenRank - bOpenRank;
+            const aAssigned = Boolean(a.assigned_to_session);
+            const bAssigned = Boolean(b.assigned_to_session);
+            if (aAssigned !== bAssigned) return aAssigned ? -1 : 1;
+            return modified(b) - modified(a);
+        }
         if (aClosed && bClosed) {
-            const aAbandoned = a.status.toLowerCase() === "abandoned";
-            const bAbandoned = b.status.toLowerCase() === "abandoned";
-            if (aAbandoned !== bAbandoned) return aAbandoned ? -1 : 1;
+            const aRank = rank(a);
+            const bRank = rank(b);
+            if (aRank !== bRank) return aRank - bRank;
+            return modified(b) - modified(a);
         }
         return (a.created_at || "").localeCompare(b.created_at || "");
     });
@@ -60,7 +85,7 @@ export function sortTodos(todos: TodoFrontMatter[]): TodoFrontMatter[] {
 export function buildTodoSearchText(todo: TodoFrontMatter): string {
     const tags = todo.tags.join(" ");
     const assignment = todo.assigned_to_session ? `assigned:${todo.assigned_to_session}` : "";
-    return `${formatTodoId(todo.id)} ${todo.id} ${todo.title} ${tags} ${todo.status} ${assignment}`.trim();
+    return `${todo.title} ${tags} ${todo.status} ${assignment}`.trim();
 }
 
 export function formatAssignmentSuffix(todo: TodoFrontMatter): string {
@@ -70,5 +95,5 @@ export function formatAssignmentSuffix(todo: TodoFrontMatter): string {
 export function formatTodoHeading(todo: TodoFrontMatter): string {
     const tagText = todo.tags.length ? ` [${todo.tags.join(", ")}]` : "";
     const progress = formatChecklistProgress(todo);
-    return `${formatTodoId(todo.id)} ${getTodoTitle(todo)}${tagText}${formatAssignmentSuffix(todo)}${progress}`;
+    return `${getTodoTitle(todo)}${tagText}${formatAssignmentSuffix(todo)}${progress}`;
 }

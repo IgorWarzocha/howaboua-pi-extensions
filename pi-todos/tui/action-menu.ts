@@ -2,7 +2,7 @@ import { Container, SelectList, Text, type SelectItem } from "@mariozechner/pi-t
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import { DynamicBorder } from "@mariozechner/pi-coding-agent";
 import type { TodoRecord, TodoMenuAction } from "../types.js";
-import { formatTodoId, isTodoClosed } from "../format.js";
+import { isTodoClosed } from "../format.js";
 
 export class TodoActionMenuComponent extends Container {
     private selectList: SelectList;
@@ -44,7 +44,7 @@ export class TodoActionMenuComponent extends Container {
             new Text(
                 theme.fg(
                     "accent",
-                    theme.bold(`Actions for ${formatTodoId(todo.id)} "${title}"`),
+                    theme.bold(`Actions for "${title}"`),
                 ),
             ),
         );

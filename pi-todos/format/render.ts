@@ -1,7 +1,7 @@
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import { keyHint } from "@mariozechner/pi-coding-agent";
 import type { ChecklistItem, TodoFrontMatter, TodoRecord } from "../types.js";
-import { deriveTodoStatus, formatChecklistProgress, formatTodoId, getTodoStatus, getTodoTitle, isTodoClosed } from "./base.js";
+import { deriveTodoStatus, formatChecklistProgress, getTodoStatus, getTodoTitle, isTodoClosed } from "./base.js";
 import { splitTodosByAssignment } from "./agent.js";
 
 export function renderAssignmentSuffix(theme: Theme, todo: TodoFrontMatter, currentSessionId?: string): string {
@@ -20,7 +20,7 @@ export function renderTodoHeading(theme: Theme, todo: TodoFrontMatter, currentSe
     const assignmentText = renderAssignmentSuffix(theme, todo, currentSessionId);
     const progress = formatChecklistProgress(todo);
     const progressText = progress ? theme.fg("muted", progress) : "";
-    return theme.fg("accent", formatTodoId(todo.id)) + " " + theme.fg(titleColor, getTodoTitle(todo)) + tagText + assignmentText + progressText;
+    return theme.fg(titleColor, getTodoTitle(todo)) + tagText + assignmentText + progressText;
 }
 
 export function renderTodoList(theme: Theme, todos: TodoFrontMatter[], expanded: boolean, currentSessionId?: string): string {

@@ -2,7 +2,7 @@ import { Markdown, TUI, getEditorKeybindings, truncateToWidth, visibleWidth } fr
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import { getMarkdownTheme } from "@mariozechner/pi-coding-agent";
 import type { TodoRecord, TodoOverlayAction } from "../types.js";
-import { formatTodoId, isTodoClosed } from "../format.js";
+import { isTodoClosed } from "../format.js";
 import { renderChecklist } from "../format.js";
 
 export class TodoDetailOverlayComponent {
@@ -127,7 +127,7 @@ export class TodoDetailOverlayComponent {
     private buildTitleLine(width: number): string {
         const titleText = this.todo.title
             ? ` ${this.todo.title} `
-            : ` Todo ${formatTodoId(this.todo.id)} `;
+            : " Todo ";
         const titleWidth = visibleWidth(titleText);
         if (titleWidth >= width) {
             return truncateToWidth(this.theme.fg("accent", titleText.trim()), width);
@@ -146,9 +146,9 @@ export class TodoDetailOverlayComponent {
         const statusColor = isTodoClosed(status) ? "dim" : "success";
         const tagText = this.todo.tags.length ? this.todo.tags.join(", ") : "no tags";
         const line =
-            this.theme.fg("accent", formatTodoId(this.todo.id)) +
-            this.theme.fg("muted", " • ") +
             this.theme.fg(statusColor, status) +
+            this.theme.fg("muted", " • ") +
+            this.theme.fg("muted", this.todo.title || "(untitled)") +
             this.theme.fg("muted", " • ") +
             this.theme.fg("muted", tagText);
         return truncateToWidth(line, width);

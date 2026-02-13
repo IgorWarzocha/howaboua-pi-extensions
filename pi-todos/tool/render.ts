@@ -1,15 +1,11 @@
 import { Text } from "@mariozechner/pi-tui";
 import type { TodoToolDetails } from "../types.js";
-import { appendExpandHint, formatTodoId, renderTodoDetail, renderTodoList, splitTodosByAssignment } from "../format.js";
-import { normalizeTodoId } from "../parser.js";
+import { appendExpandHint, renderTodoDetail, renderTodoList, splitTodosByAssignment } from "../format.js";
 
 export function renderToolCall(args: Record<string, unknown>, theme: { fg: (color: string, value: string) => string; bold: (value: string) => string }) {
     const action = typeof args.action === "string" ? args.action : "";
-    const id = typeof args.id === "string" ? args.id : "";
     const title = typeof args.title === "string" ? args.title : "";
-    const normalizedId = id ? normalizeTodoId(id) : "";
     let text = theme.fg("toolTitle", theme.bold("todo ")) + theme.fg("muted", action);
-    if (normalizedId) text += " " + theme.fg("accent", formatTodoId(normalizedId));
     if (title) text += " " + theme.fg("dim", `"${title}"`);
     return new Text(text, 0, 0);
 }

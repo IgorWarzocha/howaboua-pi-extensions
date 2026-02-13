@@ -14,7 +14,7 @@ export function registerTodoTool(pi: ExtensionAPI) {
             "Actions: list, list-all, get, create, update, append, claim, release, tick. " +
             "Title is the short summary; body is long-form markdown notes. " +
             "Use 'create' with a non-empty checklist, 'update' to replace body content, 'append' to add to it, and 'tick' to check off checklist items. " +
-            "Todo ids are TODO-<hex>; id parameters MUST accept TODO-<hex> or raw hex. " +
+            "Todo ids are internal references; title MAY be used for lookup when id is omitted. " +
             "You MUST claim tasks before working on them to avoid conflicts. " +
             "When a todo has a checklist, use 'tick' to check off checklist items. Status is derived from checklist completion. " +
             "You SHOULD close todos when complete.",

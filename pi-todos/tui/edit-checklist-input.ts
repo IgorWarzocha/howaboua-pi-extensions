@@ -2,7 +2,7 @@ import { Container, Input, Spacer, Text, TUI, getEditorKeybindings } from "@mari
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import { DynamicBorder } from "@mariozechner/pi-coding-agent";
 import type { TodoRecord } from "../types.js";
-import { formatTodoId, renderChecklist } from "../format.js";
+import { renderChecklist } from "../format.js";
 
 export class TodoEditChecklistInputComponent extends Container {
     private input: Input;
@@ -24,7 +24,7 @@ export class TodoEditChecklistInputComponent extends Container {
         this.addChild(new Spacer(1));
 
         const title = todo.title || "(untitled)";
-        this.addChild(new Text(theme.fg("accent", theme.bold(`Edit Checklist: ${formatTodoId(todo.id)}`)), 1, 0));
+        this.addChild(new Text(theme.fg("accent", theme.bold("Edit Checklist")), 1, 0));
         this.addChild(new Text(theme.fg("muted", title), 1, 0));
         this.addChild(new Spacer(1));
 

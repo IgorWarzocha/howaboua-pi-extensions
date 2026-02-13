@@ -1,9 +1,8 @@
 import type { ChecklistItem } from "../types.js";
-import { formatTodoId } from "./base.js";
 
-export function buildRefinePrompt(todoId: string, title: string): string {
+export function buildRefinePrompt(title: string): string {
     return (
-        `let's refine task ${formatTodoId(todoId)} "${title}":\n\n` +
+        `let's refine task "${title}":\n\n` +
         "You MUST NOT rewrite the todo yet. You MUST ask clear, concrete questions to clarify:\n" +
         "- What files MUST be read?\n" +
         "- What dependencies exist?\n" +
@@ -25,13 +24,13 @@ export function buildCreatePrompt(userPrompt: string): string {
     );
 }
 
-export function buildEditChecklistPrompt(todoId: string, title: string, checklist: ChecklistItem[], userIntent: string): string {
+export function buildEditChecklistPrompt(title: string, checklist: ChecklistItem[], userIntent: string): string {
     const checklistText = checklist.map(item => {
         const status = item.status === "checked" ? "[x]" : "[ ]";
         return `  ${status} ${item.id}: ${item.title}`;
     }).join("\n");
     return (
-        `Update the checklist for ${formatTodoId(todoId)} "${title}" based on this request:\n` +
+        `Update the checklist for "${title}" based on this request:\n` +
         `"${userIntent}"\n\n` +
         `Current checklist:\n${checklistText}\n\n` +
         "Use the todo tool's `update` action to modify the checklist array. " +
