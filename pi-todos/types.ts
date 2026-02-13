@@ -37,7 +37,6 @@ export type TodoAction =
     | "create"
     | "update"
     | "append"
-    | "delete"
     | "claim"
     | "release"
     | "tick";
@@ -47,10 +46,11 @@ export type TodoOverlayAction = "back" | "work" | "edit-checklist";
 export type TodoMenuAction =
     | "work"
     | "refine"
-    | "close"
+    | "complete"
+    | "abandon"
     | "reopen"
-    | "release"
     | "delete"
+    | "release"
     | "copyPath"
     | "copyText"
     | "view";
@@ -58,7 +58,7 @@ export type TodoMenuAction =
 export type TodoToolDetails =
     | { action: "list" | "list-all"; todos: TodoFrontMatter[]; currentSessionId?: string; error?: string }
     | {
-          action: "get" | "create" | "update" | "append" | "delete" | "claim" | "release";
+          action: "get" | "create" | "update" | "append" | "claim" | "release";
           todo: TodoRecord;
           error?: string;
       }

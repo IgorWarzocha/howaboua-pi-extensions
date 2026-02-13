@@ -1,18 +1,10 @@
 import type { ExtensionAPI, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import type { TodoFrontMatter, TodoMenuAction, TodoOverlayAction, TodoQuickAction, TodoRecord } from "./types.js";
-import { getTodosDir, listTodos, listTodosSync, ensureTodoExists, updateTodoStatus, deleteTodo, releaseTodoAssignment } from "./file-io.js";
+import { getTodosDir, listTodos, listTodosSync, ensureTodoExists, updateTodoStatus, deleteTodo, releaseTodoAssignment, reopenTodoForUser } from "./file-io.js";
 import { getTodoPath } from "./file-io.js";
 import { filterTodos } from "./filter.js";
-import { formatTodoId, formatTodoList, buildRefinePrompt, buildCreatePrompt, buildEditChecklistPrompt, getTodoTitle } from "./format.js";
-import { copyTodoPathToClipboard, copyTodoTextToClipboard } from "./clipboard.js";
-import {
-    TodoSelectorComponent,
-    TodoActionMenuComponent,
-    TodoDeleteConfirmComponent,
-    TodoDetailOverlayComponent,
-    TodoCreateInputComponent,
-    TodoEditChecklistInputComponent,
-} from "./tui/index.js";
+import { formatTodoId, formatTodoList, buildRefinePrompt, buildCreatePrompt, buildEditChecklistPrompt, getTodoTitle, isTodoClosed } from "./format.js";
+import { TodoSelectorComponent, TodoActionMenuComponent, TodoDetailOverlayComponent, TodoCreateInputComponent, TodoEditChecklistInputComponent } from "./tui/index.js";
 
 export function registerTodoCommand(pi: ExtensionAPI) {
     pi.registerCommand("todo", {
@@ -46,49 +38,68 @@ export function registerTodoCommand(pi: ExtensionAPI) {
 
             let nextPrompt: string | null = null;
             await ctx.ui.custom<void>((tui, theme, _kb, done) => {
-                let selector: TodoSelectorComponent | null = null;
+                let openSelector: TodoSelectorComponent | null = null;
+                let closedSelector: TodoSelectorComponent | null = null;
                 let actionMenu: TodoActionMenuComponent | null = null;
-                let deleteConfirm: TodoDeleteConfirmComponent | null = null;
-    let createInput: TodoCreateInputComponent | null = null;
-    let editChecklistInput: TodoEditChecklistInputComponent | null = null;
-    let activeComponent:
+                let createInput: TodoCreateInputComponent | null = null;
+                let editChecklistInput: TodoEditChecklistInputComponent | null = null;
+                let activeComponent:
                     | {
-                            render: (width: number) => string[];
-                            invalidate: () => void;
-                            handleInput?: (data: string) => void;
-                            focused?: boolean;
-                      }
+                        render: (width: number) => string[];
+                        invalidate: () => void;
+                        handleInput?: (data: string) => void;
+                        focused?: boolean;
+                    }
                     | null = null;
                 let wrapperFocused = false;
+
+                const listOpenTodos = (all: TodoFrontMatter[]) => all.filter(todo => !isTodoClosed(todo.status));
+                const listClosedTodos = (all: TodoFrontMatter[]) => all.filter(todo => isTodoClosed(todo.status));
+
+                const refreshSelectors = async () => {
+                    const updated = await listTodos(todosDir);
+                    openSelector?.setTodos(listOpenTodos(updated));
+                    closedSelector?.setTodos(listClosedTodos(updated));
+                };
+
+                const runListCommand = async (action: "sweep-abandoned" | "sweep-completed") => {
+                    const updated = await listTodos(todosDir);
+                    const target = action === "sweep-abandoned" ? "abandoned" : "done";
+                    const ids = updated.filter(todo => todo.status === target).map(todo => todo.id);
+                    for (const id of ids) {
+                        await deleteTodo(todosDir, id, ctx);
+                    }
+                    await refreshSelectors();
+                    ctx.ui.notify(
+                        action === "sweep-abandoned"
+                            ? `Deleted ${ids.length} abandoned todos`
+                            : `Deleted ${ids.length} completed todos`,
+                        "info",
+                    );
+                };
 
                 const setActiveComponent = (
                     component:
                         | {
-                                render: (width: number) => string[];
-                                invalidate: () => void;
-                                handleInput?: (data: string) => void;
-                                focused?: boolean;
-                          }
+                            render: (width: number) => string[];
+                            invalidate: () => void;
+                            handleInput?: (data: string) => void;
+                            focused?: boolean;
+                        }
                         | null,
                 ) => {
-                    if (activeComponent && "focused" in activeComponent) {
-                        activeComponent.focused = false;
-                    }
+                    if (activeComponent && "focused" in activeComponent) activeComponent.focused = false;
                     activeComponent = component;
-                    if (activeComponent && "focused" in activeComponent) {
-                        activeComponent.focused = wrapperFocused;
-                    }
+                    if (activeComponent && "focused" in activeComponent) activeComponent.focused = wrapperFocused;
                     tui.requestRender();
                 };
 
                 const resolveTodoRecord = async (todo: TodoFrontMatter): Promise<TodoRecord | null> => {
                     const filePath = getTodoPath(todosDir, todo.id);
                     const record = await ensureTodoExists(filePath, todo.id);
-                    if (!record) {
-                        ctx.ui.notify(`Todo ${formatTodoId(todo.id)} not found`, "error");
-                        return null;
-                    }
-                    return record;
+                    if (record) return record;
+                    ctx.ui.notify(`Todo ${formatTodoId(todo.id)} not found`, "error");
+                    return null;
                 };
 
                 const openTodoOverlay = async (record: TodoRecord): Promise<TodoOverlayAction> => {
@@ -103,10 +114,7 @@ export function registerTodoCommand(pi: ExtensionAPI) {
                     return action ?? "back";
                 };
 
-                const applyTodoAction = async (
-                    record: TodoRecord,
-                    action: TodoMenuAction,
-                ): Promise<"stay" | "exit"> => {
+                const applyTodoAction = async (record: TodoRecord, action: TodoMenuAction): Promise<"stay" | "exit"> => {
                     if (action === "refine") {
                         const title = record.title || "(untitled)";
                         nextPrompt = buildRefinePrompt(record.id, title);
@@ -119,55 +127,49 @@ export function registerTodoCommand(pi: ExtensionAPI) {
                         done();
                         return "exit";
                     }
-                    if (action === "view") {
-                        return "stay";
-                    }
-                    if (action === "copyPath") {
-                        copyTodoPathToClipboard(todosDir, record.id, ctx.ui.notify);
-                        return "stay";
-                    }
-                    if (action === "copyText") {
-                        copyTodoTextToClipboard(record, ctx.ui.notify);
-                        return "stay";
-                    }
+                    if (action === "view") return "stay";
                     if (action === "release") {
                         const result = await releaseTodoAssignment(todosDir, record.id, ctx, true);
                         if ("error" in result) {
                             ctx.ui.notify(result.error, "error");
                             return "stay";
                         }
-                        const updatedTodos = await listTodos(todosDir);
-                        selector?.setTodos(updatedTodos);
+                        await refreshSelectors();
                         ctx.ui.notify(`Released todo ${formatTodoId(record.id)}`, "info");
                         return "stay";
                     }
                     if (action === "delete") {
-                        const result = await deleteTodo(todosDir, record.id, ctx);
-                        if ("error" in result) {
-                            ctx.ui.notify(result.error, "error");
+                        const removed = await deleteTodo(todosDir, record.id, ctx);
+                        if ("error" in removed) {
+                            ctx.ui.notify(removed.error, "error");
                             return "stay";
                         }
-                        const updatedTodos = await listTodos(todosDir);
-                        selector?.setTodos(updatedTodos);
+                        await refreshSelectors();
                         ctx.ui.notify(`Deleted todo ${formatTodoId(record.id)}`, "info");
                         return "stay";
                     }
-                    const nextStatus = action === "close" ? "closed" : "open";
+                    if (action === "reopen") {
+                        const reopened = await reopenTodoForUser(todosDir, record.id, ctx);
+                        if ("error" in reopened) {
+                            ctx.ui.notify(reopened.error, "error");
+                            return "stay";
+                        }
+                        await refreshSelectors();
+                        ctx.ui.notify(`Reopened todo ${formatTodoId(record.id)} and reset checklist`, "info");
+                        return "stay";
+                    }
+                    const nextStatus = action === "complete" ? "done" : "abandoned";
                     const result = await updateTodoStatus(todosDir, record.id, nextStatus, ctx);
                     if ("error" in result) {
                         ctx.ui.notify(result.error, "error");
                         return "stay";
                     }
-                    const updatedTodos = await listTodos(todosDir);
-                    selector?.setTodos(updatedTodos);
-                    ctx.ui.notify(
-                        `${action === "close" ? "Closed" : "Reopened"} todo ${formatTodoId(record.id)}`,
-                        "info",
-                    );
+                    await refreshSelectors();
+                    ctx.ui.notify(`${action === "complete" ? "Completed" : "Abandoned"} todo ${formatTodoId(record.id)}`, "info");
                     return "stay";
                 };
 
-                const handleActionSelection = async (record: TodoRecord, action: TodoMenuAction) => {
+                const handleActionSelection = async (record: TodoRecord, action: TodoMenuAction, source: "open" | "closed") => {
                     if (action === "view") {
                         const overlayAction = await openTodoOverlay(record);
                         if (overlayAction === "work") {
@@ -190,43 +192,24 @@ export function registerTodoCommand(pi: ExtensionAPI) {
                             setActiveComponent(editChecklistInput);
                             return;
                         }
-                        if (actionMenu) {
-                            setActiveComponent(actionMenu);
-                        }
-                        return;
-                    }
-                    if (action === "delete") {
-                        const message = `Delete todo ${formatTodoId(record.id)}? This cannot be undone.`;
-                        deleteConfirm = new TodoDeleteConfirmComponent(theme, message, (confirmed) => {
-                            if (!confirmed) {
-                                setActiveComponent(actionMenu);
-                                return;
-                            }
-                            void (async () => {
-                                await applyTodoAction(record, "delete");
-                                setActiveComponent(selector);
-                            })();
-                        });
-                        setActiveComponent(deleteConfirm);
+                        setActiveComponent(source === "closed" ? closedSelector : openSelector);
                         return;
                     }
                     const result = await applyTodoAction(record, action);
-                    if (result === "stay") {
-                        setActiveComponent(selector);
-                    }
+                    if (result === "stay") setActiveComponent(source === "closed" ? closedSelector : openSelector);
                 };
 
-                const showActionMenu = async (todo: TodoFrontMatter | TodoRecord) => {
+                const showActionMenu = async (todo: TodoFrontMatter | TodoRecord, source: "open" | "closed") => {
                     const record = "body" in todo ? todo : await resolveTodoRecord(todo);
                     if (!record) return;
                     actionMenu = new TodoActionMenuComponent(
                         theme,
                         record,
                         (action) => {
-                            void handleActionSelection(record, action);
+                            void handleActionSelection(record, action, source);
                         },
                         () => {
-                            setActiveComponent(selector);
+                            setActiveComponent(source === "closed" ? closedSelector : openSelector);
                         },
                     );
                     setActiveComponent(actionMenu);
@@ -241,7 +224,7 @@ export function registerTodoCommand(pi: ExtensionAPI) {
                             done();
                         },
                         () => {
-                            setActiveComponent(selector);
+                            setActiveComponent(openSelector);
                         },
                     );
                     setActiveComponent(createInput);
@@ -262,20 +245,41 @@ export function registerTodoCommand(pi: ExtensionAPI) {
                     done();
                 };
 
-                selector = new TodoSelectorComponent(
+                openSelector = new TodoSelectorComponent(
                     tui,
                     theme,
-                    todos,
+                    listOpenTodos(todos),
                     (todo) => {
-                        void showActionMenu(todo);
+                        void showActionMenu(todo, "open");
                     },
                     () => done(),
                     searchTerm || undefined,
                     currentSessionId,
                     handleQuickAction,
+                    () => setActiveComponent(closedSelector),
+                    (action) => {
+                        void runListCommand(action);
+                    },
                 );
 
-                setActiveComponent(selector);
+                closedSelector = new TodoSelectorComponent(
+                    tui,
+                    theme,
+                    listClosedTodos(todos),
+                    (todo) => {
+                        void showActionMenu(todo, "closed");
+                    },
+                    () => done(),
+                    undefined,
+                    currentSessionId,
+                    handleQuickAction,
+                    () => setActiveComponent(openSelector),
+                    (action) => {
+                        void runListCommand(action);
+                    },
+                );
+
+                setActiveComponent(openSelector);
 
                 const rootComponent = {
                     get focused() {
@@ -283,9 +287,7 @@ export function registerTodoCommand(pi: ExtensionAPI) {
                     },
                     set focused(value: boolean) {
                         wrapperFocused = value;
-                        if (activeComponent && "focused" in activeComponent) {
-                            activeComponent.focused = value;
-                        }
+                        if (activeComponent && "focused" in activeComponent) activeComponent.focused = value;
                     },
                     render(width: number) {
                         return activeComponent ? activeComponent.render(width) : [];
@@ -301,9 +303,7 @@ export function registerTodoCommand(pi: ExtensionAPI) {
                 return rootComponent;
             });
 
-            if (nextPrompt) {
-                pi.sendUserMessage(nextPrompt);
-            }
+            if (nextPrompt) pi.sendUserMessage(nextPrompt);
         },
     });
 }

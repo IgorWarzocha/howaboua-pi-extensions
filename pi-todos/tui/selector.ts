@@ -8,7 +8,6 @@ import {
     TUI,
     getEditorKeybindings,
     matchesKey,
-    truncateToWidth,
 } from "@mariozechner/pi-tui";
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import { DynamicBorder } from "@mariozechner/pi-coding-agent";
@@ -32,6 +31,9 @@ export class TodoSelectorComponent extends Container implements Focusable {
     private hintText: Text;
     private currentSessionId?: string;
     private onQuickAction?: (todo: TodoFrontMatter | null, action: TodoQuickAction) => void;
+    private onTabCallback?: () => void;
+    private onCommandCallback?: (action: "sweep-abandoned" | "sweep-completed") => void;
+    private mode: "open" | "closed";
 
     private _focused = false;
     get focused(): boolean {
@@ -51,6 +53,9 @@ export class TodoSelectorComponent extends Container implements Focusable {
         initialSearchInput?: string,
         currentSessionId?: string,
         onQuickAction?: (todo: TodoFrontMatter | null, action: TodoQuickAction) => void,
+        onTab?: () => void,
+        onCommand?: (action: "sweep-abandoned" | "sweep-completed") => void,
+        mode: "open" | "closed" = "open",
     ) {
         super();
         this.tui = tui;
@@ -61,6 +66,9 @@ export class TodoSelectorComponent extends Container implements Focusable {
         this.onSelectCallback = onSelect;
         this.onCancelCallback = onCancel;
         this.onQuickAction = onQuickAction;
+        this.onTabCallback = onTab;
+        this.onCommandCallback = onCommand;
+        this.mode = mode;
 
         this.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
         this.addChild(new Spacer(1));
@@ -126,10 +134,11 @@ export class TodoSelectorComponent extends Container implements Focusable {
     }
 
     private updateHints(): void {
+        const sweepText = this.mode === "closed" ? " • Ctrl+Alt+A sweep abandoned • Ctrl+Alt+D sweep completed" : "";
         this.hintText.setText(
             this.theme.fg(
                 "dim",
-                "Type to search • ↑↓ select • Enter actions • Ctrl+Shift+C create • Ctrl+Shift+W work • Ctrl+Shift+R refine • Esc close",
+                `Type to search • ↑↓ select • Enter actions • Tab switch list${sweepText} • Ctrl+Alt+C create • Ctrl+Alt+W work • Ctrl+Alt+R refine • Esc close`,
             ),
         );
     }
@@ -162,7 +171,7 @@ export class TodoSelectorComponent extends Container implements Focusable {
             const closed = isTodoClosed(todo.status);
             const prefix = isSelected ? this.theme.fg("accent", "→ ") : "  ";
             const titleColor = isSelected ? "accent" : closed ? "dim" : "text";
-            const statusColor = closed ? "dim" : "success";
+            const statusColor = todo.status.toLowerCase() === "abandoned" ? "error" : closed ? "dim" : "success";
             const tagText = todo.tags.length ? ` [${todo.tags.join(", ")}]` : "";
             const assignmentText = renderAssignmentSuffix(this.theme, todo, this.currentSessionId);
             const line =
@@ -219,18 +228,30 @@ export class TodoSelectorComponent extends Container implements Focusable {
             this.onCancelCallback();
             return;
         }
-        if (matchesKey(keyData, Key.ctrlShift("c"))) {
+        if (matchesKey(keyData, Key.tab)) {
+            this.onTabCallback?.();
+            return;
+        }
+        if (matchesKey(keyData, Key.ctrlAlt("c"))) {
             this.onQuickAction?.(null, "create");
             return;
         }
-        if (matchesKey(keyData, Key.ctrlShift("r"))) {
+        if (this.mode === "closed" && matchesKey(keyData, Key.ctrlAlt("a"))) {
+            this.onCommandCallback?.("sweep-abandoned");
+            return;
+        }
+        if (this.mode === "closed" && matchesKey(keyData, Key.ctrlAlt("d"))) {
+            this.onCommandCallback?.("sweep-completed");
+            return;
+        }
+        if (matchesKey(keyData, Key.ctrlAlt("r"))) {
             if (this.selectedIndex > 0) {
                 const selected = this.filteredTodos[this.selectedIndex - 1];
                 if (selected) this.onQuickAction?.(selected, "refine");
             }
             return;
         }
-        if (matchesKey(keyData, Key.ctrlShift("w"))) {
+        if (matchesKey(keyData, Key.ctrlAlt("w"))) {
             if (this.selectedIndex > 0) {
                 const selected = this.filteredTodos[this.selectedIndex - 1];
                 if (selected) this.onQuickAction?.(selected, "work");

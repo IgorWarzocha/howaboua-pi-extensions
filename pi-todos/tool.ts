@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Text } from "@mariozechner/pi-tui";
 import type { TodoAction, TodoRecord, TodoToolDetails, ChecklistItem } from "./types.js";
-import { getTodosDir, getTodosDirLabel, ensureTodosDir, listTodos, getTodoPath, ensureTodoExists, generateTodoId, writeTodoFile, appendTodoBody, claimTodoAssignment, releaseTodoAssignment, deleteTodo } from "./file-io.js";
+import { getTodosDir, getTodosDirLabel, ensureTodosDir, listTodos, getTodoPath, ensureTodoExists, generateTodoId, writeTodoFile, appendTodoBody, claimTodoAssignment, releaseTodoAssignment } from "./file-io.js";
 import { validateTodoId, normalizeTodoId } from "./parser.js";
 import { formatTodoId, splitTodosByAssignment, serializeTodoForAgent, serializeTodoListForAgent, renderTodoList, renderTodoDetail, appendExpandHint, deriveTodoStatus, formatTickResult } from "./format.js";
 
@@ -16,7 +16,6 @@ const TodoParams = Type.Object({
         "create",
         "update",
         "append",
-        "delete",
         "claim",
         "release",
         "tick",
@@ -52,9 +51,9 @@ export function registerTodoTool(pi: ExtensionAPI) {
         label: "Todo",
         description:
             `Manage file-based todos in ${todosDirLabel}. ` +
-            "Actions: list, list-all, get, create, update, append, delete, claim, release, tick. " +
+            "Actions: list, list-all, get, create, update, append, claim, release, tick. " +
             "Title is the short summary; body is long-form markdown notes. " +
-            "Use 'update' to replace body content, 'append' to add to it, 'tick' to check off checklist items. " +
+            "Use 'create' with a non-empty checklist, 'update' to replace body content, 'append' to add to it, and 'tick' to check off checklist items. " +
             "Todo ids are TODO-<hex>; id parameters MUST accept TODO-<hex> or raw hex. " +
             "You MUST claim tasks before working on them to avoid conflicts. " +
             "When a todo has a checklist, use 'tick' to check off items. Status is derived from checklist completion. " +
@@ -123,6 +122,12 @@ export function registerTodoTool(pi: ExtensionAPI) {
                             details: { action: "create", error: "title required" },
                         };
                     }
+                    if (!params.checklist?.length) {
+                        return {
+                            content: [{ type: "text", text: "Error: checklist required for create action" }],
+                            details: { action: "create", error: "checklist required" },
+                        };
+                    }
                     await ensureTodosDir(todosDir);
                     const id = await generateTodoId(todosDir);
                     const filePath = getTodoPath(todosDir, id);
@@ -130,7 +135,7 @@ export function registerTodoTool(pi: ExtensionAPI) {
                         id,
                         title: params.title,
                         tags: params.tags ?? [],
-                        status: params.status ?? "open",
+                        status: "open",
                         created_at: new Date().toISOString(),
                         body: params.body ?? "",
                         checklist: params.checklist?.map(item => ({
@@ -139,6 +144,7 @@ export function registerTodoTool(pi: ExtensionAPI) {
                             status: item.status ?? "unchecked",
                         })) as ChecklistItem[] | undefined,
                     };
+                    todo.status = deriveTodoStatus(todo);
 
                     await writeTodoFile(filePath, todo);
 
@@ -181,19 +187,21 @@ export function registerTodoTool(pi: ExtensionAPI) {
 
                     existing.id = normalizedId;
                     if (params.title !== undefined) existing.title = params.title;
-                    if (params.status !== undefined) existing.status = params.status;
-                    if (params.status === "done" && existing.checklist?.length) {
-                        const checked = existing.checklist.filter(i => i.status === "checked").length;
-                        if (checked < existing.checklist.length) {
-                            return {
-                                content: [{ type: "text", text: `Error: Cannot set status to "done" when checklist has unchecked items. Use tick action to check off items. ${checked}/${existing.checklist.length} items complete.` }],
-                                details: { action: "update", error: "use tick action for checklist todos" },
-                            };
-                        }
+                    if (params.status !== undefined) {
+                        return {
+                            content: [{ type: "text", text: "Error: status updates are user-only. Use tick for checklist progress." }],
+                            details: { action: "update", error: "status is user-only" },
+                        };
                     }
                     if (params.tags !== undefined) existing.tags = params.tags;
                     if (params.body !== undefined) existing.body = params.body;
                     if (params.checklist !== undefined) {
+                        if (!params.checklist.length) {
+                            return {
+                                content: [{ type: "text", text: "Error: checklist MUST NOT be empty" }],
+                                details: { action: "update", error: "empty checklist" },
+                            };
+                        }
                         existing.checklist = params.checklist.map(item => ({
                             id: item.id,
                             title: item.title,
@@ -306,34 +314,6 @@ export function registerTodoTool(pi: ExtensionAPI) {
                     };
                 }
 
-                case "delete": {
-                    if (!params.id) {
-                        return {
-                            content: [{ type: "text", text: "Error: id required" }],
-                            details: { action: "delete", error: "id required" },
-                        };
-                    }
-
-                    const validated = validateTodoId(params.id);
-                    if ("error" in validated) {
-                        return {
-                            content: [{ type: "text", text: validated.error }],
-                            details: { action: "delete", error: validated.error },
-                        };
-                    }
-                    const result = await deleteTodo(todosDir, validated.id, ctx);
-                    if (typeof result === "object" && "error" in result) {
-                        return {
-                            content: [{ type: "text", text: result.error }],
-                            details: { action: "delete", error: result.error },
-                        };
-                    }
-
-                    return {
-                        content: [{ type: "text", text: serializeTodoForAgent(result as TodoRecord) }],
-                        details: { action: "delete", todo: result as TodoRecord },
-                    };
-                }
                 case "tick": {
                     if (!params.id) {
                         return {
@@ -451,9 +431,7 @@ export function registerTodoTool(pi: ExtensionAPI) {
                         ? "Updated"
                         : details.action === "append"
                             ? "Appended to"
-                            : details.action === "delete"
-                                ? "Deleted"
-                                : details.action === "claim"
+                            : details.action === "claim"
                                     ? "Claimed"
                                     : details.action === "release"
                                         ? "Released"

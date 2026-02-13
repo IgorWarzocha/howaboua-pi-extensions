@@ -22,18 +22,20 @@ export class TodoActionMenuComponent extends Container {
         const closed = isTodoClosed(todo.status);
         const title = todo.title || "(untitled)";
         const options: SelectItem[] = [
-            { value: "view", label: "view", description: "View todo" },
             { value: "work", label: "work", description: "Work on todo" },
-            { value: "refine", label: "refine", description: "Refine task" },
             ...(closed
-                ? [{ value: "reopen", label: "reopen", description: "Reopen todo" }]
-                : [{ value: "close", label: "close", description: "Close todo" }]),
+                ? [
+                    { value: "reopen", label: "reopen", description: "Reopen todo" },
+                    { value: "delete", label: "delete", description: "Delete todo" },
+                ]
+                : [
+                    { value: "complete", label: "complete", description: "Mark todo as completed" },
+                    { value: "abandon", label: "abandon", description: "Mark todo as abandoned" },
+                ]),
             ...(todo.assigned_to_session
                 ? [{ value: "release", label: "release", description: "Release assignment" }]
                 : []),
-            { value: "copyPath", label: "copy path", description: "Copy absolute path to clipboard" },
-            { value: "copyText", label: "copy text", description: "Copy title and body to clipboard" },
-            { value: "delete", label: "delete", description: "Delete todo" },
+            { value: "view", label: "view", description: "View details" },
         ];
 
         this.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));

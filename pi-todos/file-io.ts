@@ -334,4 +334,34 @@ export async function deleteTodo(
     return result;
 }
 
+export async function reopenTodoForUser(
+    todosDir: string,
+    id: string,
+    ctx: ExtensionContext,
+): Promise<TodoRecord | { error: string }> {
+    const validated = validateTodoId(id);
+    if ("error" in validated) {
+        return { error: validated.error };
+    }
+    const normalizedId = validated.id;
+    const filePath = getTodoPath(todosDir, normalizedId);
+    if (!existsSync(filePath)) {
+        return { error: `Todo ${displayTodoId(id)} not found` };
+    }
+    const result = await withTodoLock(todosDir, normalizedId, ctx, async () => {
+        const existing = await ensureTodoExists(filePath, normalizedId);
+        if (!existing) return { error: `Todo ${displayTodoId(id)} not found` } as const;
+        if (existing.checklist?.length) {
+            existing.checklist = existing.checklist.map(item => ({ id: item.id, title: item.title, status: "unchecked" }));
+        }
+        existing.status = "open";
+        existing.assigned_to_session = undefined;
+        await writeTodoFile(filePath, existing);
+        return existing;
+    });
+    if (typeof result === "object" && "error" in result) {
+        return { error: result.error };
+    }
+    return result;
+}
 export { filterTodos };

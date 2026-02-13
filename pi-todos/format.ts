@@ -13,7 +13,7 @@ export function displayTodoId(id: string): string {
 }
 
 export function isTodoClosed(status: string): boolean {
-    return ["closed", "done"].includes(status.toLowerCase());
+    return ["closed", "done", "abandoned"].includes(status.toLowerCase());
 }
 
 export function deriveTodoStatus(todo: TodoRecord): string {
@@ -52,6 +52,11 @@ export function sortTodos(todos: TodoFrontMatter[]): TodoFrontMatter[] {
         const aAssigned = !aClosed && Boolean(a.assigned_to_session);
         const bAssigned = !bClosed && Boolean(b.assigned_to_session);
         if (aAssigned !== bAssigned) return aAssigned ? -1 : 1;
+        if (aClosed && bClosed) {
+            const aAbandoned = a.status.toLowerCase() === "abandoned";
+            const bAbandoned = b.status.toLowerCase() === "abandoned";
+            if (aAbandoned !== bAbandoned) return aAbandoned ? -1 : 1;
+        }
         return (a.created_at || "").localeCompare(b.created_at || "");
     });
 }
@@ -101,8 +106,9 @@ export function buildCreatePrompt(userPrompt: string): string {
         "You MUST call the todo tool to create a todo for the following task. Before creating:\n\n" +
         "1. You MUST read relevant files to understand the codebase context\n" +
         "2. You SHOULD research the internet if external knowledge is needed\n" +
-        "3. You MAY ask me clarifying questions if requirements are ambiguous\n\n" +
-        "You MUST NOT just create a todo without proper context. Take time to understand the task first.\n\n" +
+        "3. You MUST include a non-empty checklist when creating the todo\n" +
+        "4. You MAY ask me clarifying questions if requirements are ambiguous\n\n" +
+        "You MUST NOT just create a todo without proper context. You MUST provide actionable checklist items with short IDs (e.g., \"1\", \"2\", \"3\").\n\n" +
         `Task: ${userPrompt}`
     );
 }
@@ -166,8 +172,20 @@ export function formatTodoList(todos: TodoFrontMatter[]): string {
 }
 
 export function serializeTodoForAgent(todo: TodoRecord): string {
-    const payload = { ...todo, id: formatTodoId(todo.id) };
+    const payload: Record<string, unknown> = { ...todo, id: formatTodoId(todo.id) };
+    const hint = buildProgressHint(todo);
+    if (hint) payload.agent_hint = hint;
     return JSON.stringify(payload, null, 2);
+}
+
+export function buildProgressHint(todo: TodoRecord): string | undefined {
+    if (!todo.checklist?.length) return undefined;
+    const checked = todo.checklist.filter(i => i.status === "checked").length;
+    const total = todo.checklist.length;
+    const ratio = checked / total;
+    if (checked < 2) return undefined;
+    if (ratio < 0.5) return undefined;
+    return `Progress is ${checked}/${total}. You MAY read the full todo now if you need refreshed context before the next step.`;
 }
 
 export function serializeTodoListForAgent(todos: TodoFrontMatter[]): string {

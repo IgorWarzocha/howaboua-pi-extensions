@@ -1,9 +1,9 @@
-import { Markdown, Text, TUI, getEditorKeybindings, truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
+import { Markdown, TUI, getEditorKeybindings, truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import { getMarkdownTheme } from "@mariozechner/pi-coding-agent";
 import type { TodoRecord, TodoOverlayAction } from "../types.js";
 import { formatTodoId, isTodoClosed } from "../format.js";
-import { renderChecklist, formatChecklistProgress } from "../format.js";
+import { renderChecklist } from "../format.js";
 
 export class TodoDetailOverlayComponent {
     private todo: TodoRecord;
@@ -48,6 +48,10 @@ export class TodoDetailOverlayComponent {
         }
         if (this.todo.checklist?.length && keyData === "w") {
             this.onAction("work");
+            return;
+        }
+        if (keyData === "a") {
+            this.onAction("back");
             return;
         }
         if (kb.matches(keyData, "selectUp")) {
@@ -154,8 +158,9 @@ export class TodoDetailOverlayComponent {
         if (this.todo.checklist?.length) {
             const edit = this.theme.fg("accent", "enter") + this.theme.fg("muted", " edit checklist");
             const work = this.theme.fg("dim", "w work");
+            const abandon = this.theme.fg("error", "a abandon from actions");
             const back = this.theme.fg("dim", "esc back");
-            let line = [edit, work, back].join(this.theme.fg("muted", " • "));
+            let line = [edit, work, abandon, back].join(this.theme.fg("muted", " • "));
             if (this.totalLines > this.viewHeight) {
                 const start = Math.min(this.totalLines, this.scrollOffset + 1);
                 const end = Math.min(this.totalLines, this.scrollOffset + this.viewHeight);
