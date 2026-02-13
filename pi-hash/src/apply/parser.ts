@@ -16,7 +16,6 @@ import { InvalidPatchError, InvalidHunkError, type Hunk, type EditFileChunk } fr
 
 function sanitizeAddedLine(line: string): string {
   let next = line;
-  next = next.trimStart();
   while (/^\d+:[0-9a-f]{2}\|/.test(next)) {
     next = next.replace(/^\d+:[0-9a-f]{2}\|/, "");
   }
@@ -59,11 +58,11 @@ function assertNoAbsolutePaths(hunks: Hunk[]): void {
     ensureRelativePatchPath(hunk.filePath);
     if (hunk.type === "edit" && hunk.moveToPath) {
       ensureRelativePatchPath(hunk.moveToPath);
-}
+    }
     if (hunk.type === "move") {
       ensureRelativePatchPath(hunk.moveToPath);
     }
-}
+  }
 }
 
 export function parsePatch(patchText: string): Hunk[] {
@@ -118,7 +117,6 @@ function checkPatchBoundaries(lines: string[]): void {
   const plusEndMarker = /^\+\*{2,3}\s*end\s*patch\s*$/i;
 
   if (plusEndMarker.test(lastLine)) {
-    // Auto-repair: treating end marker as Create File content.
     lines[lastIndex] = END_PATCH_MARKER;
   }
 
@@ -168,8 +166,8 @@ function checkPatchBoundaries(lines: string[]): void {
 
 function parseOneHunk(lines: string[], lineNumber: number): { hunk: Hunk; consumedLines: number } {
   const firstLine = lines[0]?.trim() ?? "";
-if (firstLine.startsWith(CREATE_FILE_MARKER)) {
-const filePath = firstLine.slice(CREATE_FILE_MARKER.length);
+  if (firstLine.startsWith(CREATE_FILE_MARKER)) {
+    const filePath = firstLine.slice(CREATE_FILE_MARKER.length);
     let contents = "";
     let consumedLines = 1;
 
@@ -179,26 +177,16 @@ const filePath = firstLine.slice(CREATE_FILE_MARKER.length);
         consumedLines += 1;
         continue;
       }
-
-      // Non-prefixed markers terminate the Create File block
       if (addLine.startsWith("***")) break;
       if (addLine.startsWith("@@ ") || addLine === "@@") break;
-      if (addLine.startsWith("-") || addLine.startsWith(" ")) break;
-
-      if (addLine === "") {
-        contents += "\n";
-        consumedLines += 1;
-        continue;
-      } else {
-        break;
-      }
+      contents += `${addLine}\n`;
+      consumedLines += 1;
     }
 
     if (consumedLines === 1) {
       throw new InvalidHunkError(
         `Create file hunk for '${filePath}' has no content lines.` +
-          `\nEvery content line MUST start with '+'. For blank lines use '+' alone.` +
-          `\nYou MUST NOT omit the '+' prefix on content lines.`,
+          `\nYou MAY use '+' prefix on each line or provide raw content.`,
         lineNumber,
       );
     }
@@ -244,10 +232,9 @@ const filePath = firstLine.slice(CREATE_FILE_MARKER.length);
         continue;
       }
       if (remaining[0].startsWith("***")) break;
-const { chunk, consumedLines: consumedByChunk } = parseEditFileChunk(
+      const { chunk, consumedLines: consumedByChunk } = parseEditFileChunk(
         remaining,
         lineNumber + consumedLines,
-        chunks.length === 0,
       );
       chunks.push(chunk);
       consumedLines += consumedByChunk;
@@ -255,18 +242,17 @@ const { chunk, consumedLines: consumedByChunk } = parseEditFileChunk(
     }
     if (chunks.length === 0) {
       throw new InvalidHunkError(
-`Edit file hunk for '${filePath}' has no chunks.` +
-          `\nEach chunk MUST start with '@@' or '@@ <context>'.` +
-          `\nFor a pure rename without edits, use '*** Move File: <path>' instead.`,
+        `Edit file hunk for '${filePath}' has no chunks.` +
+         `\nYou MUST provide ' ', '+', or '-' prefixed lines.`,
         lineNumber,
       );
     }
 
-return { hunk: { type: "edit", filePath, moveToPath, chunks }, consumedLines };
+    return { hunk: { type: "edit", filePath, moveToPath, chunks }, consumedLines };
   }
   throw new InvalidHunkError(
     `'${firstLine.slice(0, 100)}' is not a valid hunk header.` +
-`\nYou MUST use one of: '${CREATE_FILE_MARKER}<path>', '${DELETE_FILE_MARKER}<path>', '${EDIT_FILE_MARKER}<path>', '${MOVE_FILE_MARKER}<path>'.` +
+      `\nYou MUST use one of: '${CREATE_FILE_MARKER}<path>', '${DELETE_FILE_MARKER}<path>', '${EDIT_FILE_MARKER}<path>', '${MOVE_FILE_MARKER}<path>'.` +
       `\nYou MUST NOT place content lines outside of a file section.`,
     lineNumber,
   );
@@ -275,11 +261,10 @@ return { hunk: { type: "edit", filePath, moveToPath, chunks }, consumedLines };
 function parseEditFileChunk(
   lines: string[],
   lineNumber: number,
-  allowMissingContext: boolean,
 ): { chunk: EditFileChunk; consumedLines: number } {
   if (lines.length === 0) {
     throw new InvalidHunkError(
-      "Edit hunk has no lines. You MUST provide at least one ' ', '+', or '-' line after the @@ marker.",
+ "Edit hunk has no lines. Provide ' ', '+', or '-' prefixed lines.",
       lineNumber,
     );
   }
@@ -293,23 +278,16 @@ function parseEditFileChunk(
     changeContext = lines[0].slice(CHANGE_CONTEXT_MARKER.length);
     startIndex = 1;
   } else {
-    if (!allowMissingContext) {
-      throw new InvalidHunkError(
-        `Expected '@@' context marker, got: '${lines[0].slice(0, 80)}'.` +
-          `\nEach edit chunk MUST start with '@@' or '@@ <context>'. You MUST NOT omit the @@ marker.`,
-        lineNumber,
-      );
-    }
     startIndex = 0;
   }
 
   if (startIndex >= lines.length) {
     throw new InvalidHunkError(
-      "Edit hunk has @@ marker but no content lines. You MUST provide ' ', '+', or '-' lines after @@.",
+       "Edit hunk has @@ marker but no content lines. You MUST provide ' ', '+', or '-' prefixed lines.",
       lineNumber + 1,
     );
   }
-const chunk: EditFileChunk = {
+  const chunk: EditFileChunk = {
     changeContext,
     oldLines: [],
     oldAnchors: [],
@@ -331,10 +309,15 @@ const chunk: EditFileChunk = {
     }
 
     if (line.length === 0) {
-      throw new InvalidHunkError(
-        "Unexpected empty line in edit hunk. Every body line MUST start with ' ', '+', or '-'.",
-        lineNumber + startIndex + parsedBodyLines + 1,
-      );
+      if (chunk.oldLines.length > 0 || chunk.newLines.length > 0) {
+        const nextLine = lines[startIndex + parsedBodyLines + 1];
+        if (nextLine && nextLine.length > 0) {
+          chunk.newLines.push("");
+          parsedBodyLines += 1;
+          continue;
+        }
+      }
+      break;
     }
 
     const prefix = line[0];

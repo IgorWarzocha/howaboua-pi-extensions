@@ -11,7 +11,7 @@ export function registerReadHashTool(pi: ExtensionAPI) {
     name: "read",
     label: "Read File(s)",
     description:
-      "Read files with LINE:HASH|CONTENT output for robust patching. Format: <line-number>:<2-hex-chars>|<content> (example: '12:ab|const x = 1;'). This tool supports single-path reads and multi-read arrays. You MUST use read for file inspection before apply_patch edits. For Edit hunks, you MUST copy anchored lines exactly for context (' ') and removal ('-') lines. You MUST NOT include LINE:HASH| prefixes on '+' addition lines. You SHOULD NOT use bash (cat/head/tail/sed) for inspection when read can access the target paths.",
+     "Read files with LINE:HASH|CONTENT output for apply_patch. Format: <line>:<2-hex-chars>|<content>. You MUST batch ALL files into ONE call: [\"a.ts\", \"b.ts\", { path: \"c.ts\", offset: 10, limit: 50 }]. You MUST copy anchored lines EXACTLY for edit hunk context (' ') and removal ('-'). You MUST NOT prefix '+' addition lines. You MUST NOT re-read files after successful apply_patch — the tool returns updated anchors. You SHOULD NOT use bash (cat/sed/head) for inspection.",
     parameters: Type.Object({
       files: Type.Union([
         Type.String({

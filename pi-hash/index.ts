@@ -59,7 +59,7 @@ export default function applyPatchExtension(pi: ExtensionAPI) {
   pi.registerTool({
     name: "apply_patch",
     label: "apply_patch",
-    description: `Edit files using anchored diffs. STRUCTURE: '*** Begin Patch' → file sections → '*** End Patch'. FILE SECTIONS: '*** Create File: <path>' (create), '*** Edit File: <path>' (edit), '*** Delete File: <path>' (remove), '*** Move File: <path>' + '*** Move to: <new-path>' (rename). EDIT HUNKS: Start with '@@' on its own line. Body lines: ' 1:ab|x' = context (unchanged), '-1:ab|x' = remove, '+x' = add. Copy context/removal anchors EXACTLY from read output (LINE:HASH|content). Always read file first, batch all changes in one call.`,
+     description: `Edit files with anchored diffs. Returns updated LINE:HASH anchors on success — you MUST use these for subsequent edits, NEVER re-read. STRUCTURE: '*** Begin Patch' → file sections → '*** End Patch'. SECTIONS: '*** Create File: <path>', '*** Edit File: <path>', '*** Delete File: <path>', '*** Move File: <path>' + '*** Move to: <new-path>'. HUNKS: Optional '@@ <text>' positioning hint, then body: ' ' or '-' lines MUST have LINE:HASH| anchor, '+' lines have no anchor. You MUST batch ALL changes into ONE call.`,
     renderCall(args, theme) {
       return renderApplyPatchCall(args, parsePatch, theme);
     },

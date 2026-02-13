@@ -140,9 +140,52 @@ function findTerminalAncestor(pid, termProgram) {
 		}
 		current = readParentPid(current);
 	}
-	return null;
+    return null;
 }
 
+function findTerminalWindowTarget(pid, termProgram) {
+    const normalizedTermProgram = String(termProgram || "").trim().toLowerCase();
+    const sharedTerminals = new Set([
+        normalizedTermProgram,
+        "ghostty",
+        "kitty",
+        "wezterm-gui",
+        "gnome-terminal-server",
+        "konsole",
+        "xfce4-terminal",
+        "tilix",
+    ]);
+
+    const known = new Set([
+        normalizedTermProgram,
+        "ghostty",
+        "kitty",
+        "wezterm-gui",
+        "gnome-terminal-server",
+        "alacritty",
+        "konsole",
+        "xfce4-terminal",
+        "tilix",
+        "foot",
+        "xterm",
+    ]);
+
+    let current = Number(pid);
+    let lastBeforeTerminal = null;
+    for (let depth = 0; depth < 20 && Number.isFinite(current) && current > 1; depth++) {
+        const comm = readComm(current).toLowerCase();
+        if (comm && known.has(comm)) {
+            const isShared = sharedTerminals.has(comm);
+            if (isShared && lastBeforeTerminal !== null) {
+                return { pid: lastBeforeTerminal, comm: readComm(lastBeforeTerminal).toLowerCase(), terminalPid: current, terminalComm: comm };
+            }
+            return { pid: current, comm, terminalPid: current, terminalComm: comm };
+        }
+        lastBeforeTerminal = current;
+        current = readParentPid(current);
+    }
+    return null;
+}
 function shouldCloseTerminal(terminalAncestor) {
 	if (!terminalAncestor || !Number.isFinite(terminalAncestor.pid) || terminalAncestor.pid <= 1) {
 		return false;
@@ -249,7 +292,7 @@ function launchInNewTerminal({
 
 function performRestart(instance) {
 	const pid = Number(instance.pid);
-	const terminalAncestor = findTerminalAncestor(pid, instance.termProgram);
+    const target = findTerminalWindowTarget(pid, instance.termProgram);
 
 	if (Number.isFinite(pid) && isAlive(pid)) {
 		try {
@@ -274,21 +317,21 @@ function performRestart(instance) {
 				}
 			}
 
-			if (shouldCloseTerminal(terminalAncestor)) {
-				try {
-					process.kill(terminalAncestor.pid, "SIGTERM");
-					log("closed-old-terminal", { terminalPid: terminalAncestor.pid, terminalComm: terminalAncestor.comm });
+            if (shouldCloseTerminal(target)) {
+                try {
+                    process.kill(target.pid, "SIGTERM");
+                    log("closed-old-terminal", { targetPid: target.pid, targetComm: target.comm, terminalPid: target.terminalPid, terminalComm: target.terminalComm });
 				} catch (error) {
 					log("close-old-terminal-failed", {
-						terminalPid: terminalAncestor.pid,
-						terminalComm: terminalAncestor.comm,
+                        targetPid: target.pid,
+                        targetComm: target.comm,
 						error: error instanceof Error ? error.message : String(error),
 					});
 				}
-			} else if (terminalAncestor) {
+            } else if (target) {
 				log("skip-close-old-terminal", {
-					terminalPid: terminalAncestor.pid,
-					terminalComm: terminalAncestor.comm,
+                    targetPid: target.pid,
+                    targetComm: target.comm,
 					mode: CLOSE_OLD_TERMINAL_MODE,
 				});
 			}
