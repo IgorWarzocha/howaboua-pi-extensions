@@ -8,6 +8,7 @@ import {
   TodoDetailPreviewComponent,
   TodoSelectorComponent,
 } from "../tui/index.js";
+import { Key, matchesKey } from "@mariozechner/pi-tui";
 import { applyTodoAction, handleQuickAction } from "./actions.js";
 
 export async function runTodoUi(
@@ -80,6 +81,28 @@ export async function runTodoUi(
     const showDetailView = (record: TodoRecord, source: "open" | "closed") => {
       const preview = new TodoDetailPreviewComponent(tui, theme, record);
       let previewVisible = true;
+      let leaderActive = false;
+      let leaderTimer: ReturnType<typeof setTimeout> | null = null;
+      const clearLeader = () => {
+        if (leaderTimer) clearTimeout(leaderTimer);
+        leaderTimer = null;
+        leaderActive = false;
+        detailMenu.setFooter(
+          "Enter confirm • Esc back • v toggle preview • j/k scroll preview • Ctrl+X leader",
+        );
+        tui.requestRender();
+      };
+      const startLeader = () => {
+        if (leaderActive) return clearLeader();
+        leaderActive = true;
+        if (leaderTimer) clearTimeout(leaderTimer);
+        leaderTimer = setTimeout(() => clearLeader(), 2000);
+        detailMenu.setFooter(
+          "Leader: w work • r refine • c complete • a abandon • v toggle preview • x cancel",
+          "warning",
+        );
+        tui.requestRender();
+      };
       const detailMenu = new TodoActionMenuComponent(
         theme,
         record,
@@ -89,7 +112,8 @@ export async function runTodoUi(
         () => setActive(source === "closed" ? closedSelector : openSelector),
         {
           showView: false,
-          footer: "Enter confirm • Esc back • v toggle preview • Shift+↑↓ scroll preview",
+          footer:
+            "Enter confirm • Esc back • v toggle preview • j/k scroll preview • Ctrl+X leader",
         },
       );
       const detailView = {
@@ -106,19 +130,46 @@ export async function runTodoUi(
           detailMenu.invalidate();
         },
         handleInput(data: string) {
+          if (leaderActive) {
+            if (
+              data === "x" ||
+              data === "X" ||
+              data === "\u0018" ||
+              matchesKey(data, Key.ctrl("x"))
+            )
+              return clearLeader();
+            if (data === "w" || data === "W")
+              return (clearLeader(), void handleSelection(record, "work", source));
+            if (data === "r" || data === "R")
+              return (clearLeader(), void handleSelection(record, "refine", source));
+            if (data === "c" || data === "C")
+              return (clearLeader(), void handleSelection(record, "complete", source));
+            if (data === "a" || data === "A")
+              return (clearLeader(), void handleSelection(record, "abandon", source));
+            if (data === "v" || data === "V") {
+              clearLeader();
+              previewVisible = !previewVisible;
+              tui.requestRender();
+              return;
+            }
+            return clearLeader();
+          }
+          if (data === "\u0018" || matchesKey(data, Key.ctrl("x"))) return startLeader();
           if (data === "v") {
             previewVisible = !previewVisible;
             tui.requestRender();
             return;
           }
-          if (data === "\u001b[1;2A" || data === "\u001b[1;2P" || data === "\u001b[1;3A") {
-            if (!previewVisible) return detailMenu.handleInput(data);
+          if (data === "k") return detailMenu.handleInput("\u001b[A");
+          if (data === "j") return detailMenu.handleInput("\u001b[B");
+          if (data === "K") {
+            if (!previewVisible) return detailMenu.handleInput("\u001b[A");
             preview.scrollBy(-1);
             tui.requestRender();
             return;
           }
-          if (data === "\u001b[1;2B" || data === "\u001b[1;2Q" || data === "\u001b[1;3B") {
-            if (!previewVisible) return detailMenu.handleInput(data);
+          if (data === "J") {
+            if (!previewVisible) return detailMenu.handleInput("\u001b[B");
             preview.scrollBy(1);
             tui.requestRender();
             return;
@@ -135,10 +186,7 @@ export async function runTodoUi(
       action: TodoMenuAction,
       source: "open" | "closed",
     ) => {
-      if (action === "view") {
-        showDetailView(record, source);
-        return;
-      }
+      if (action === "view") return showDetailView(record, source);
       const result = await applyTodoAction(todosDir, ctx, refresh, done, record, action, setPrompt);
       if (result === "stay") setActive(source === "closed" ? closedSelector : openSelector);
     };

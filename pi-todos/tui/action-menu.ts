@@ -8,6 +8,8 @@ export class TodoActionMenuComponent extends Container {
   private selectList: SelectList;
   private onSelectCallback: (action: TodoMenuAction) => void;
   private onCancelCallback: () => void;
+  private theme: Theme;
+  private footerText: Text;
 
   constructor(
     theme: Theme,
@@ -17,6 +19,7 @@ export class TodoActionMenuComponent extends Container {
     opts?: { showView?: boolean; footer?: string },
   ) {
     super();
+    this.theme = theme;
     this.onSelectCallback = onSelect;
     this.onCancelCallback = onCancel;
 
@@ -57,12 +60,17 @@ export class TodoActionMenuComponent extends Container {
     this.selectList.onCancel = () => this.onCancelCallback();
 
     this.addChild(this.selectList);
-    this.addChild(new Text(theme.fg("dim", opts?.footer ?? "Enter to confirm • Esc back")));
+    this.footerText = new Text(theme.fg("dim", opts?.footer ?? "Enter to confirm • Esc back"));
+    this.addChild(this.footerText);
     this.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
   }
 
   handleInput(keyData: string): void {
     this.selectList.handleInput(keyData);
+  }
+
+  setFooter(value: string, tone: "dim" | "warning" = "dim"): void {
+    this.footerText.setText(this.theme.fg(tone, value));
   }
 
   override invalidate(): void {

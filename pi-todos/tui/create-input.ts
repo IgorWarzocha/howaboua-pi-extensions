@@ -1,9 +1,9 @@
-import { Container, Input, Spacer, Text, TUI, getEditorKeybindings } from "@mariozechner/pi-tui";
+import { Container, Editor, Spacer, Text, TUI, getEditorKeybindings } from "@mariozechner/pi-tui";
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import { DynamicBorder } from "@mariozechner/pi-coding-agent";
 
 export class TodoCreateInputComponent extends Container {
-  private input: Input;
+  private editor: Editor;
   private onSubmitCallback: (prompt: string) => void;
   private onCancelCallback: () => void;
 
@@ -30,17 +30,28 @@ export class TodoCreateInputComponent extends Container {
     );
     this.addChild(new Spacer(1));
 
-    this.input = new Input();
-    this.input.onSubmit = () => {
-      const value = this.input.getValue().trim();
-      if (value) {
-        this.onSubmitCallback(value);
+    this.editor = new Editor(tui, {
+      borderColor: (text) => theme.fg("accent", text),
+      selectList: {
+        selectedPrefix: (text) => theme.fg("accent", text),
+        selectedText: (text) => theme.fg("accent", text),
+        description: (text) => theme.fg("muted", text),
+        scrollInfo: (text) => theme.fg("dim", text),
+        noMatch: (text) => theme.fg("warning", text),
+      },
+    });
+    this.editor.onSubmit = (value) => {
+      const prompt = value.trim();
+      if (prompt) {
+        this.onSubmitCallback(prompt);
       }
     };
-    this.addChild(this.input);
+    this.addChild(this.editor);
 
     this.addChild(new Spacer(1));
-    this.addChild(new Text(theme.fg("dim", "Enter to submit • Esc back")));
+    this.addChild(
+      new Text(theme.fg("dim", "Enter submit • Shift/Ctrl/Alt+Enter new line • Esc back")),
+    );
     this.addChild(new Spacer(1));
     this.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
   }
@@ -51,7 +62,7 @@ export class TodoCreateInputComponent extends Container {
       this.onCancelCallback();
       return;
     }
-    this.input.handleInput(keyData);
+    this.editor.handleInput(keyData);
   }
 
   override invalidate(): void {
