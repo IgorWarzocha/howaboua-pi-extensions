@@ -1,0 +1,10 @@
+ignore_patterns:
+  - "**/node_modules/**"
+  - "**/dist/**"
+  - "**/.tmp/**"
+  - "**/package-lock.json"
+code_review:
+  comment_severity_threshold: MEDIUM
+  pull_request_opened:
+    summary: false
+    code_review: true
