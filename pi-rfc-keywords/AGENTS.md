@@ -11,6 +11,6 @@ Pi extension that enforces RFC 2119 / RFC 8174 uppercase keywords in user prompt
 
 ## Rules
 
-- Do not add custom replacement configuration.
-- Keep replacement list fixed to RFC keywords.
-- Replacements must stay case-insensitive and word-boundary-safe.
+ - Custom replacement configuration MUST NOT be added.
+ - The replacement list MUST be fixed to RFC keywords.
+ - Replacements MUST remain case-insensitive and word-boundary-safe.
