@@ -7,7 +7,7 @@ import { philQuotes } from "./phil.js";
 import { nonsenseQuotes } from "./nonsense.js";
 import { metaQuotes } from "./meta.js";
 
-export const allQuotes = [
+ export const quotes = [
   ...techQuotes,
   ...scifiQuotes,
   ...fantasyQuotes,
