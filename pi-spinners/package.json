@@ -9,7 +9,7 @@
   },
   "pi": {
     "extensions": [
-      "./spinners.ts"
+       "./index.ts"
     ]
   }
 }
