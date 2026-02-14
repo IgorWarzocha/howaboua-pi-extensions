@@ -1,4 +1,5 @@
 import { Markdown, TUI, truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
+import path from "node:path";
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import { getMarkdownTheme } from "@mariozechner/pi-coding-agent";
 import type { TodoRecord } from "../types.js";
@@ -23,11 +24,24 @@ export class TodoDetailPreviewComponent {
 
   private getMarkdownText(): string {
     const body = this.todo.body?.trim();
+    const linked =
+      this.todo.kind === "spec" && this.todo.links?.prds?.length
+        ? [
+            "## Linked PRDs",
+            "",
+            ...this.todo.links.prds.map((item) => {
+              const root = this.todo.links?.root_abs || "";
+              const full = root ? path.resolve(root, item) : item;
+              return `- ${full}`;
+            }),
+          ].join("\n")
+        : "";
     const checklist = this.todo.checklist?.length
       ? renderChecklist(this.theme, this.todo.checklist).join("\n")
       : "";
-    if (checklist) return `${checklist}\n\n---\n\n${body || "_No details yet._"}`;
-    return body ? body : "_No details yet._";
+    const main = body ? body : "_No details yet._";
+    const sections = [checklist, linked, main].filter((item) => Boolean(item));
+    return sections.join("\n\n---\n\n");
   }
 
   render(width: number, maxHeight: number): string[] {

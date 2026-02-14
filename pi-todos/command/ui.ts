@@ -14,6 +14,7 @@ import {
   TodoDetailPreviewComponent,
   TodoEditChecklistInputComponent,
   TodoSelectorComponent,
+  SpecPrdSelectComponent,
 } from "../tui/index.js";
 import { Key, matchesKey } from "@mariozechner/pi-tui";
 import { applyTodoAction, handleQuickAction } from "./actions.js";
@@ -33,6 +34,7 @@ export async function runTodoUi(
     const selectors: Partial<Record<TodoListMode, TodoSelectorComponent>> = {};
     const modes: TodoListMode[] = ["tasks", "prds", "specs", "closed"];
     let index = 0;
+    let all: TodoFrontMatter[] = todos;
     let createInput: TodoCreateInputComponent | null = null;
     let editInput: TodoEditChecklistInputComponent | null = null;
     let active: {
@@ -89,6 +91,7 @@ export async function runTodoUi(
     };
     const refresh = async () => {
       const updated = await listTodos(todosDir);
+      all = updated;
       selectors.tasks?.setTodos(listTasks(updated));
       selectors.prds?.setTodos(listPrds(updated));
       selectors.specs?.setTodos(listSpecs(updated));
@@ -257,6 +260,34 @@ export async function runTodoUi(
       showDetailView(record, source);
     };
     const showCreateInput = (mode: TodoListMode) => {
+      if (mode === "specs") {
+        const picker = new SpecPrdSelectComponent(
+          tui,
+          theme,
+          listPrds(all),
+          (selectedPrds) => {
+            createInput = new TodoCreateInputComponent(
+              tui,
+              theme,
+              (userPrompt) => {
+                const cli = getCliPath();
+                const prdPaths = selectedPrds.map((item) => getTodoPath(todosDir, item.id, "prd"));
+                setPrompt(buildCreateSpecPrompt(userPrompt, cli, ctx.cwd, prdPaths));
+                done();
+              },
+              () => setActive(currentSelector()),
+              {
+                title: "Create New Spec",
+                description: "Describe the technical specification. Selected PRDs will be attached.",
+              },
+            );
+            setActive(createInput);
+          },
+          () => setActive(currentSelector()),
+        );
+        setActive(picker);
+        return;
+      }
       createInput = new TodoCreateInputComponent(
         tui,
         theme,
@@ -265,22 +296,18 @@ export async function runTodoUi(
           const prompt =
             mode === "prds"
               ? buildCreatePrdPrompt(userPrompt, cli, ctx.cwd)
-              : mode === "specs"
-                ? buildCreateSpecPrompt(userPrompt, cli, ctx.cwd)
-                : buildCreateTodoPrompt(userPrompt, cli, ctx.cwd);
+              : buildCreateTodoPrompt(userPrompt, cli, ctx.cwd);
           setPrompt(prompt);
           done();
         },
         () => setActive(currentSelector()),
         {
           title:
-            mode === "prds" ? "Create New PRD" : mode === "specs" ? "Create New Spec" : "Create New Todo",
+            mode === "prds" ? "Create New PRD" : "Create New Todo",
           description:
             mode === "prds"
               ? "Describe the product requirement. The AI SHOULD read linked files and ask clarifying questions first."
-              : mode === "specs"
-                ? "Describe the technical specification. The AI SHOULD read linked files and ask clarifying questions first."
-                : "Describe the task. The AI will read files and ask questions before creating.",
+              : "Describe the task. The AI will read files and ask questions before creating.",
         },
       );
       setActive(createInput);
