@@ -1,0 +1,29 @@
+{
+  "name": "pi-todos",
+  "version": "0.1.0",
+  "description": "Todo manager extension",
+  "keywords": [
+    "pi-extension"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "bun build ./index.ts --target=node --format=esm --outfile ./dist/index.js --external @mariozechner/pi-ai --external @mariozechner/pi-coding-agent --external @mariozechner/pi-tui",
+    "typecheck": "bunx tsc -p ./tsconfig.json",
+    "format:check": "oxfmt --check .",
+    "format": "oxfmt .",
+    "verify": "bun run format && bun run typecheck && bun run format:check && bun run build"
+  },
+  "dependencies": {
+    "@sinclair/typebox": "^0.34.41"
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-ai": "*",
+    "@mariozechner/pi-coding-agent": "*",
+    "@mariozechner/pi-tui": "*"
+  },
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}

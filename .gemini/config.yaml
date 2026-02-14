@@ -1,0 +1,16 @@
+have_fun: false
+memory_config:
+  disabled: false
+ignore_patterns:
+  - "**/node_modules/**"
+  - "**/dist/**"
+  - "**/.tmp/**"
+  - "**/package-lock.json"
+code_review:
+  comment_severity_threshold: LOW
+  max_review_comments: -1
+  pull_request_opened:
+    help: false
+    summary: false
+    code_review: true
+    include_drafts: true
