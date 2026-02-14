@@ -15,6 +15,7 @@ import {
   TodoEditChecklistInputComponent,
   TodoSelectorComponent,
   SpecPrdSelectComponent,
+  TodoParentSelectComponent,
 } from "../tui/index.js";
 import { Key, matchesKey } from "@mariozechner/pi-tui";
 import { applyTodoAction, handleQuickAction } from "./actions.js";
@@ -260,6 +261,41 @@ export async function runTodoUi(
       showDetailView(record, source);
     };
     const showCreateInput = (mode: TodoListMode) => {
+      if (mode === "tasks") {
+        const picker = new TodoParentSelectComponent(
+          tui,
+          theme,
+          listPrds(all),
+          listSpecs(all),
+          (selected) => {
+            createInput = new TodoCreateInputComponent(
+              tui,
+              theme,
+              (userPrompt) => {
+                const cli = getCliPath();
+                const prdPaths = listPrds(all)
+                  .filter((item) => selected.prds.has(item.id))
+                  .map((item) => getTodoPath(todosDir, item.id, "prd"));
+                const specPaths = listSpecs(all)
+                  .filter((item) => selected.specs.has(item.id))
+                  .map((item) => getTodoPath(todosDir, item.id, "spec"));
+                const standalone = selected.prds.has("__NONE__") || selected.specs.has("__NONE__");
+                setPrompt(buildCreateTodoPrompt(userPrompt, cli, ctx.cwd, standalone ? [] : prdPaths, standalone ? [] : specPaths));
+                done();
+              },
+              () => setActive(currentSelector()),
+              {
+                title: "Create New Todo",
+                description: "Describe the task implementation plan. Selected PRDs/specs will be attached.",
+              },
+            );
+            setActive(createInput);
+          },
+          () => setActive(currentSelector()),
+        );
+        setActive(picker);
+        return;
+      }
       if (mode === "specs") {
         const picker = new SpecPrdSelectComponent(
           tui,
@@ -296,7 +332,7 @@ export async function runTodoUi(
           const prompt =
             mode === "prds"
               ? buildCreatePrdPrompt(userPrompt, cli, ctx.cwd)
-              : buildCreateTodoPrompt(userPrompt, cli, ctx.cwd);
+              : buildCreateTodoPrompt(userPrompt, cli, ctx.cwd, [], []);
           setPrompt(prompt);
           done();
         },

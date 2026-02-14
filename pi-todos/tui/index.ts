@@ -7,3 +7,4 @@ export { TodoCreateInputComponent } from "./create-input.js";
 export { TodoEditChecklistInputComponent } from "./edit-checklist-input.js";
 export { TodoClosedMenuComponent, type TodoClosedAction } from "./closed-menu.js";
 export { SpecPrdSelectComponent } from "./spec-prd-select.js";
+export { TodoParentSelectComponent } from "./todo-parent-select.js";
