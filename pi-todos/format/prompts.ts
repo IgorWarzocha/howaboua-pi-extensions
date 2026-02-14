@@ -15,12 +15,12 @@ export function buildRefinePrompt(title: string): string {
 
 export function buildCreatePrompt(userPrompt: string): string {
   return (
-    "You MUST call the todo tool to create a todo for the following task. Before creating:\n\n" +
+    "You MUST create or update plan files directly for the following task. Before creating:\n\n" +
     "1. You MUST read relevant files to understand the codebase context\n" +
     "2. You SHOULD research the internet if external knowledge is needed\n" +
-    "3. You MUST include a non-empty checklist when creating the todo\n" +
+    "3. You MUST include a non-empty checklist when creating todo-kind plan files\n" +
     "4. You MAY ask me clarifying questions if requirements are ambiguous\n\n" +
-    'You MUST NOT just create a todo without proper context. You MUST provide actionable checklist items with short IDs (e.g., "1", "2", "3").\n\n' +
+    'You MUST NOT create files without proper context. You MUST provide actionable checklist items with short IDs (e.g., "1", "2", "3") when checklist is required.\n\n' +
     `Task: ${userPrompt}`
   );
 }
@@ -40,7 +40,7 @@ export function buildEditChecklistPrompt(
     `Update the checklist for "${title}" based on this request:\n` +
     `"${userIntent}"\n\n` +
     `Current checklist:\n${checklistText}\n\n` +
-    "Use the todo tool's `update` action to modify the checklist array. " +
+    "Edit the markdown frontmatter checklist directly and keep existing fields stable. " +
     'Assign short IDs to new items (e.g., "1", "2", "3").'
   );
 }
