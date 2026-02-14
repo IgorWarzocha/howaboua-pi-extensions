@@ -13,40 +13,46 @@ export function buildRefinePrompt(title: string): string {
   );
 }
 
-function buildCreateBase(kind: "PRD" | "Spec" | "Todo", rules: string, userPrompt: string): string {
+function buildCreateBase(kind: "PRD" | "Spec" | "Todo", rules: string, userPrompt: string, cli: string): string {
   return (
     `You are creating a ${kind} plan document in the pi-todos planning system.\n\n` +
     "Procedure requirements:\n" +
-    "1. You MUST follow the /todo workflow and internal CLI-backed orchestration path managed by the extension.\n" +
-    "2. You MUST NOT bypass procedure by writing a standalone markdown file without following plan workflow requirements.\n" +
-    "3. You MUST read relevant linked code/docs before drafting content.\n" +
-    "4. You MAY ask clarifying questions when requirements are ambiguous.\n\n" +
+    `1. You MUST use this CLI path for plan creation: ${cli}\n` +
+    `2. You MUST start by running: ${cli} -schema ${kind.toLowerCase()}\n` +
+    "3. You MUST read schema output and satisfy every REQUIRED field.\n" +
+    "4. You MUST then use the same CLI path to execute the create operation for this document.\n" +
+    "5. You MUST NOT bypass procedure by writing a standalone markdown file directly.\n" +
+    "6. You MUST read relevant linked code/docs before drafting content.\n" +
+    "7. You MAY ask clarifying questions when requirements are ambiguous.\n\n" +
     `${rules}\n\n` +
     `User request: ${userPrompt}`
   );
 }
 
-export function buildCreatePrdPrompt(userPrompt: string): string {
+export function buildCreatePrdPrompt(userPrompt: string, cli: string): string {
   return buildCreateBase(
     "PRD",
     "You MUST produce a PRD-kind plan with objective, scope, constraints, deliverables, and acceptance criteria. You MUST link related specs/todos as repo-relative paths in links.",
     userPrompt,
+    cli,
   );
 }
 
-export function buildCreateSpecPrompt(userPrompt: string): string {
+export function buildCreateSpecPrompt(userPrompt: string, cli: string): string {
   return buildCreateBase(
     "Spec",
     "You MUST produce a spec-kind plan tied to a PRD. You MUST define deterministic behavior, constraints, and verification plan. You MUST keep lifecycle user-controlled.",
     userPrompt,
+    cli,
   );
 }
 
-export function buildCreateTodoPrompt(userPrompt: string): string {
+export function buildCreateTodoPrompt(userPrompt: string, cli: string): string {
   return buildCreateBase(
     "Todo",
     "You MUST produce a todo-kind plan with a non-empty checklist using short IDs and done booleans. You MUST NOT close lifecycle state automatically.",
     userPrompt,
+    cli,
   );
 }
 

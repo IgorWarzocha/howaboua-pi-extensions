@@ -17,6 +17,7 @@ import {
 } from "../tui/index.js";
 import { Key, matchesKey } from "@mariozechner/pi-tui";
 import { applyTodoAction, handleQuickAction } from "./actions.js";
+import { getCliPath } from "../cli-path.js";
 
 export async function runTodoUi(
   args: string,
@@ -263,12 +264,13 @@ export async function runTodoUi(
         tui,
         theme,
         (userPrompt) => {
+          const cli = getCliPath();
           const prompt =
             mode === "prds"
-              ? buildCreatePrdPrompt(userPrompt)
+              ? buildCreatePrdPrompt(userPrompt, cli)
               : mode === "specs"
-                ? buildCreateSpecPrompt(userPrompt)
-                : buildCreateTodoPrompt(userPrompt);
+                ? buildCreateSpecPrompt(userPrompt, cli)
+                : buildCreateTodoPrompt(userPrompt, cli);
           setPrompt(prompt);
           done();
         },
