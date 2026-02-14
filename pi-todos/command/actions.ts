@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import type { ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import type { TodoFrontMatter, TodoMenuAction, TodoQuickAction, TodoRecord } from "../types.js";
 import { buildRefinePrompt, buildReviewPrompt, buildWorkPrompt, getTodoTitle } from "../format.js";
@@ -7,6 +9,23 @@ import {
   reopenTodoForUser,
   updateTodoStatus,
 } from "../file-io.js";
+import { ensureWorktree } from "../worktree.js";
+
+function validateLinks(record: TodoRecord): { ok: true } | { error: string } {
+  if (!record.links) return { ok: true };
+  const root = record.links.root_abs || "";
+  const rel = [
+    ...(record.links.prds ?? []),
+    ...(record.links.specs ?? []),
+    ...(record.links.todos ?? []),
+    ...(record.links.reads ?? []),
+  ];
+  for (const item of rel) {
+    const resolved = root ? path.resolve(root, item) : item;
+    if (!fs.existsSync(resolved)) return { error: `Required linked file not found: ${resolved}` };
+  }
+  return { ok: true };
+}
 
 export async function applyTodoAction(
   todosDir: string,
@@ -23,11 +42,27 @@ export async function applyTodoAction(
     return "exit";
   }
   if (action === "work") {
+    const links = validateLinks(record);
+    if ("error" in links) {
+      ctx.ui.notify(links.error, "error");
+      return "stay";
+    }
+    const worktree = await ensureWorktree(record, ctx);
+    if ("error" in worktree) {
+      ctx.ui.notify(worktree.error, "error");
+      return "stay";
+    }
+    if ("path" in worktree && worktree.created) ctx.ui.notify(`Created worktree ${worktree.path}`, "info");
     setPrompt(buildWorkPrompt(record.title || "(untitled)", record.links));
     done();
     return "exit";
   }
   if (action === "review") {
+    const links = validateLinks(record);
+    if ("error" in links) {
+      ctx.ui.notify(links.error, "error");
+      return "stay";
+    }
     setPrompt(buildReviewPrompt(record.title || "(untitled)", record.links));
     done();
     return "exit";
@@ -88,6 +123,7 @@ export function handleQuickAction(
   if (!todo) return;
   const title = getTodoTitle(todo);
   if (action === "refine") setPrompt(buildRefinePrompt(title));
-  if (action === "work") setPrompt(`work on todo "${title}"`);
+  if (action === "work") setPrompt(buildWorkPrompt(title, todo.links));
   done();
 }
+

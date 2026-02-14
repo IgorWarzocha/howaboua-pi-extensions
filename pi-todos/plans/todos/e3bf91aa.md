@@ -23,11 +23,11 @@ links:
     - plans/specs/c93a0b57.md
 checklist:
   - title: Add internal invocation argument parser
-    done: false
+    done: true
   - title: Add unauthorized invocation guard
-    done: false
+    done: true
   - title: Add deterministic blocked-call response payload
-    done: false
+    done: true
 template: true
 ---
 
