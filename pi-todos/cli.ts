@@ -1,0 +1,171 @@
+#!/usr/bin/env bun
+import fs from "node:fs/promises";
+import path from "node:path";
+import crypto from "node:crypto";
+import YAML from "yaml";
+
+type Kind = "prd" | "spec" | "todo";
+
+interface Entry {
+  id: string;
+  kind: Kind;
+  title: string;
+  tags: string[];
+  status: string;
+  created_at: string;
+  modified_at: string;
+  assigned_to_session: null;
+  agent_rules: string;
+  worktree: { enabled: boolean; branch: string };
+  links: { root_abs: string; prds: string[]; specs: string[]; todos: string[]; reads: string[] };
+  checklist: Array<{ id: string; title: string; done: boolean }>;
+  template: boolean;
+}
+
+function fail(message: string): never {
+  throw new Error(message);
+}
+
+function now(): string {
+  return new Date().toISOString();
+}
+
+function slug(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+/, "")
+    .replace(/-+$/, "");
+}
+
+function kind(value: string | undefined): Kind {
+  if (value === "prd" || value === "spec" || value === "todo") return value;
+  fail("Invalid kind. Expected one of: prd, spec, todo.");
+}
+
+function map(kind: Kind): string {
+  if (kind === "prd") return "prds";
+  if (kind === "spec") return "specs";
+  return "todos";
+}
+
+function branch(kind: Kind, title: string, id: string): string {
+  const value = slug(title) || id;
+  if (kind === "prd") return `feat/prd-${value}`;
+  return `feat/todo-${value}`;
+}
+
+function id(): string {
+  return crypto.randomBytes(4).toString("hex");
+}
+
+function field(args: string[], name: string): string | undefined {
+  const index = args.indexOf(name);
+  if (index === -1) return undefined;
+  return args[index + 1];
+}
+
+function schema(kind: Kind): string {
+  const checklist =
+    kind === "todo"
+      ? "checklist:\n  - id: \"1\"\n    title: \"Define scope\"\n    done: false\n"
+      : "checklist: []\n";
+  return [
+    `Schema for ${kind}:`,
+    "---",
+    `id: <8-hex-id>`,
+    `kind: ${kind}`,
+    "title: <string>",
+    "tags:",
+    "  - <tag>",
+    "status: open",
+    "created_at: <iso8601>",
+    "modified_at: <iso8601>",
+    "assigned_to_session: null",
+    "agent_rules: <string>",
+    "worktree:",
+    "  enabled: true",
+    "  branch: <feat/prd-... or feat/todo-...>",
+    "links:",
+    "  root_abs: <absolute-path>",
+    "  prds: []",
+    "  specs: []",
+    "  todos: []",
+    "  reads: []",
+    checklist.trimEnd(),
+    "template: false",
+    "---",
+  ].join("\n");
+}
+
+function body(kind: Kind, request: string): string {
+  if (kind === "prd") {
+    return `## Objective\n\n${request}\n\n## Scope\n\n- Define product scope\n\n## Constraints\n\n- Lifecycle is user-controlled\n\n## Deliverables\n\n- PRD, linked specs, linked todos\n\n## Acceptance Criteria\n\n- Requirements are testable and explicit\n`;
+  }
+  if (kind === "spec") {
+    return `## Objective\n\n${request}\n\n## Scope\n\n- Technical design and behavior\n\n## Constraints\n\n- Deterministic and verifiable behavior\n\n## Verification Plan\n\n- Validate against linked PRD and todos\n`;
+  }
+  return `## Objective\n\n${request}\n\n## Scope\n\n- Implement scoped task\n\n## Verification Plan\n\n- Confirm checklist completion and behavior\n`;
+}
+
+async function create(args: string[]): Promise<void> {
+  const value = kind(field(args, "--kind"));
+  const title = field(args, "--title")?.trim();
+  if (!title) fail("Missing --title for create command.");
+  const request = field(args, "--request")?.trim() || title;
+  const tags = (field(args, "--tags") || "planning").split(",").map((item) => item.trim()).filter(Boolean);
+  const root = field(args, "--root")?.trim() || process.cwd();
+  const valueId = id();
+  const ts = now();
+  const entry: Entry = {
+    id: valueId,
+    kind: value,
+    title,
+    tags,
+    status: "open",
+    created_at: ts,
+    modified_at: ts,
+    assigned_to_session: null,
+    agent_rules: "MUST follow linked plans and keep lifecycle user-controlled.",
+    worktree: { enabled: true, branch: branch(value, title, valueId) },
+    links: { root_abs: root, prds: [], specs: [], todos: [], reads: [] },
+    checklist:
+      value === "todo"
+        ? [
+            { id: "1", title: "Define scope", done: false },
+            { id: "2", title: "Implement changes", done: false },
+            { id: "3", title: "Verify acceptance criteria", done: false },
+          ]
+        : [],
+    template: false,
+  };
+  const dir = path.join(process.cwd(), "plans", map(value));
+  await fs.mkdir(dir, { recursive: true });
+  const file = path.join(dir, `${valueId}.md`);
+  const front = YAML.stringify(entry).trimEnd();
+  const text = `---\n${front}\n---\n\n${body(value, request)}`;
+  await fs.writeFile(file, `${text.trimEnd()}\n`, "utf8");
+  process.stdout.write(`${file}\n`);
+}
+
+async function main(): Promise<void> {
+  const args = process.argv.slice(2);
+  if (!args.length) fail("Missing command. Use '-schema <kind>' or 'create --kind <kind> --title <title>'.");
+  if (args[0] === "-schema") {
+    const value = kind(args[1]);
+    process.stdout.write(`${schema(value)}\n`);
+    return;
+  }
+  if (args[0] === "create") {
+    await create(args);
+    return;
+  }
+  fail("Unsupported command. Use '-schema' or 'create'.");
+}
+
+main().catch((error) => {
+  const message = error instanceof Error ? error.message : "Unknown CLI failure";
+  process.stderr.write(`${message}\n`);
+  process.exit(1);
+});
+
