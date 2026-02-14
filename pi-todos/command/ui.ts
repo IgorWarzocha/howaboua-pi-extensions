@@ -232,15 +232,31 @@ export async function runTodoUi(
       if (!record) return;
       showDetailView(record, source);
     };
-    const showCreateInput = () => {
+    const showCreateInput = (mode: TodoListMode) => {
       createInput = new TodoCreateInputComponent(
         tui,
         theme,
         (userPrompt) => {
-          setPrompt(buildCreatePrompt(userPrompt));
+          const scoped =
+            mode === "prds"
+              ? `Create a PRD document. ${userPrompt}`
+              : mode === "specs"
+                ? `Create a spec document. ${userPrompt}`
+                : userPrompt;
+          setPrompt(buildCreatePrompt(scoped));
           done();
         },
         () => setActive(currentSelector()),
+        {
+          title:
+            mode === "prds" ? "Create New PRD" : mode === "specs" ? "Create New Spec" : "Create New Todo",
+          description:
+            mode === "prds"
+              ? "Describe the product requirement. The AI SHOULD read linked files and ask clarifying questions first."
+              : mode === "specs"
+                ? "Describe the technical specification. The AI SHOULD read linked files and ask clarifying questions first."
+                : "Describe the task. The AI will read files and ask questions before creating.",
+        },
       );
       setActive(createInput);
     };
@@ -267,7 +283,10 @@ export async function runTodoUi(
         () => done(),
         initial,
         currentSessionId,
-        (todo, action) => void handleQuickAction(todo, action, showCreateInput, done, setPrompt, ctx, resolve),
+        (todo, action) =>
+          action === "create"
+            ? showCreateInput(mode)
+            : void handleQuickAction(todo, action, () => showCreateInput(mode), done, setPrompt, ctx, resolve),
         () => {
           index = (index + 1) % modes.length;
           setActive(currentSelector());
