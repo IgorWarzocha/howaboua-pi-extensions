@@ -1,5 +1,5 @@
 {
-  "name": "@pi-extensions-dev/pi-remember",
+  "name": "@howaboua/pi-remember",
   "version": "0.1.0",
   "description": "Pi extension for semantic long-term memory with local embeddings",
   "keywords": [

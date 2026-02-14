@@ -1,8 +1,9 @@
 {
-  "name": "pi-spinners",
+  "name": "@howaboua/pi-spinners",
   "version": "0.1.0",
   "description": "Whimsical thinking messages for Pi - pun and wordplay edition",
-  "keywords": ["pi-extension", "fun", "whimsical"],
+  "license": "MIT",
+  "keywords": ["pi-extension", "pi-package", "fun", "whimsical"],
   "type": "module",
   "peerDependencies": {
     "@mariozechner/pi-coding-agent": "*"

@@ -1,9 +1,11 @@
 {
-  "name": "pi-todos",
+  "name": "@howaboua/pi-todos",
   "version": "0.1.0",
   "description": "Todo manager extension",
+  "license": "MIT",
   "keywords": [
-    "pi-extension"
+    "pi-extension",
+    "pi-package"
   ],
   "type": "module",
   "scripts": {
