@@ -21,8 +21,9 @@ function buildCreateBase(kind: "PRD" | "Spec" | "Todo", rules: string, userPromp
     `2. You MUST start by running: ${cli} -schema ${kind.toLowerCase()}\n` +
     "3. You MUST read schema output and satisfy every REQUIRED field.\n" +
     "4. You MUST use the same CLI path to execute create.\n" +
-    "5. You MUST preserve frontmatter schema; body drafting happens after file creation.\n" +
-    "6. You MAY ask clarifying questions when requirements are ambiguous.\n\n" +
+    "5. After create, you MUST edit markdown body sections only.\n" +
+    "6. You MUST NOT modify frontmatter fields unless the user explicitly requests a frontmatter change.\n" +
+    "7. You MAY ask clarifying questions when requirements are ambiguous.\n\n" +
     `${rules}\n\n` +
     `User request: ${userPrompt}`
   );

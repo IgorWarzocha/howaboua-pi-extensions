@@ -18,7 +18,7 @@ interface Entry {
   assigned_to_session: null;
   agent_rules: string;
   worktree: { enabled: boolean; branch: string };
-  links: { root_abs: string; prds: string[]; specs: string[]; todos: string[]; reads: string[] };
+  links: { root_abs: string; prds: string[]; specs: string[]; todos: string[] };
   checklist: Array<{ id: string; title: string; done: boolean }>;
   template: boolean;
 }
@@ -79,15 +79,14 @@ function dir(): string {
   return path.dirname(file);
 }
 
-function links(value: string | undefined, root: string): { root_abs: string; prds: string[]; specs: string[]; todos: string[]; reads: string[] } {
-  if (!value) return { root_abs: root, prds: [], specs: [], todos: [], reads: [] };
+function links(value: string | undefined, root: string): { root_abs: string; prds: string[]; specs: string[]; todos: string[] } {
+  if (!value) return { root_abs: root, prds: [], specs: [], todos: [] };
   const parsed = JSON.parse(value) as Record<string, unknown>;
   return {
     root_abs: typeof parsed.root_abs === "string" && parsed.root_abs.trim() ? parsed.root_abs : root,
     prds: Array.isArray(parsed.prds) ? parsed.prds.filter((item): item is string => typeof item === "string") : [],
     specs: Array.isArray(parsed.specs) ? parsed.specs.filter((item): item is string => typeof item === "string") : [],
     todos: Array.isArray(parsed.todos) ? parsed.todos.filter((item): item is string => typeof item === "string") : [],
-    reads: Array.isArray(parsed.reads) ? parsed.reads.filter((item): item is string => typeof item === "string") : [],
   };
 }
 
@@ -117,7 +116,6 @@ function schema(kind: Kind): string {
     "  prds: []",
     "  specs: []",
     "  todos: []",
-    "  reads: []",
     checklist.trimEnd(),
     "template: false",
     "---",
@@ -174,8 +172,8 @@ async function create(args: string[]): Promise<void> {
   const text = `---\n${front}\n---\n\n${body(value, request)}`;
   await fs.writeFile(file, `${text.trimEnd()}\n`, "utf8");
   process.stdout.write(`Created: ${file}\n`);
-  process.stdout.write("Next: Open the file and replace scaffold body sections with full content while preserving YAML frontmatter schema.\n");
-  process.stdout.write("Next: Update links/checklist fields as needed and keep repo-relative links in frontmatter lists.\n");
+  process.stdout.write("Next: Open the file and replace scaffold body sections with full content.\n");
+  process.stdout.write("Next: Do NOT edit frontmatter unless the user explicitly asks for frontmatter changes.\n");
 }
 
 async function main(): Promise<void> {
