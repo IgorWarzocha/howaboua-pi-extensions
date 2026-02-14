@@ -1,0 +1,15 @@
+{
+  "name": "pi-spinners",
+  "version": "0.1.0",
+  "description": "Whimsical thinking messages for Pi - pun and wordplay edition",
+  "keywords": ["pi-extension", "fun", "whimsical"],
+  "type": "module",
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*"
+  },
+  "pi": {
+    "extensions": [
+       "./index.ts"
+    ]
+  }
+}
