@@ -90,34 +90,38 @@ function links(value: string | undefined, root: string): { root_abs: string; prd
   };
 }
 
+function has(args: string[], names: string[]): boolean {
+  for (let index = 0; index < names.length; index += 1) {
+    if (args.includes(names[index])) return true;
+  }
+  return false;
+}
+
+function enforce(kind: Kind, args: string[]): void {
+  const extra = has(args, ["--agent_rules", "-agent_rules", "--worktree", "-worktree", "--template", "-template"]);
+  if (extra) fail("Do not pass managed frontmatter flags (agent_rules/worktree/template). Use create minimal inputs only.");
+  const checklist = has(args, ["--checklist", "-checklist"]);
+  if (kind !== "todo" && checklist) fail("Checklist is only supported for kind=todo.");
+}
+
 function schema(kind: Kind): string {
   const checklist =
     kind === "todo"
       ? "checklist:\n  - id: \"1\"\n    title: \"Define scope\"\n    done: false\n"
       : "checklist: []\n";
   return [
-    `Schema for ${kind}:`,
+    `Create input schema for ${kind}:`,
     "---",
-    `id: <8-hex-id>`,
+    "command: create",
     `kind: ${kind}`,
     "title: <string>",
-    "tags:",
-    "  - <tag>",
-    "status: open",
-    "created_at: <iso8601>",
-    "modified_at: <iso8601>",
-    "assigned_to_session: null",
-    "agent_rules: <string>",
-    "worktree:",
-    "  enabled: true",
-    "  branch: <feat/prd-... or feat/todo-...>",
-    "links:",
-    "  root_abs: <absolute-path>",
-    "  prds: []",
-    "  specs: []",
-    "  todos: []",
+    "tags: <csv optional>",
+    "root: <absolute-path optional>",
+    "links: <json optional with root_abs/prds/specs/todos>",
+    "request: <string optional>",
+    "checklist: only for kind=todo",
+    "Managed by CLI (do not pass): id/status/timestamps/agent_rules/worktree/template",
     checklist.trimEnd(),
-    "template: false",
     "---",
   ].join("\n");
 }
@@ -134,6 +138,7 @@ function body(kind: Kind, request: string): string {
 
 async function create(args: string[]): Promise<void> {
   const value = kind(pick(args, ["--kind", "-kind"]));
+  enforce(value, args);
   const title = pick(args, ["--title", "-title"])?.trim();
   if (!title) fail("Missing --title for create command.");
   const request = pick(args, ["--request", "-request"])?.trim() || title;
