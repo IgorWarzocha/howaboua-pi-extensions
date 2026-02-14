@@ -1,4 +1,4 @@
-import { Container, Spacer, Text, TUI, getEditorKeybindings } from "@mariozechner/pi-tui";
+import { Container, Key, Spacer, Text, TUI, getEditorKeybindings, matchesKey } from "@mariozechner/pi-tui";
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import { DynamicBorder } from "@mariozechner/pi-coding-agent";
 import type { TodoFrontMatter } from "../types.js";
@@ -105,7 +105,7 @@ export class TodoParentSelectComponent extends Container {
       return this.renderState();
     }
     if (data === "\u001b" || kb.matches(data, "selectCancel") || data === "\u0003") return this.onCancel();
-    if (data === "\t" || data === "\u0009" || data === "\u001b[Z" || data === "\u001b[1;2Z") {
+    if (matchesKey(data, Key.tab) || data === "\t" || data === "\u0009" || data === "\u001b[Z" || data === "\u001b[1;2Z") {
       this.tab = this.tab === "prds" ? "specs" : "prds";
       this.selected = 0;
       return this.renderState();
