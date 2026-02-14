@@ -1,12 +1,47 @@
+import fs from "node:fs";
 import type { ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import type { TodoFrontMatter, TodoMenuAction, TodoQuickAction, TodoRecord } from "../types.js";
-import { buildRefinePrompt, getTodoTitle } from "../format.js";
+import { buildRefinePrompt, buildReviewPrompt, buildWorkPrompt, getTodoTitle, resolveLinkedPaths } from "../format.js";
 import {
   deleteTodo,
   releaseTodoAssignment,
   reopenTodoForUser,
   updateTodoStatus,
 } from "../file-io.js";
+import { ensureWorktree } from "../worktree.js";
+
+function validateLinks(record: TodoFrontMatter): { ok: true } | { error: string } {
+  if (!record.links) return { ok: true };
+  const root = record.links.root_abs || "";
+  const paths = resolveLinkedPaths(record.links);
+  if (paths.length && !root) return { error: "links.root_abs is required when links contain repo-relative files." };
+  for (const item of paths) {
+    if (!fs.existsSync(item)) return { error: `Required linked file not found: ${item}` };
+  }
+  return { ok: true };
+}
+
+async function runWork(
+  record: TodoFrontMatter,
+  ctx: ExtensionCommandContext,
+  done: () => void,
+  setPrompt: (value: string) => void,
+): Promise<"stay" | "exit"> {
+  const links = validateLinks(record);
+  if ("error" in links) {
+    ctx.ui.notify(links.error, "error");
+    return "stay";
+  }
+  const worktree = await ensureWorktree(record, ctx);
+  if ("error" in worktree) {
+    ctx.ui.notify(worktree.error, "error");
+    return "stay";
+  }
+  if ("path" in worktree && worktree.created) ctx.ui.notify(`Created worktree ${worktree.path}`, "info");
+  setPrompt(buildWorkPrompt(record.title || "(untitled)", record.links));
+  done();
+  return "exit";
+}
 
 export async function applyTodoAction(
   todosDir: string,
@@ -22,8 +57,14 @@ export async function applyTodoAction(
     done();
     return "exit";
   }
-  if (action === "work") {
-    setPrompt(`work on todo "${record.title || "(untitled)"}"`);
+  if (action === "work") return runWork(record, ctx, done, setPrompt);
+  if (action === "review-item") {
+    const links = validateLinks(record);
+    if ("error" in links) {
+      ctx.ui.notify(links.error, "error");
+      return "stay";
+    }
+    setPrompt(buildReviewPrompt(record.title || "(untitled)", record.links));
     done();
     return "exit";
   }
@@ -72,17 +113,27 @@ export async function applyTodoAction(
   return "stay";
 }
 
-export function handleQuickAction(
+export async function handleQuickAction(
   todo: TodoFrontMatter | null,
   action: TodoQuickAction,
   showCreateInput: () => void,
   done: () => void,
   setPrompt: (value: string) => void,
-): void {
+  ctx: ExtensionCommandContext,
+  resolve: (todo: TodoFrontMatter) => Promise<TodoRecord | null>,
+): Promise<void> {
   if (action === "create") return showCreateInput();
   if (!todo) return;
   const title = getTodoTitle(todo);
-  if (action === "refine") setPrompt(buildRefinePrompt(title));
-  if (action === "work") setPrompt(`work on todo "${title}"`);
-  done();
+  if (action === "refine") {
+    setPrompt(buildRefinePrompt(title));
+    done();
+    return;
+  }
+  if (action === "work") {
+    const record = await resolve(todo);
+    if (!record) return;
+    await runWork(record, ctx, done, setPrompt);
+    return;
+  }
 }

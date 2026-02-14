@@ -14,6 +14,12 @@ import {
 } from "./execute-actions.js";
 
 export async function runToolExecute(params: Record<string, unknown>, ctx: ExtensionContext) {
+  if (params.internal !== true) {
+    const message =
+      "Error: Direct todo tool invocation is blocked. Use /todo GUI actions. Internal execution MUST set internal=true and is reserved for extension-managed calls.";
+    const details: TodoToolDetails = { action: "list", todos: [], error: message.replace(/^Error: /, "") };
+    return { content: [{ type: "text" as const, text: message }], details };
+  }
   const todosDir = getTodosDir(ctx.cwd);
   const action = params.action as TodoAction;
   if (action === "list") return runListAction(todosDir, ctx);

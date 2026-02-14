@@ -1,9 +1,11 @@
 import { Key, getEditorKeybindings, matchesKey } from "@mariozechner/pi-tui";
+import type { TodoListMode } from "../types.js";
 
 export type SelectorIntent = "up" | "down" | "confirm" | "cancel" | "tab" | "leader" | "input";
 
-export function mapIntent(keyData: string, mode: "open" | "closed"): SelectorIntent {
+export function mapIntent(keyData: string, mode: TodoListMode): SelectorIntent {
   const kb = getEditorKeybindings();
+  if (!mode) return "input";
   if (kb.matches(keyData, "selectUp")) return "up";
   if (kb.matches(keyData, "selectDown")) return "down";
   if (kb.matches(keyData, "selectConfirm")) return "confirm";

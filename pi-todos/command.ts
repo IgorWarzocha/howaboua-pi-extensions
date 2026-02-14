@@ -1,7 +1,7 @@
 import type { ExtensionAPI, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
-import { formatTodoList } from "./format.js";
-import { getTodosDir, listTodos } from "./file-io.js";
+import { getTodosDir } from "./file-io.js";
 import { getTodoCompletions } from "./command/completions.js";
+import { blockedResponse, parseInternalArgs, runInternal } from "./command/internal.js";
 import { runTodoUi } from "./command/ui.js";
 
 export function registerTodoCommand(pi: ExtensionAPI) {
@@ -9,9 +9,24 @@ export function registerTodoCommand(pi: ExtensionAPI) {
     description: "List todos from .pi/todos",
     getArgumentCompletions: (argumentPrefix: string) => getTodoCompletions(argumentPrefix),
     handler: async (args: string, ctx: ExtensionCommandContext) => {
-      const todos = await listTodos(getTodosDir(ctx.cwd));
+      const trimmed = (args || "").trim();
+      if (trimmed.startsWith("--internal")) {
+        try {
+          const payload = parseInternalArgs(trimmed);
+          if (!payload) {
+            process.stdout.write(`${blockedResponse()}\n`);
+            return;
+          }
+          process.stdout.write(`${await runInternal(payload, ctx)}\n`);
+          return;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "invalid internal payload";
+          process.stdout.write(`${JSON.stringify({ ok: false, error: message })}\n`);
+          return;
+        }
+      }
       if (!ctx.hasUI) {
-        process.stdout.write(`${formatTodoList(todos)}\n`);
+        process.stdout.write(`${blockedResponse()}\n`);
         return;
       }
       const nextPrompt = await runTodoUi(args, ctx);
