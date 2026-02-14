@@ -9,6 +9,7 @@ export function parseFrontMatter(text: string, idFallback: string): TodoFrontMat
     tags: [],
     status: "open",
     created_at: "",
+    modified_at: undefined,
     assigned_to_session: undefined,
     checklist: undefined,
     kind: undefined,
@@ -28,6 +29,7 @@ export function parseFrontMatter(text: string, idFallback: string): TodoFrontMat
     if (typeof parsed.title === "string") data.title = parsed.title;
     if (typeof parsed.status === "string" && parsed.status) data.status = parsed.status;
     if (typeof parsed.created_at === "string") data.created_at = parsed.created_at;
+    if (typeof parsed.modified_at === "string" && parsed.modified_at) data.modified_at = parsed.modified_at;
     if (typeof parsed.assigned_to_session === "string" && parsed.assigned_to_session.trim()) {
       data.assigned_to_session = parsed.assigned_to_session;
     }
@@ -179,6 +181,7 @@ export function parseTodoContent(content: string, idFallback: string): TodoRecor
     tags: parsed.tags ?? [],
     status: parsed.status,
     created_at: parsed.created_at,
+    modified_at: parsed.modified_at,
     assigned_to_session: parsed.assigned_to_session,
     checklist: parsed.checklist,
     kind: parsed.kind,
@@ -191,34 +194,31 @@ export function parseTodoContent(content: string, idFallback: string): TodoRecor
 }
 
 export function serializeTodo(todo: TodoRecord): string {
-  const frontMatter = JSON.stringify(
-    {
-      id: todo.id,
-      title: todo.title,
-      tags: todo.tags ?? [],
-      status: todo.status,
-      created_at: todo.created_at,
-      assigned_to_session: todo.assigned_to_session || undefined,
-      kind: todo.kind,
-      template: todo.template,
-      links: todo.links,
-      agent_rules: todo.agent_rules,
-      worktree: todo.worktree,
-      checklist: todo.checklist?.map((item) => ({
-        id: item.id,
-        title: item.title,
-        status: item.status,
-        done: item.status === "checked",
-      })),
-    },
-    null,
-    2,
-  );
+  const front = {
+    id: todo.id,
+    title: todo.title,
+    tags: todo.tags ?? [],
+    status: todo.status,
+    created_at: todo.created_at,
+    modified_at: todo.modified_at,
+    assigned_to_session: todo.assigned_to_session || undefined,
+    kind: todo.kind,
+    template: todo.template,
+    links: todo.links,
+    agent_rules: todo.agent_rules,
+    worktree: todo.worktree,
+    checklist: todo.checklist?.map((item) => ({
+      id: item.id,
+      title: item.title,
+      done: item.status === "checked",
+    })),
+  };
+  const frontMatter = YAML.stringify(front).trimEnd();
 
   const body = todo.body ?? "";
   const trimmedBody = body.replace(/^\n+/, "").replace(/\s+$/, "");
-  if (!trimmedBody) return `${frontMatter}\n`;
-  return `${frontMatter}\n\n${trimmedBody}\n`;
+  if (!trimmedBody) return `---\n${frontMatter}\n---\n`;
+  return `---\n${frontMatter}\n---\n\n${trimmedBody}\n`;
 }
 
 export function validateTodoId(id: string): { id: string } | { error: string } {
@@ -239,4 +239,3 @@ export function normalizeTodoId(id: string): string {
   }
   return trimmed;
 }
-

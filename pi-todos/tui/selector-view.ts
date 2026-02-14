@@ -15,8 +15,8 @@ export function buildHints(theme: Theme, mode: TodoListMode, leaderActive = fals
     return theme.fg(
       "warning",
       mode !== "closed"
-        ? "Leader: c create • w work • r refine • v view • x cancel"
-        : "Leader: w work • r refine • v view • a sweep abandoned • d sweep completed • x cancel",
+        ? "Leader: c create • w work • y review • r refine • v view • x cancel"
+        : "Leader: w work • y review-all • r refine • v view • a sweep abandoned • d sweep completed • x cancel",
     );
   }
   return theme.fg(

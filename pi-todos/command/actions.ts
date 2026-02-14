@@ -131,6 +131,11 @@ export async function handleQuickAction(
   if (action === "create") return showCreateInput();
   if (!todo) return;
   const title = getTodoTitle(todo);
+  if (action === "review") {
+    setPrompt(buildReviewPrompt(title, todo.links));
+    done();
+    return;
+  }
   if (action === "refine") {
     setPrompt(buildRefinePrompt(title));
     done();

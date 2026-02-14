@@ -1,6 +1,6 @@
 import type { ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import type { TodoFrontMatter, TodoListMode, TodoMenuAction, TodoRecord } from "../types.js";
-import { buildCreatePrompt, buildEditChecklistPrompt } from "../format.js";
+import { buildCreatePrompt, buildEditChecklistPrompt, buildReviewPrompt } from "../format.js";
 import { deleteTodo, ensureTodoExists, getTodoPath, getTodosDir, listTodos } from "../file-io.js";
 import {
   TodoActionMenuComponent,
@@ -86,7 +86,27 @@ export async function runTodoUi(
       selectors.specs?.setTodos(listSpecs(updated));
       selectors.closed?.setTodos(listClosed(updated));
     };
-    const runListCommand = async (action: "sweep-abandoned" | "sweep-completed") => {
+    const runListCommand = async (action: "sweep-abandoned" | "sweep-completed" | "review-all") => {
+      if (action === "review-all") {
+        const mode = currentMode();
+        const updated = await listTodos(todosDir);
+        const scoped =
+          mode === "prds"
+            ? listPrds(updated)
+            : mode === "specs"
+              ? listSpecs(updated)
+              : mode === "closed"
+                ? listClosed(updated)
+                : listTasks(updated);
+        if (!scoped.length) {
+          ctx.ui.notify("No items available to review", "error");
+          return;
+        }
+        const lines = scoped.map((todo) => `- ${buildReviewPrompt(todo.title || "(untitled)", todo.links)}`).join("\n\n");
+        setPrompt(`Review all items in ${mode} list:\n\n${lines}`);
+        done();
+        return;
+      }
       const updated = await listTodos(todosDir);
       const ids = updated
         .filter((todo) =>

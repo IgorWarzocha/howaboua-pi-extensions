@@ -31,7 +31,7 @@ export class TodoSelectorComponent extends Container implements Focusable {
   private currentSessionId?: string;
   private onQuickAction?: (todo: TodoFrontMatter | null, action: TodoQuickAction) => void;
   private onTabCallback?: () => void;
-  private onCommandCallback?: (action: "sweep-abandoned" | "sweep-completed") => void;
+  private onCommandCallback?: (action: "sweep-abandoned" | "sweep-completed" | "review-all") => void;
   private mode: TodoListMode;
   private leaderActive = false;
   private leaderTimer: ReturnType<typeof setTimeout> | null = null;
@@ -57,7 +57,7 @@ export class TodoSelectorComponent extends Container implements Focusable {
     currentSessionId?: string,
     onQuickAction?: (todo: TodoFrontMatter | null, action: TodoQuickAction) => void,
     onTab?: () => void,
-    onCommand?: (action: "sweep-abandoned" | "sweep-completed") => void,
+    onCommand?: (action: "sweep-abandoned" | "sweep-completed" | "review-all") => void,
     mode: TodoListMode = "tasks",
   ) {
     super();
@@ -137,6 +137,10 @@ export class TodoSelectorComponent extends Container implements Focusable {
       return (this.onQuickAction?.(selected, "work"), this.clearLeader(), true);
     if ((keyData === "r" || keyData === "R") && selected)
       return (this.onQuickAction?.(selected, "refine"), this.clearLeader(), true);
+    if ((keyData === "y" || keyData === "Y") && this.mode === "closed")
+      return (this.onCommandCallback?.("review-all"), this.clearLeader(), true);
+    if ((keyData === "y" || keyData === "Y") && selected)
+      return (this.onQuickAction?.(selected, "review"), this.clearLeader(), true);
     if ((keyData === "v" || keyData === "V") && selected)
       return (this.onSelectCallback(selected), this.clearLeader(), true);
     if ((keyData === "a" || keyData === "A") && this.mode === "closed")
