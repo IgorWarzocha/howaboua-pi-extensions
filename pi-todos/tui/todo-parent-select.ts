@@ -105,7 +105,7 @@ export class TodoParentSelectComponent extends Container {
       return this.renderState();
     }
     if (data === "\u001b" || kb.matches(data, "selectCancel") || data === "\u0003") return this.onCancel();
-    if (data === "\t") {
+    if (data === "\t" || data === "\u0009" || data === "\u001b[Z" || data === "\u001b[1;2Z") {
       this.tab = this.tab === "prds" ? "specs" : "prds";
       this.selected = 0;
       return this.renderState();
