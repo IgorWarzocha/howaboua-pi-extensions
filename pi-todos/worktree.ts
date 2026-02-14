@@ -48,6 +48,18 @@ function findRepos(root: string): Repo[] {
   return repos;
 }
 
+function findEnclosingRepo(root: string): Repo | null {
+  const first = path.resolve(root);
+  let current = first;
+  while (true) {
+    const git = path.join(current, ".git");
+    if (exists(git)) return { path: current };
+    const next = path.dirname(current);
+    if (next === current) return null;
+    current = next;
+  }
+}
+
 function parseWorktrees(raw: string): { path: string; branch?: string }[] {
   const lines = raw.split("\n");
   const items: { path: string; branch?: string }[] = [];
@@ -100,6 +112,11 @@ export async function ensureWorktree(record: TodoFrontMatter, ctx: ExtensionComm
   if (!record.worktree?.enabled) return { ok: true as const };
   const root = record.links?.root_abs ?? ctx.cwd;
   const repos = findRepos(root);
+  const enclosing = findEnclosingRepo(root);
+  if (enclosing) {
+    const found = repos.some((item) => item.path === enclosing.path);
+    if (!found) repos.unshift(enclosing);
+  }
   if (!repos.length) {
     if (!ctx.hasUI) return { error: "No git repository found." };
     const ok = await ctx.ui.confirm("Initialize repository", "No git repository found. Initialize one now?");

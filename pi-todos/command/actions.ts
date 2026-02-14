@@ -126,6 +126,7 @@ export async function handleQuickAction(
   done: () => void,
   setPrompt: (value: string) => void,
   ctx: ExtensionCommandContext,
+  resolve: (todo: TodoFrontMatter) => Promise<TodoRecord | null>,
 ): Promise<void> {
   if (action === "create") return showCreateInput();
   if (!todo) return;
@@ -135,6 +136,10 @@ export async function handleQuickAction(
     done();
     return;
   }
-  if (action === "work") await runWork(todo, ctx, done, setPrompt);
+  if (action === "work") {
+    const record = await resolve(todo);
+    if (!record) return;
+    await runWork(record, ctx, done, setPrompt);
+    return;
+  }
 }
-
