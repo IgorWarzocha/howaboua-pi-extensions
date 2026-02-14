@@ -94,7 +94,17 @@ export class TodoParentSelectComponent extends Container {
 
   handleInput(data: string): void {
     const kb = getEditorKeybindings();
-    if (kb.matches(data, "selectCancel") || data === "\u0003") return this.onCancel();
+    if (data === "\u001b[A") {
+      const rows = this.rows();
+      this.selected = this.selected === 0 ? rows.length - 1 : this.selected - 1;
+      return this.renderState();
+    }
+    if (data === "\u001b[B") {
+      const rows = this.rows();
+      this.selected = this.selected === rows.length - 1 ? 0 : this.selected + 1;
+      return this.renderState();
+    }
+    if (data === "\u001b" || kb.matches(data, "selectCancel") || data === "\u0003") return this.onCancel();
     if (data === "\t") {
       this.tab = this.tab === "prds" ? "specs" : "prds";
       this.selected = 0;
@@ -127,4 +137,3 @@ export class TodoParentSelectComponent extends Container {
     this.renderState();
   }
 }
-

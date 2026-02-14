@@ -60,7 +60,15 @@ export class SpecPrdSelectComponent extends Container {
 
   handleInput(data: string): void {
     const kb = getEditorKeybindings();
-    if (kb.matches(data, "selectCancel") || data === "\u0003") return this.onCancel();
+    if (data === "\u001b[A") {
+      this.selected = this.selected === 0 ? this.rows.length - 1 : this.selected - 1;
+      return this.renderState();
+    }
+    if (data === "\u001b[B") {
+      this.selected = this.selected === this.rows.length - 1 ? 0 : this.selected + 1;
+      return this.renderState();
+    }
+    if (data === "\u001b" || kb.matches(data, "selectCancel") || data === "\u0003") return this.onCancel();
     if (kb.matches(data, "selectConfirm") || data === "\r") return this.confirm();
     if (kb.matches(data, "selectUp") || data === "k") {
       this.selected = this.selected === 0 ? this.rows.length - 1 : this.selected - 1;
