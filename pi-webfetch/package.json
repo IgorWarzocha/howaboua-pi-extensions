@@ -1,0 +1,17 @@
+{
+  "name": "webfetch",
+  "version": "1.0.0",
+  "description": "Web fetch tool for Pi",
+  "dependencies": {
+    "turndown": "^7.2.0"
+  },
+  "devDependencies": {
+    "@mariozechner/pi-coding-agent": "latest",
+    "@sinclair/typebox": "latest"
+  },
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  }
+}
