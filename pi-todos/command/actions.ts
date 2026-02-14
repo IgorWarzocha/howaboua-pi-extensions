@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import type { ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import type { TodoFrontMatter, TodoMenuAction, TodoQuickAction, TodoRecord } from "../types.js";
-import { buildRefinePrompt, buildReviewPrompt, buildWorkPrompt, getTodoTitle, resolveLinkedPaths } from "../format.js";
+import { resolveLinkedPaths } from "../format.js";
 import {
   deleteTodo,
   releaseTodoAssignment,
@@ -9,7 +9,7 @@ import {
   updateTodoStatus,
 } from "../file-io.js";
 import { ensureWorktree } from "../worktree.js";
-import { noun } from "../gui/kind.js";
+import * as flow from "../gui/actions.js";
 
 function validateLinks(record: TodoFrontMatter): { ok: true } | { error: string } {
   if (!record.links) return { ok: true };
@@ -39,7 +39,7 @@ async function runWork(
     return "stay";
   }
   if ("path" in worktree && worktree.created) ctx.ui.notify(`Created worktree ${worktree.path}`, "info");
-  setPrompt(buildWorkPrompt(record.title || "(untitled)", record.links));
+  setPrompt(flow.work(record));
   done();
   return "exit";
 }
@@ -54,7 +54,7 @@ export async function applyTodoAction(
   setPrompt: (value: string) => void,
 ): Promise<"stay" | "exit"> {
   if (action === "refine") {
-    setPrompt(buildRefinePrompt(record.title || "(untitled)"));
+    setPrompt(flow.refine(record));
     done();
     return "exit";
   }
@@ -65,7 +65,7 @@ export async function applyTodoAction(
       ctx.ui.notify(links.error, "error");
       return "stay";
     }
-    setPrompt(buildReviewPrompt(record.title || "(untitled)", record.links));
+    setPrompt(flow.review(record));
     done();
     return "exit";
   }
@@ -77,8 +77,7 @@ export async function applyTodoAction(
       return "stay";
     }
     await refresh();
-    const item = noun(record);
-    ctx.ui.notify(`Released ${item} "${record.title || "(untitled)"}"`, "info");
+    ctx.ui.notify(flow.released(record), "info");
     return "stay";
   }
   if (action === "delete") {
@@ -88,8 +87,7 @@ export async function applyTodoAction(
       return "stay";
     }
     await refresh();
-    const item = noun(record);
-    ctx.ui.notify(`Deleted ${item} "${record.title || "(untitled)"}"`, "info");
+    ctx.ui.notify(flow.deleted(record), "info");
     return "stay";
   }
   if (action === "reopen") {
@@ -99,8 +97,7 @@ export async function applyTodoAction(
       return "stay";
     }
     await refresh();
-    const item = noun(record);
-    ctx.ui.notify(`Reopened ${item} "${record.title || "(untitled)"}" and reset checklist`, "info");
+    ctx.ui.notify(flow.reopened(record), "info");
     return "stay";
   }
   const status = action === "complete" ? "done" : "abandoned";
@@ -111,7 +108,7 @@ export async function applyTodoAction(
   }
   await refresh();
   ctx.ui.notify(
-    `${action === "complete" ? "Completed" : "Abandoned"} ${noun(record)} "${record.title || "(untitled)"}"`,
+    flow.done(action === "complete" ? "complete" : "abandon", record),
     "info",
   );
   return "stay";
@@ -128,9 +125,8 @@ export async function handleQuickAction(
 ): Promise<void> {
   if (action === "create") return showCreateInput();
   if (!todo) return;
-  const title = getTodoTitle(todo);
   if (action === "refine") {
-    setPrompt(buildRefinePrompt(title));
+    setPrompt(flow.refine(todo));
     done();
     return;
   }
