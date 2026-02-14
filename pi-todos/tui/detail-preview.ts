@@ -3,6 +3,7 @@ import type { Theme } from "@mariozechner/pi-coding-agent";
 import { getMarkdownTheme } from "@mariozechner/pi-coding-agent";
 import type { TodoRecord } from "../types.js";
 import { isTodoClosed, renderChecklist } from "../format.js";
+import { noun } from "../gui/kind.js";
 
 export class TodoDetailPreviewComponent {
   private todo: TodoRecord;
@@ -67,7 +68,7 @@ export class TodoDetailPreviewComponent {
   }
 
   private buildTitleLine(width: number): string {
-    const titleText = this.todo.title ? ` ${this.todo.title} ` : " Todo ";
+    const titleText = this.todo.title ? ` ${this.todo.title} ` : ` ${noun(this.todo)} `;
     const titleWidth = visibleWidth(titleText);
     if (titleWidth >= width)
       return truncateToWidth(this.theme.fg("accent", titleText.trim()), width);

@@ -3,6 +3,7 @@ import type { Theme } from "@mariozechner/pi-coding-agent";
 import { DynamicBorder } from "@mariozechner/pi-coding-agent";
 import type { TodoRecord, TodoMenuAction } from "../types.js";
 import { isTodoClosed } from "../format.js";
+import { noun } from "../gui/kind.js";
 
 export class TodoActionMenuComponent extends Container {
   private selectList: SelectList;
@@ -25,18 +26,19 @@ export class TodoActionMenuComponent extends Container {
 
     const closed = isTodoClosed(todo.status);
     const title = todo.title || "(untitled)";
+    const item = noun(todo);
     const items: SelectItem[] = [
-      { value: "work", label: "work", description: "Work on todo" },
+      { value: "work", label: "work", description: `Work on ${item}` },
       { value: "review-item", label: "review-item", description: "Review selected item" },
       ...(closed
         ? [
-            { value: "reopen", label: "reopen", description: "Reopen todo" },
-            { value: "delete", label: "delete", description: "Delete todo" },
+            { value: "reopen", label: "reopen", description: `Reopen ${item}` },
+            { value: "delete", label: "delete", description: `Delete ${item}` },
           ]
         : [
-            { value: "refine", label: "refine", description: "Refine todo scope" },
-            { value: "complete", label: "complete", description: "Mark todo as completed" },
-            { value: "abandon", label: "abandon", description: "Mark todo as abandoned" },
+            { value: "refine", label: "refine", description: `Refine ${item} scope` },
+            { value: "complete", label: "complete", description: `Mark ${item} as completed` },
+            { value: "abandon", label: "abandon", description: `Mark ${item} as abandoned` },
           ]),
       ...(todo.assigned_to_session
         ? [{ value: "release", label: "release", description: "Release assignment" }]

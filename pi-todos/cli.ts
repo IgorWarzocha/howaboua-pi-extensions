@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
 import YAML from "yaml";
-
+import { resolveRoot } from "./cli/root.js";
 type Kind = "prd" | "spec" | "todo";
 
 interface Entry {
@@ -73,9 +73,7 @@ function pick(args: string[], names: string[]): string | undefined {
 }
 
 function dir(): string {
-  const value = process.env.PI_TODOS_CWD;
-  if (value && value.trim()) return value.trim();
-  return process.cwd();
+  return resolveRoot();
 }
 
 function links(root: string): { root_abs: string; prds: string[]; specs: string[]; todos: string[] } {

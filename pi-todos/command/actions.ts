@@ -9,6 +9,7 @@ import {
   updateTodoStatus,
 } from "../file-io.js";
 import { ensureWorktree } from "../worktree.js";
+import { noun } from "../gui/kind.js";
 
 function validateLinks(record: TodoFrontMatter): { ok: true } | { error: string } {
   if (!record.links) return { ok: true };
@@ -76,7 +77,8 @@ export async function applyTodoAction(
       return "stay";
     }
     await refresh();
-    ctx.ui.notify(`Released todo "${record.title || "(untitled)"}"`, "info");
+    const item = noun(record);
+    ctx.ui.notify(`Released ${item} "${record.title || "(untitled)"}"`, "info");
     return "stay";
   }
   if (action === "delete") {
@@ -86,7 +88,8 @@ export async function applyTodoAction(
       return "stay";
     }
     await refresh();
-    ctx.ui.notify(`Deleted todo "${record.title || "(untitled)"}"`, "info");
+    const item = noun(record);
+    ctx.ui.notify(`Deleted ${item} "${record.title || "(untitled)"}"`, "info");
     return "stay";
   }
   if (action === "reopen") {
@@ -96,7 +99,8 @@ export async function applyTodoAction(
       return "stay";
     }
     await refresh();
-    ctx.ui.notify(`Reopened todo "${record.title || "(untitled)"}" and reset checklist`, "info");
+    const item = noun(record);
+    ctx.ui.notify(`Reopened ${item} "${record.title || "(untitled)"}" and reset checklist`, "info");
     return "stay";
   }
   const status = action === "complete" ? "done" : "abandoned";
@@ -107,7 +111,7 @@ export async function applyTodoAction(
   }
   await refresh();
   ctx.ui.notify(
-    `${action === "complete" ? "Completed" : "Abandoned"} todo "${record.title || "(untitled)"}"`,
+    `${action === "complete" ? "Completed" : "Abandoned"} ${noun(record)} "${record.title || "(untitled)"}"`,
     "info",
   );
   return "stay";

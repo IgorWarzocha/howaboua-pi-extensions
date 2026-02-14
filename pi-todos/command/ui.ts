@@ -18,6 +18,7 @@ import {
 import { Key, matchesKey } from "@mariozechner/pi-tui";
 import { applyTodoAction, handleQuickAction } from "./actions.js";
 import { getCliPath } from "../cli-path.js";
+import { noun } from "../gui/kind.js";
 
 export async function runTodoUi(
   args: string,
@@ -139,11 +140,12 @@ export async function runTodoUi(
     };
     const showDetailView = (record: TodoRecord, source: TodoListMode) => {
       const preview = new TodoDetailPreviewComponent(tui, theme, record);
+      const item = noun(record);
       const detailFooter = record.checklist?.length
-        ? "Enter confirm • Esc back • v toggle preview • j/k scroll preview • Ctrl+X leader (then e edit checklist)"
+        ? `Enter confirm • Esc back • v toggle preview • j/k scroll preview • Ctrl+X leader (then e edit ${item} checklist)`
         : "Enter confirm • Esc back • v toggle preview • j/k scroll preview • Ctrl+X leader";
       const leaderFooter = record.checklist?.length
-        ? "Leader: w work • y review • r refine • c complete • a abandon • v toggle preview • e edit checklist • x cancel"
+        ? `Leader: w work • y review • r refine • c complete • a abandon • v toggle preview • e edit ${item} checklist • x cancel`
         : "Leader: w work • y review • r refine • c complete • a abandon • v toggle preview • x cancel";
       let previewVisible = true;
       let leaderActive = false;
