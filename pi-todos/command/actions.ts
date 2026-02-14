@@ -1,8 +1,7 @@
 import fs from "node:fs";
-import path from "node:path";
 import type { ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import type { TodoFrontMatter, TodoMenuAction, TodoQuickAction, TodoRecord } from "../types.js";
-import { buildRefinePrompt, buildReviewPrompt, buildWorkPrompt, getTodoTitle } from "../format.js";
+import { buildRefinePrompt, buildReviewPrompt, buildWorkPrompt, getTodoTitle, resolveLinkedPaths } from "../format.js";
 import {
   deleteTodo,
   releaseTodoAssignment,
@@ -14,15 +13,10 @@ import { ensureWorktree } from "../worktree.js";
 function validateLinks(record: TodoFrontMatter): { ok: true } | { error: string } {
   if (!record.links) return { ok: true };
   const root = record.links.root_abs || "";
-  const paths = [
-    ...(record.links.prds ?? []),
-    ...(record.links.specs ?? []),
-    ...(record.links.todos ?? []),
-    ...(record.links.reads ?? []),
-  ];
+  const paths = resolveLinkedPaths(record.links);
+  if (paths.length && !root) return { error: "links.root_abs is required when links contain repo-relative files." };
   for (const item of paths) {
-    const resolved = root ? path.resolve(root, item) : item;
-    if (!fs.existsSync(resolved)) return { error: `Required linked file not found: ${resolved}` };
+    if (!fs.existsSync(item)) return { error: `Required linked file not found: ${item}` };
   }
   return { ok: true };
 }

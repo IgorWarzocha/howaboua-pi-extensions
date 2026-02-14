@@ -18,6 +18,7 @@ export {
   buildEditChecklistPrompt,
   buildWorkPrompt,
   buildReviewPrompt,
+  resolveLinkedPaths,
 } from "./format/prompts.js";
 export {
   splitTodosByAssignment,

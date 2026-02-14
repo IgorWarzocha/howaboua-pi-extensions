@@ -58,13 +58,13 @@ function normalizePaths(paths: string[]): string[] {
   return list;
 }
 
-export function buildWorkPrompt(title: string, links?: {
+export function resolveLinkedPaths(links?: {
   root_abs?: string;
   prds?: string[];
   specs?: string[];
   todos?: string[];
   reads?: string[];
-}): string {
+}): string[] {
   const base = links?.root_abs ?? "";
   const rel = [...(links?.prds ?? []), ...(links?.specs ?? []), ...(links?.todos ?? []), ...(links?.reads ?? [])];
   const abs = normalizePaths(
@@ -73,6 +73,17 @@ export function buildWorkPrompt(title: string, links?: {
       return path.resolve(base, item);
     }),
   );
+  return abs;
+}
+
+export function buildWorkPrompt(title: string, links?: {
+  root_abs?: string;
+  prds?: string[];
+  specs?: string[];
+  todos?: string[];
+  reads?: string[];
+}): string {
+  const abs = resolveLinkedPaths(links);
   if (!abs.length) return `work on todo "${title}"`;
   const text = abs.map((item) => `- ${item}`).join("\n");
   return `work on todo "${title}"\n\nYou MUST read these files before making changes:\n${text}`;
