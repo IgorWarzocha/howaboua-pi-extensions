@@ -1,8 +1,9 @@
 {
-  "name": "pi-question-tool",
+  "name": "@howaboua/pi-question-tool",
   "version": "0.1.0",
   "description": "Question answering tool extension",
-  "keywords": ["pi-extension"],
+  "license": "MIT",
+  "keywords": ["pi-extension", "pi-package"],
   "type": "module",
   "peerDependencies": {
     "@mariozechner/pi-ai": "*",

@@ -1,7 +1,12 @@
 {
-  "name": "pi-repo-managment",
+  "name": "@howaboua/pi-repo-management",
   "version": "0.1.0",
   "description": "Repo management command with background subagent execution",
+  "license": "MIT",
+  "keywords": [
+    "pi-extension",
+    "pi-package"
+  ],
   "type": "module",
   "devDependencies": {
     "@mariozechner/pi-coding-agent": "^0.50.0",

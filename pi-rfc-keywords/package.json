@@ -1,5 +1,5 @@
 {
-  "name": "@pi-extensions-dev/pi-rfc-keywords-extension",
+  "name": "@howaboua/pi-rfc-keywords",
   "version": "0.1.0",
   "description": "Pi extension that enforces RFC 2119/8174 uppercase keywords in user prompts",
   "keywords": [
@@ -35,7 +35,7 @@
   },
   "pi": {
     "extensions": [
-      "./src/index.ts"
+      "./dist/index.js"
     ]
   }
 }

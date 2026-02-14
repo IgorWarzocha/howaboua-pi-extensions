@@ -1,5 +1,5 @@
 {
-  "name": "@pi-extensions-dev/pi-workflows-tool",
+  "name": "@howaboua/pi-workflows-tool",
   "version": "0.1.0",
   "description": "Pi extension with workflows tools and embedded subdirectory AGENTS.md context loading",
   "keywords": [
@@ -38,7 +38,7 @@
   },
   "pi": {
     "extensions": [
-      "./src/index.ts"
+      "./dist/index.js"
     ]
   }
 }

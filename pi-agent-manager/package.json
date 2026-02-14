@@ -1,7 +1,12 @@
 {
-  "name": "pi-agent-manager",
+  "name": "@howaboua/pi-agent-manager",
   "version": "0.1.0",
   "description": "Subagent and skill permission manager for Pi",
+  "license": "MIT",
+  "keywords": [
+    "pi-extension",
+    "pi-package"
+  ],
   "type": "module",
   "devDependencies": {
     "@mariozechner/pi-coding-agent": "^0.50.0",

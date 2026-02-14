@@ -10,3 +10,5 @@
  ## Procedures
  - **CHANGELOG.md**: You MUST update `CHANGELOG.md` whenever a feature or fix is shipped to `master`.
  - **Dependencies**: You MUST NOT commit `package-lock.json` files.
+When operating in this directory you MUST consider loading these workflows:
+- `prepare-extension-packages-for-community-publish`

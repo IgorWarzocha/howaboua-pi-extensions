@@ -1,5 +1,5 @@
 {
-  "name": "@pi-extensions-dev/pi-worktree-forker",
+  "name": "@howaboua/pi-worktree-forker",
   "version": "0.1.0",
   "description": "Automagically create git worktrees when forking a session in Pi",
   "keywords": [
@@ -33,7 +33,7 @@
   },
   "pi": {
     "extensions": [
-      "./src/index.ts"
+      "./dist/index.js"
     ]
   }
 }

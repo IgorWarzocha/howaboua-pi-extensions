@@ -1,5 +1,5 @@
 {
-  "name": "@pi-extensions-dev/super-ralph",
+  "name": "@howaboua/super-ralph",
   "version": "0.1.0",
   "description": "Super Ralph - The ultimate iterative development loop for Pi",
   "keywords": [
@@ -37,7 +37,7 @@
   },
   "pi": {
     "extensions": [
-      "./src/index.ts"
+      "./dist/index.js"
     ]
   }
 }

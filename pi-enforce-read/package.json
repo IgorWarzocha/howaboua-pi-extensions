@@ -1,6 +1,12 @@
 {
-  "name": "pi-enforce-read",
+  "name": "@howaboua/pi-enforce-read",
   "version": "1.0.0",
+  "description": "Enforce read-tool usage in Pi sessions",
+  "license": "MIT",
+  "keywords": [
+    "pi-extension",
+    "pi-package"
+  ],
   "type": "module",
   "pi": {
     "extensions": [
