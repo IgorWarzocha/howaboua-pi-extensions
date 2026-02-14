@@ -16,6 +16,8 @@ export {
   buildRefinePrompt,
   buildCreatePrompt,
   buildEditChecklistPrompt,
+  buildWorkPrompt,
+  buildReviewPrompt,
 } from "./format/prompts.js";
 export {
   splitTodosByAssignment,

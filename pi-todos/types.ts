@@ -2,6 +2,20 @@ export interface ChecklistItem {
   id: string;
   title: string;
   status: "unchecked" | "checked";
+  done?: boolean;
+}
+
+export interface TodoLinks {
+  root_abs?: string;
+  prds?: string[];
+  specs?: string[];
+  todos?: string[];
+  reads?: string[];
+}
+
+export interface TodoWorktree {
+  enabled?: boolean;
+  branch?: string;
 }
 
 export interface TodoFrontMatter {
@@ -13,6 +27,11 @@ export interface TodoFrontMatter {
   modified_at?: string;
   assigned_to_session?: string;
   checklist?: ChecklistItem[];
+  kind?: string;
+  template?: boolean;
+  links?: TodoLinks;
+  agent_rules?: string;
+  worktree?: TodoWorktree;
 }
 
 export interface TodoRecord extends TodoFrontMatter {
@@ -46,6 +65,7 @@ export type TodoOverlayAction = "back" | "work" | "edit-checklist";
 
 export type TodoMenuAction =
   | "work"
+  | "review"
   | "refine"
   | "complete"
   | "abandon"
@@ -80,3 +100,4 @@ export type TodoToolDetails =
 export type TodoCreateCallback = (prompt: string) => void;
 
 export type TodoQuickAction = "work" | "refine" | "create";
+

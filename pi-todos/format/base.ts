@@ -14,9 +14,19 @@ export function isTodoClosed(status: string): boolean {
   return ["closed", "done", "abandoned"].includes(status.toLowerCase());
 }
 
+function isChecklistItemDone(item: { status?: string; done?: boolean }): boolean {
+  if (typeof item.done === "boolean") return item.done;
+  return item.status === "checked";
+}
+
+function countChecklistDone(todo: { checklist?: Array<{ status?: string; done?: boolean }> }): number {
+  if (!todo.checklist?.length) return 0;
+  return todo.checklist.filter((item) => isChecklistItemDone(item)).length;
+}
+
 export function deriveTodoStatus(todo: TodoRecord): string {
   if (!todo.checklist?.length) return todo.status;
-  const checked = todo.checklist.filter((i) => i.status === "checked").length;
+  const checked = countChecklistDone(todo);
   if (checked === 0) return "open";
   if (checked === todo.checklist.length) return "done";
   return "in-progress";
@@ -24,7 +34,7 @@ export function deriveTodoStatus(todo: TodoRecord): string {
 
 export function formatChecklistProgress(todo: TodoFrontMatter): string {
   if (!todo.checklist?.length) return "";
-  const checked = todo.checklist.filter((i) => i.status === "checked").length;
+  const checked = countChecklistDone(todo);
   return ` (${checked}/${todo.checklist.length})`;
 }
 
@@ -49,6 +59,10 @@ export function sortTodos(todos: TodoFrontMatter[]): TodoFrontMatter[] {
     return 3;
   };
   const openRank = (todo: TodoFrontMatter): number => {
+    if (todo.checklist?.length) {
+      const checked = countChecklistDone(todo);
+      if (checked === todo.checklist.length) return -1;
+    }
     const status = todo.status.toLowerCase();
     if (status === "in-progress") return 0;
     if (status === "open") return 1;

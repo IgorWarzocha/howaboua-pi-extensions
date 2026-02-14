@@ -86,8 +86,8 @@ export async function runTodoUi(
         ? "Enter confirm • Esc back • v toggle preview • j/k scroll preview • Ctrl+X leader (then e edit checklist)"
         : "Enter confirm • Esc back • v toggle preview • j/k scroll preview • Ctrl+X leader";
       const leaderFooter = record.checklist?.length
-        ? "Leader: w work • r refine • c complete • a abandon • v toggle preview • e edit checklist • x cancel"
-        : "Leader: w work • r refine • c complete • a abandon • v toggle preview • x cancel";
+        ? "Leader: w work • y review • r refine • c complete • a abandon • v toggle preview • e edit checklist • x cancel"
+        : "Leader: w work • y review • r refine • c complete • a abandon • v toggle preview • x cancel";
       let previewVisible = true;
       let leaderActive = false;
       let leaderTimer: ReturnType<typeof setTimeout> | null = null;
@@ -144,6 +144,8 @@ export async function runTodoUi(
               return (clearLeader(), void handleSelection(record, "work", source));
             if (data === "r" || data === "R")
               return (clearLeader(), void handleSelection(record, "refine", source));
+            if (data === "y" || data === "Y")
+              return (clearLeader(), void handleSelection(record, "review", source));
             if (data === "c" || data === "C")
               return (clearLeader(), void handleSelection(record, "complete", source));
             if (data === "a" || data === "A")

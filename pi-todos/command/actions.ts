@@ -1,6 +1,6 @@
 import type { ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import type { TodoFrontMatter, TodoMenuAction, TodoQuickAction, TodoRecord } from "../types.js";
-import { buildRefinePrompt, getTodoTitle } from "../format.js";
+import { buildRefinePrompt, buildReviewPrompt, buildWorkPrompt, getTodoTitle } from "../format.js";
 import {
   deleteTodo,
   releaseTodoAssignment,
@@ -23,7 +23,12 @@ export async function applyTodoAction(
     return "exit";
   }
   if (action === "work") {
-    setPrompt(`work on todo "${record.title || "(untitled)"}"`);
+    setPrompt(buildWorkPrompt(record.title || "(untitled)", record.links));
+    done();
+    return "exit";
+  }
+  if (action === "review") {
+    setPrompt(buildReviewPrompt(record.title || "(untitled)", record.links));
     done();
     return "exit";
   }

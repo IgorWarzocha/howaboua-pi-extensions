@@ -1,4 +1,5 @@
 import type { ChecklistItem } from "../types.js";
+import path from "node:path";
 
 export function buildRefinePrompt(title: string): string {
   return (
@@ -31,7 +32,7 @@ export function buildEditChecklistPrompt(
 ): string {
   const checklistText = checklist
     .map((item) => {
-      const status = item.status === "checked" ? "[x]" : "[ ]";
+      const status = item.done === true || item.status === "checked" ? "[x]" : "[ ]";
       return `  ${status} ${item.id}: ${item.title}`;
     })
     .join("\n");
@@ -42,4 +43,48 @@ export function buildEditChecklistPrompt(
     "Use the todo tool's `update` action to modify the checklist array. " +
     'Assign short IDs to new items (e.g., "1", "2", "3").'
   );
+}
+
+function normalizePaths(paths: string[]): string[] {
+  const seen = new Set<string>();
+  const list: string[] = [];
+  for (const item of paths) {
+    const value = item.trim();
+    if (!value) continue;
+    if (seen.has(value)) continue;
+    seen.add(value);
+    list.push(value);
+  }
+  return list;
+}
+
+export function buildWorkPrompt(title: string, links?: {
+  root_abs?: string;
+  prds?: string[];
+  specs?: string[];
+  todos?: string[];
+  reads?: string[];
+}): string {
+  const base = links?.root_abs ?? "";
+  const rel = [...(links?.prds ?? []), ...(links?.specs ?? []), ...(links?.todos ?? []), ...(links?.reads ?? [])];
+  const abs = normalizePaths(
+    rel.map((item) => {
+      if (!base) return item;
+      return path.resolve(base, item);
+    }),
+  );
+  if (!abs.length) return `work on todo "${title}"`;
+  const text = abs.map((item) => `- ${item}`).join("\n");
+  return `work on todo "${title}"\n\nYou MUST read these files before making changes:\n${text}`;
+}
+
+export function buildReviewPrompt(title: string, links?: {
+  root_abs?: string;
+  prds?: string[];
+  specs?: string[];
+  todos?: string[];
+  reads?: string[];
+}): string {
+  const work = buildWorkPrompt(title, links);
+  return `${work}\n\nThen review whether implementation is complete and list gaps.`;
 }
