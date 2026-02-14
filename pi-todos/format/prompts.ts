@@ -20,10 +20,9 @@ function buildCreateBase(kind: "PRD" | "Spec" | "Todo", rules: string, userPromp
     `1. You MUST use this CLI path for plan creation: ${cli}\n` +
     `2. You MUST start by running: ${cli} -schema ${kind.toLowerCase()}\n` +
     "3. You MUST read schema output and satisfy every REQUIRED field.\n" +
-    "4. You MUST then use the same CLI path to execute the create operation for this document.\n" +
-    "5. You MUST NOT bypass procedure by writing a standalone markdown file directly.\n" +
-    "6. You MUST read relevant linked code/docs before drafting content.\n" +
-    "7. You MAY ask clarifying questions when requirements are ambiguous.\n\n" +
+    "4. You MUST use the same CLI path to execute create.\n" +
+    "5. You MUST preserve frontmatter schema; body drafting happens after file creation.\n" +
+    "6. You MAY ask clarifying questions when requirements are ambiguous.\n\n" +
     `${rules}\n\n` +
     `User request: ${userPrompt}`
   );
