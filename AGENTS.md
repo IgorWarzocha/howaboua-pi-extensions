@@ -9,3 +9,4 @@
  All active extensions have been moved to their own feature branches for extraction.
  ## Procedures
  - **CHANGELOG.md**: You MUST update `CHANGELOG.md` whenever a feature or fix is shipped to `master`.
+ - **Dependencies**: You MUST NOT commit `package-lock.json` files.
