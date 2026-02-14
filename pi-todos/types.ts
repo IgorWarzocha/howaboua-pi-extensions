@@ -100,4 +100,4 @@ export type TodoToolDetails =
 export type TodoCreateCallback = (prompt: string) => void;
 
 export type TodoQuickAction = "work" | "refine" | "create";
-
+export type TodoListMode = "tasks" | "prds" | "specs" | "closed";

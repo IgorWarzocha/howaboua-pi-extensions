@@ -1,12 +1,12 @@
 import type { ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
-import type { TodoFrontMatter, TodoMenuAction, TodoRecord } from "../types.js";
-import { buildCreatePrompt, buildEditChecklistPrompt, isTodoClosed } from "../format.js";
+import type { TodoFrontMatter, TodoListMode, TodoMenuAction, TodoRecord } from "../types.js";
+import { buildCreatePrompt, buildEditChecklistPrompt } from "../format.js";
 import { deleteTodo, ensureTodoExists, getTodoPath, getTodosDir, listTodos } from "../file-io.js";
 import {
   TodoActionMenuComponent,
   TodoCreateInputComponent,
-  TodoEditChecklistInputComponent,
   TodoDetailPreviewComponent,
+  TodoEditChecklistInputComponent,
   TodoSelectorComponent,
 } from "../tui/index.js";
 import { Key, matchesKey } from "@mariozechner/pi-tui";
@@ -22,8 +22,9 @@ export async function runTodoUi(
   const searchTerm = (args ?? "").trim();
   let nextPrompt: string | null = null;
   await ctx.ui.custom<void>((tui, theme, _kb, done) => {
-    let openSelector: TodoSelectorComponent | null = null;
-    let closedSelector: TodoSelectorComponent | null = null;
+    const selectors: Partial<Record<TodoListMode, TodoSelectorComponent>> = {};
+    const modes: TodoListMode[] = ["tasks", "prds", "specs", "closed"];
+    let index = 0;
     let createInput: TodoCreateInputComponent | null = null;
     let editInput: TodoEditChecklistInputComponent | null = null;
     let active: {
@@ -33,11 +34,38 @@ export async function runTodoUi(
       focused?: boolean;
     } | null = null;
     let focused = false;
-    const listOpen = (all: TodoFrontMatter[]) => all.filter((todo) => !isTodoClosed(todo.status));
-    const listClosed = (all: TodoFrontMatter[]) => all.filter((todo) => isTodoClosed(todo.status));
+    const isDeprecated = (todo: TodoFrontMatter) => {
+      const status = todo.status.toLowerCase();
+      return status === "abandoned" || status === "deprecated";
+    };
+    const isDone = (todo: TodoFrontMatter) => {
+      const status = todo.status.toLowerCase();
+      return status === "done" || status === "closed";
+    };
+    const modified = (todo: TodoFrontMatter) => Date.parse(todo.modified_at || todo.created_at || "") || 0;
+    const listTasks = (all: TodoFrontMatter[]) =>
+      all.filter((todo) => (todo.kind || "todo") === "todo" && !isDone(todo) && !isDeprecated(todo));
+    const listPrds = (all: TodoFrontMatter[]) =>
+      all.filter((todo) => todo.kind === "prd" && !isDone(todo) && !isDeprecated(todo));
+    const listSpecs = (all: TodoFrontMatter[]) =>
+      all.filter((todo) => todo.kind === "spec" && !isDone(todo) && !isDeprecated(todo));
+    const listClosed = (all: TodoFrontMatter[]) => {
+      const prds = all
+        .filter((todo) => todo.kind === "prd" && (isDone(todo) || isDeprecated(todo)))
+        .sort((a, b) => modified(b) - modified(a));
+      const specs = all
+        .filter((todo) => todo.kind === "spec" && (isDone(todo) || isDeprecated(todo)))
+        .sort((a, b) => modified(b) - modified(a));
+      const tasks = all
+        .filter((todo) => (todo.kind || "todo") === "todo" && (isDone(todo) || isDeprecated(todo)))
+        .sort((a, b) => modified(b) - modified(a));
+      return [...prds, ...specs, ...tasks];
+    };
     const setPrompt = (value: string) => {
       nextPrompt = value;
     };
+    const currentMode = (): TodoListMode => modes[index] || "tasks";
+    const currentSelector = () => selectors[currentMode()] ?? null;
     const setActive = (
       component: {
         render: (width: number) => string[];
@@ -53,8 +81,10 @@ export async function runTodoUi(
     };
     const refresh = async () => {
       const updated = await listTodos(todosDir);
-      openSelector?.setTodos(listOpen(updated));
-      closedSelector?.setTodos(listClosed(updated));
+      selectors.tasks?.setTodos(listTasks(updated));
+      selectors.prds?.setTodos(listPrds(updated));
+      selectors.specs?.setTodos(listSpecs(updated));
+      selectors.closed?.setTodos(listClosed(updated));
     };
     const runListCommand = async (action: "sweep-abandoned" | "sweep-completed") => {
       const updated = await listTodos(todosDir);
@@ -80,7 +110,7 @@ export async function runTodoUi(
       ctx.ui.notify("Todo not found", "error");
       return null;
     };
-    const showDetailView = (record: TodoRecord, source: "open" | "closed") => {
+    const showDetailView = (record: TodoRecord, source: TodoListMode) => {
       const preview = new TodoDetailPreviewComponent(tui, theme, record);
       const detailFooter = record.checklist?.length
         ? "Enter confirm • Esc back • v toggle preview • j/k scroll preview • Ctrl+X leader (then e edit checklist)"
@@ -112,7 +142,7 @@ export async function runTodoUi(
         (action) => {
           void handleSelection(record, action, source);
         },
-        () => setActive(source === "closed" ? closedSelector : openSelector),
+        () => setActive(selectors[source] ?? currentSelector()),
         {
           showView: false,
           footer: detailFooter,
@@ -191,16 +221,13 @@ export async function runTodoUi(
     const handleSelection = async (
       record: TodoRecord,
       action: TodoMenuAction,
-      source: "open" | "closed",
+      source: TodoListMode,
     ) => {
       if (action === "view") return showDetailView(record, source);
       const result = await applyTodoAction(todosDir, ctx, refresh, done, record, action, setPrompt);
-      if (result === "stay") setActive(source === "closed" ? closedSelector : openSelector);
+      if (result === "stay") setActive(selectors[source] ?? currentSelector());
     };
-    const openDetailFromTodo = async (
-      todo: TodoFrontMatter | TodoRecord,
-      source: "open" | "closed",
-    ) => {
+    const openDetailFromTodo = async (todo: TodoFrontMatter | TodoRecord, source: TodoListMode) => {
       const record = "body" in todo ? todo : await resolve(todo);
       if (!record) return;
       showDetailView(record, source);
@@ -213,11 +240,11 @@ export async function runTodoUi(
           setPrompt(buildCreatePrompt(userPrompt));
           done();
         },
-        () => setActive(openSelector),
+        () => setActive(currentSelector()),
       );
       setActive(createInput);
     };
-    const showEditChecklistInput = (record: TodoRecord, source: "open" | "closed") => {
+    const showEditChecklistInput = (record: TodoRecord, source: TodoListMode) => {
       editInput = new TodoEditChecklistInputComponent(
         tui,
         theme,
@@ -231,33 +258,28 @@ export async function runTodoUi(
       );
       setActive(editInput);
     };
-    openSelector = new TodoSelectorComponent(
-      tui,
-      theme,
-      listOpen(todos),
-      (todo) => void openDetailFromTodo(todo, "open"),
-      () => done(),
-      searchTerm || undefined,
-      currentSessionId,
-      (todo, action) => void handleQuickAction(todo, action, showCreateInput, done, setPrompt, ctx, resolve),
-      () => setActive(closedSelector),
-      (action) => void runListCommand(action),
-      "open",
-    );
-    closedSelector = new TodoSelectorComponent(
-      tui,
-      theme,
-      listClosed(todos),
-      (todo) => void openDetailFromTodo(todo, "closed"),
-      () => done(),
-      undefined,
-      currentSessionId,
-      (todo, action) => void handleQuickAction(todo, action, showCreateInput, done, setPrompt, ctx, resolve),
-      () => setActive(openSelector),
-      (action) => void runListCommand(action),
-      "closed",
-    );
-    setActive(openSelector);
+    const buildSelector = (mode: TodoListMode, items: TodoFrontMatter[], initial?: string) =>
+      new TodoSelectorComponent(
+        tui,
+        theme,
+        items,
+        (todo) => void openDetailFromTodo(todo, mode),
+        () => done(),
+        initial,
+        currentSessionId,
+        (todo, action) => void handleQuickAction(todo, action, showCreateInput, done, setPrompt, ctx, resolve),
+        () => {
+          index = (index + 1) % modes.length;
+          setActive(currentSelector());
+        },
+        (action) => void runListCommand(action),
+        mode,
+      );
+    selectors.tasks = buildSelector("tasks", listTasks(todos), searchTerm || undefined);
+    selectors.prds = buildSelector("prds", listPrds(todos));
+    selectors.specs = buildSelector("specs", listSpecs(todos));
+    selectors.closed = buildSelector("closed", listClosed(todos));
+    setActive(currentSelector());
     return {
       get focused() {
         return focused;

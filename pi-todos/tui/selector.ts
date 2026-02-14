@@ -9,7 +9,7 @@ import {
 } from "@mariozechner/pi-tui";
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import { DynamicBorder } from "@mariozechner/pi-coding-agent";
-import type { TodoFrontMatter, TodoQuickAction } from "../types.js";
+import type { TodoFrontMatter, TodoListMode, TodoQuickAction } from "../types.js";
 import { filterTodos } from "../filter.js";
 import { mapIntent } from "./selector-keys.js";
 import { renderAll } from "./selector-view.js";
@@ -32,7 +32,7 @@ export class TodoSelectorComponent extends Container implements Focusable {
   private onQuickAction?: (todo: TodoFrontMatter | null, action: TodoQuickAction) => void;
   private onTabCallback?: () => void;
   private onCommandCallback?: (action: "sweep-abandoned" | "sweep-completed") => void;
-  private mode: "open" | "closed";
+  private mode: TodoListMode;
   private leaderActive = false;
   private leaderTimer: ReturnType<typeof setTimeout> | null = null;
   private searchActive = false;
@@ -58,7 +58,7 @@ export class TodoSelectorComponent extends Container implements Focusable {
     onQuickAction?: (todo: TodoFrontMatter | null, action: TodoQuickAction) => void,
     onTab?: () => void,
     onCommand?: (action: "sweep-abandoned" | "sweep-completed") => void,
-    mode: "open" | "closed" = "open",
+    mode: TodoListMode = "tasks",
   ) {
     super();
     this.tui = tui;

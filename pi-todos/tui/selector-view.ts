@@ -1,37 +1,31 @@
 import { Text, type TUI } from "@mariozechner/pi-tui";
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import type { TodoFrontMatter } from "../types.js";
+import type { TodoListMode } from "../types.js";
 import { isTodoClosed, renderAssignmentSuffix } from "../format.js";
-
 export function buildHeader(
   theme: Theme,
   todos: TodoFrontMatter[],
-  mode: "open" | "closed",
+  mode: TodoListMode,
 ): string {
-  if (mode === "open") return theme.fg("accent", theme.bold(`Open todos (${todos.length})`));
-  const abandoned = todos.filter((todo) => todo.status.toLowerCase() === "abandoned").length;
-  const done = todos.filter((todo) => todo.status.toLowerCase() === "done").length;
-  const closed = todos.filter((todo) => todo.status.toLowerCase() === "closed").length;
-  return theme.fg(
-    "accent",
-    theme.bold(
-      `Closed todos (${todos.length}; abandoned ${abandoned}, done ${done}, closed ${closed})`,
-    ),
-  );
+  if (mode === "tasks") return theme.fg("accent", theme.bold(`Tasks (${todos.length})`));
+  if (mode === "prds") return theme.fg("accent", theme.bold(`PRDs (${todos.length})`));
+  if (mode === "specs") return theme.fg("accent", theme.bold(`Specs (${todos.length})`));
+  return theme.fg("accent", theme.bold(`Done/Deprecated (${todos.length})`));
 }
 
-export function buildHints(theme: Theme, mode: "open" | "closed", leaderActive = false): string {
+export function buildHints(theme: Theme, mode: TodoListMode, leaderActive = false): string {
   if (leaderActive) {
     return theme.fg(
       "warning",
-      mode === "open"
+      mode !== "closed"
         ? "Leader: c create • w work • r refine • v view • x cancel"
         : "Leader: c create • w work • r refine • v view • a sweep abandoned • d sweep completed • x cancel",
     );
   }
   return theme.fg(
     "dim",
-    "Press / to search • ↑↓ or j/k select • Enter view • Tab switch list • Ctrl+X leader • Esc close",
+    "Press / to search • ↑↓ or j/k select • Enter view • Tab switch lists • Ctrl+X leader • Esc close",
   );
 }
 
@@ -95,7 +89,7 @@ export function renderAll(
   theme: Theme,
   todos: TodoFrontMatter[],
   selectedIndex: number,
-  mode: "open" | "closed",
+  mode: TodoListMode,
   currentSessionId?: string,
   leaderActive = false,
 ): void {
