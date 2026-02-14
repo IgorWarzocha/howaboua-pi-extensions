@@ -1,6 +1,12 @@
 import type { ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import type { TodoFrontMatter, TodoListMode, TodoMenuAction, TodoRecord } from "../types.js";
-import { buildCreatePrompt, buildEditChecklistPrompt, buildReviewPrompt } from "../format.js";
+import {
+  buildCreatePrdPrompt,
+  buildCreateSpecPrompt,
+  buildCreateTodoPrompt,
+  buildEditChecklistPrompt,
+  buildReviewPrompt,
+} from "../format.js";
 import { deleteTodo, ensureTodoExists, getTodoPath, getTodosDir, listTodos } from "../file-io.js";
 import {
   TodoActionMenuComponent,
@@ -257,13 +263,13 @@ export async function runTodoUi(
         tui,
         theme,
         (userPrompt) => {
-          const scoped =
+          const prompt =
             mode === "prds"
-              ? `Create a PRD document. ${userPrompt}`
+              ? buildCreatePrdPrompt(userPrompt)
               : mode === "specs"
-                ? `Create a spec document. ${userPrompt}`
-                : userPrompt;
-          setPrompt(buildCreatePrompt(scoped));
+                ? buildCreateSpecPrompt(userPrompt)
+                : buildCreateTodoPrompt(userPrompt);
+          setPrompt(prompt);
           done();
         },
         () => setActive(currentSelector()),

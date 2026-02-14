@@ -14,7 +14,9 @@ export {
 } from "./format/base.js";
 export {
   buildRefinePrompt,
-  buildCreatePrompt,
+  buildCreatePrdPrompt,
+  buildCreateSpecPrompt,
+  buildCreateTodoPrompt,
   buildEditChecklistPrompt,
   buildWorkPrompt,
   buildReviewPrompt,

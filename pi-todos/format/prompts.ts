@@ -13,15 +13,40 @@ export function buildRefinePrompt(title: string): string {
   );
 }
 
-export function buildCreatePrompt(userPrompt: string): string {
+function buildCreateBase(kind: "PRD" | "Spec" | "Todo", rules: string, userPrompt: string): string {
   return (
-    "You MUST create or update plan files directly for the following task. Before creating:\n\n" +
-    "1. You MUST read relevant files to understand the codebase context\n" +
-    "2. You SHOULD research the internet if external knowledge is needed\n" +
-    "3. You MUST include a non-empty checklist when creating todo-kind plan files\n" +
-    "4. You MAY ask me clarifying questions if requirements are ambiguous\n\n" +
-    'You MUST NOT create files without proper context. You MUST provide actionable checklist items with short IDs (e.g., "1", "2", "3") when checklist is required.\n\n' +
-    `Task: ${userPrompt}`
+    `You are creating a ${kind} plan document in the pi-todos planning system.\n\n` +
+    "Procedure requirements:\n" +
+    "1. You MUST follow the /todo workflow and internal CLI-backed orchestration path managed by the extension.\n" +
+    "2. You MUST NOT bypass procedure by writing a standalone markdown file without following plan workflow requirements.\n" +
+    "3. You MUST read relevant linked code/docs before drafting content.\n" +
+    "4. You MAY ask clarifying questions when requirements are ambiguous.\n\n" +
+    `${rules}\n\n` +
+    `User request: ${userPrompt}`
+  );
+}
+
+export function buildCreatePrdPrompt(userPrompt: string): string {
+  return buildCreateBase(
+    "PRD",
+    "You MUST produce a PRD-kind plan with objective, scope, constraints, deliverables, and acceptance criteria. You MUST link related specs/todos as repo-relative paths in links.",
+    userPrompt,
+  );
+}
+
+export function buildCreateSpecPrompt(userPrompt: string): string {
+  return buildCreateBase(
+    "Spec",
+    "You MUST produce a spec-kind plan tied to a PRD. You MUST define deterministic behavior, constraints, and verification plan. You MUST keep lifecycle user-controlled.",
+    userPrompt,
+  );
+}
+
+export function buildCreateTodoPrompt(userPrompt: string): string {
+  return buildCreateBase(
+    "Todo",
+    "You MUST produce a todo-kind plan with a non-empty checklist using short IDs and done booleans. You MUST NOT close lifecycle state automatically.",
+    userPrompt,
   );
 }
 
