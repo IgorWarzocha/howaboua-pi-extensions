@@ -107,7 +107,6 @@ function schema(kind: Kind): string {
     "tags: <csv> # REQUIRED",
     "body: <markdown> # REQUIRED",
     "checklist: only for kind=todo",
-    "Managed by CLI (do not pass): id/status/timestamps/agent_rules/worktree/links/template",
     checklist.trimEnd(),
     "---",
   ].join("\n");
@@ -154,8 +153,9 @@ async function create(args: string[]): Promise<void> {
   const text = `---\n${front}\n---\n\n${body}`;
   await fs.writeFile(file, `${text.trimEnd()}\n`, "utf8");
   process.stdout.write(`Created: ${file}\n`);
-  process.stdout.write("Next: Review generated content and adjust markdown body only if needed.\n");
-  process.stdout.write("Next: Do NOT edit frontmatter unless the user explicitly asks for frontmatter changes.\n");
+  process.stdout.write("Next: You MUST ask the user whether they want to refine this PRD now.\n");
+  process.stdout.write("Next: You MUST keep frontmatter stable unless the user explicitly requests frontmatter changes.\n");
+  process.stdout.write("Next: You SHOULD suggest creating either a spec or a todo from this PRD.\n");
 }
 
 async function main(): Promise<void> {
