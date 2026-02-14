@@ -91,7 +91,9 @@ export default function (pi: ExtensionAPI) {
       return new Text(lines.map((line) => theme.fg("toolOutput", line)).join("\n"), 0, 0);
     },
     async execute(toolCallId, params, signal, onUpdate, ctx) {
-      const url = params.url;
+      const url = params.url.startsWith("http://")
+        ? params.url.replace("http://", "https://")
+        : params.url;
       const format = params.format ?? "markdown";
 
       // Validate URL
