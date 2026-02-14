@@ -20,7 +20,6 @@ interface Entry {
   worktree: { enabled: boolean; branch: string };
   links: { root_abs: string; prds: string[]; specs: string[]; todos: string[] };
   checklist: Array<{ id: string; title: string; done: boolean }>;
-  template: boolean;
 }
 
 function fail(message: string): never {
@@ -79,15 +78,8 @@ function dir(): string {
   return path.dirname(file);
 }
 
-function links(value: string | undefined, root: string): { root_abs: string; prds: string[]; specs: string[]; todos: string[] } {
-  if (!value) return { root_abs: root, prds: [], specs: [], todos: [] };
-  const parsed = JSON.parse(value) as Record<string, unknown>;
-  return {
-    root_abs: typeof parsed.root_abs === "string" && parsed.root_abs.trim() ? parsed.root_abs : root,
-    prds: Array.isArray(parsed.prds) ? parsed.prds.filter((item): item is string => typeof item === "string") : [],
-    specs: Array.isArray(parsed.specs) ? parsed.specs.filter((item): item is string => typeof item === "string") : [],
-    todos: Array.isArray(parsed.todos) ? parsed.todos.filter((item): item is string => typeof item === "string") : [],
-  };
+function links(root: string): { root_abs: string; prds: string[]; specs: string[]; todos: string[] } {
+  return { root_abs: root, prds: [], specs: [], todos: [] };
 }
 
 function has(args: string[], names: string[]): boolean {
@@ -98,42 +90,27 @@ function has(args: string[], names: string[]): boolean {
 }
 
 function enforce(kind: Kind, args: string[]): void {
-  const extra = has(args, ["--agent_rules", "-agent_rules", "--worktree", "-worktree", "--template", "-template"]);
-  if (extra) fail("Do not pass managed frontmatter flags (agent_rules/worktree/template). Use create minimal inputs only.");
+  const extra = has(args, ["--agent_rules", "-agent_rules", "--worktree", "-worktree", "--template", "-template", "--links", "-links", "--request", "-request", "--root", "-root"]);
+  if (extra) fail("Do not pass managed flags (agent_rules/worktree/template/links/request/root). Use minimal create inputs only.");
   const checklist = has(args, ["--checklist", "-checklist"]);
   if (kind !== "todo" && checklist) fail("Checklist is only supported for kind=todo.");
 }
 
 function schema(kind: Kind): string {
-  const checklist =
-    kind === "todo"
-      ? "checklist:\n  - id: \"1\"\n    title: \"Define scope\"\n    done: false\n"
-      : "checklist: []\n";
+  const checklist = kind === "todo" ? "checklist: <json-array>\n" : "";
   return [
     `Create input schema for ${kind}:`,
     "---",
     "command: create",
     `kind: ${kind}`,
     "title: <string>",
-    "tags: <csv optional>",
-    "root: <absolute-path optional>",
-    "links: <json optional with root_abs/prds/specs/todos>",
-    "request: <string optional>",
+    "tags: <csv> # REQUIRED",
+    "body: <markdown> # REQUIRED",
     "checklist: only for kind=todo",
-    "Managed by CLI (do not pass): id/status/timestamps/agent_rules/worktree/template",
+    "Managed by CLI (do not pass): id/status/timestamps/agent_rules/worktree/links/template",
     checklist.trimEnd(),
     "---",
   ].join("\n");
-}
-
-function body(kind: Kind, request: string): string {
-  if (kind === "prd") {
-    return `## Objective\n\n${request}\n\n## Scope\n\n- Define product scope\n\n## Constraints\n\n- Lifecycle is user-controlled\n\n## Deliverables\n\n- PRD, linked specs, linked todos\n\n## Acceptance Criteria\n\n- Requirements are testable and explicit\n`;
-  }
-  if (kind === "spec") {
-    return `## Objective\n\n${request}\n\n## Scope\n\n- Technical design and behavior\n\n## Constraints\n\n- Deterministic and verifiable behavior\n\n## Verification Plan\n\n- Validate against linked PRD and todos\n`;
-  }
-  return `## Objective\n\n${request}\n\n## Scope\n\n- Implement scoped task\n\n## Verification Plan\n\n- Confirm checklist completion and behavior\n`;
 }
 
 async function create(args: string[]): Promise<void> {
@@ -141,13 +118,14 @@ async function create(args: string[]): Promise<void> {
   enforce(value, args);
   const title = pick(args, ["--title", "-title"])?.trim();
   if (!title) fail("Missing --title for create command.");
-  const request = pick(args, ["--request", "-request"])?.trim() || title;
-  const tags = (pick(args, ["--tags", "-tags"]) || "planning").split(",").map((item) => item.trim()).filter(Boolean);
-  const root = pick(args, ["--root", "-root"])?.trim() || dir();
-  const linkArg = pick(args, ["--links", "-links"]);
+  const body = pick(args, ["--body", "-body"])?.trim();
+  if (!body) fail("Missing --body for create command.");
+  const tags = (pick(args, ["--tags", "-tags"]) || "").split(",").map((item) => item.trim()).filter(Boolean);
+  if (!tags.length) fail("Missing --tags for create command.");
+  const root = dir();
   const valueId = id();
   const ts = now();
-  const valueLinks = links(linkArg, root);
+  const valueLinks = links(root);
   const entry: Entry = {
     id: valueId,
     kind: value,
@@ -168,16 +146,15 @@ async function create(args: string[]): Promise<void> {
             { id: "3", title: "Verify acceptance criteria", done: false },
           ]
         : [],
-    template: false,
   };
   const outdir = path.join(root, "plans", map(value));
   await fs.mkdir(outdir, { recursive: true });
   const file = path.join(outdir, `${valueId}.md`);
   const front = YAML.stringify(entry).trimEnd();
-  const text = `---\n${front}\n---\n\n${body(value, request)}`;
+  const text = `---\n${front}\n---\n\n${body}`;
   await fs.writeFile(file, `${text.trimEnd()}\n`, "utf8");
   process.stdout.write(`Created: ${file}\n`);
-  process.stdout.write("Next: Open the file and replace scaffold body sections with full content.\n");
+  process.stdout.write("Next: Review generated content and adjust markdown body only if needed.\n");
   process.stdout.write("Next: Do NOT edit frontmatter unless the user explicitly asks for frontmatter changes.\n");
 }
 

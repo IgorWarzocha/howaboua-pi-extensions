@@ -32,7 +32,7 @@ function buildCreateBase(kind: "PRD" | "Spec" | "Todo", rules: string, userPromp
 export function buildCreatePrdPrompt(userPrompt: string, cli: string): string {
   return buildCreateBase(
     "PRD",
-    "You MUST produce a PRD-kind plan with objective, scope, constraints, deliverables, and acceptance criteria. You MUST link related specs/todos as repo-relative paths in links.",
+    "You MUST produce a PRD-kind plan with objective, scope, constraints, deliverables, and acceptance criteria.",
     userPrompt,
     cli,
   );
