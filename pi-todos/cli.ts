@@ -97,8 +97,7 @@ function enforce(kind: Kind, args: string[]): void {
 }
 
 function schema(kind: Kind): string {
-  const checklist = kind === "todo" ? "checklist: <json-array>\n" : "";
-  return [
+  const lines = [
     `Create input schema for ${kind}:`,
     "---",
     "command: create",
@@ -106,10 +105,10 @@ function schema(kind: Kind): string {
     "title: <string>",
     "tags: <csv> # REQUIRED",
     "body: <markdown> # REQUIRED",
-    "checklist: only for kind=todo",
-    checklist.trimEnd(),
-    "---",
-  ].join("\n");
+  ];
+  if (kind === "todo") lines.push("checklist: <json-array> # REQUIRED");
+  lines.push("---");
+  return lines.join("\n");
 }
 
 async function create(args: string[]): Promise<void> {
@@ -153,9 +152,12 @@ async function create(args: string[]): Promise<void> {
   const text = `---\n${front}\n---\n\n${body}`;
   await fs.writeFile(file, `${text.trimEnd()}\n`, "utf8");
   process.stdout.write(`Created: ${file}\n`);
-  process.stdout.write("Next: You MUST ask the user whether they want to refine this PRD now.\n");
+  if (value === "prd") process.stdout.write("Next: You MUST ask the user whether they want to refine this PRD now.\n");
+  if (value === "spec") process.stdout.write("Next: You MUST ask the user whether they want to refine this spec now.\n");
+  if (value === "todo") process.stdout.write("Next: You MUST ask the user whether they want to refine this todo now.\n");
   process.stdout.write("Next: You MUST keep frontmatter stable unless the user explicitly requests frontmatter changes.\n");
-  process.stdout.write("Next: You SHOULD suggest creating either a spec or a todo from this PRD.\n");
+  if (value === "prd") process.stdout.write("Next: You SHOULD suggest creating either a spec or a todo from this PRD.\n");
+  if (value === "spec") process.stdout.write("Next: You SHOULD suggest creating a todo from this spec.\n");
 }
 
 async function main(): Promise<void> {
