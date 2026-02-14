@@ -4,3 +4,5 @@ dist/
 .DS_Store
 .opencode/
 bun.lock
+package-lock.json
+.tmp/
