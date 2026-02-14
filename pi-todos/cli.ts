@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
 import YAML from "yaml";
+import { fileURLToPath } from "node:url";
 
 type Kind = "prd" | "spec" | "todo";
 
@@ -65,6 +66,31 @@ function field(args: string[], name: string): string | undefined {
   return args[index + 1];
 }
 
+function pick(args: string[], names: string[]): string | undefined {
+  for (let index = 0; index < names.length; index += 1) {
+    const value = field(args, names[index]);
+    if (value !== undefined) return value;
+  }
+  return undefined;
+}
+
+function dir(): string {
+  const file = fileURLToPath(import.meta.url);
+  return path.dirname(file);
+}
+
+function links(value: string | undefined, root: string): { root_abs: string; prds: string[]; specs: string[]; todos: string[]; reads: string[] } {
+  if (!value) return { root_abs: root, prds: [], specs: [], todos: [], reads: [] };
+  const parsed = JSON.parse(value) as Record<string, unknown>;
+  return {
+    root_abs: typeof parsed.root_abs === "string" && parsed.root_abs.trim() ? parsed.root_abs : root,
+    prds: Array.isArray(parsed.prds) ? parsed.prds.filter((item): item is string => typeof item === "string") : [],
+    specs: Array.isArray(parsed.specs) ? parsed.specs.filter((item): item is string => typeof item === "string") : [],
+    todos: Array.isArray(parsed.todos) ? parsed.todos.filter((item): item is string => typeof item === "string") : [],
+    reads: Array.isArray(parsed.reads) ? parsed.reads.filter((item): item is string => typeof item === "string") : [],
+  };
+}
+
 function schema(kind: Kind): string {
   const checklist =
     kind === "todo"
@@ -109,14 +135,16 @@ function body(kind: Kind, request: string): string {
 }
 
 async function create(args: string[]): Promise<void> {
-  const value = kind(field(args, "--kind"));
-  const title = field(args, "--title")?.trim();
+  const value = kind(pick(args, ["--kind", "-kind"]));
+  const title = pick(args, ["--title", "-title"])?.trim();
   if (!title) fail("Missing --title for create command.");
-  const request = field(args, "--request")?.trim() || title;
-  const tags = (field(args, "--tags") || "planning").split(",").map((item) => item.trim()).filter(Boolean);
-  const root = field(args, "--root")?.trim() || process.cwd();
+  const request = pick(args, ["--request", "-request"])?.trim() || title;
+  const tags = (pick(args, ["--tags", "-tags"]) || "planning").split(",").map((item) => item.trim()).filter(Boolean);
+  const root = pick(args, ["--root", "-root"])?.trim() || dir();
+  const linkArg = pick(args, ["--links", "-links"]);
   const valueId = id();
   const ts = now();
+  const valueLinks = links(linkArg, root);
   const entry: Entry = {
     id: valueId,
     kind: value,
@@ -128,7 +156,7 @@ async function create(args: string[]): Promise<void> {
     assigned_to_session: null,
     agent_rules: "MUST follow linked plans and keep lifecycle user-controlled.",
     worktree: { enabled: true, branch: branch(value, title, valueId) },
-    links: { root_abs: root, prds: [], specs: [], todos: [], reads: [] },
+    links: valueLinks,
     checklist:
       value === "todo"
         ? [
@@ -139,13 +167,15 @@ async function create(args: string[]): Promise<void> {
         : [],
     template: false,
   };
-  const dir = path.join(process.cwd(), "plans", map(value));
-  await fs.mkdir(dir, { recursive: true });
-  const file = path.join(dir, `${valueId}.md`);
+  const outdir = path.join(root, "plans", map(value));
+  await fs.mkdir(outdir, { recursive: true });
+  const file = path.join(outdir, `${valueId}.md`);
   const front = YAML.stringify(entry).trimEnd();
   const text = `---\n${front}\n---\n\n${body(value, request)}`;
   await fs.writeFile(file, `${text.trimEnd()}\n`, "utf8");
-  process.stdout.write(`${file}\n`);
+  process.stdout.write(`Created: ${file}\n`);
+  process.stdout.write("Next: Open the file and replace scaffold body sections with full content while preserving YAML frontmatter schema.\n");
+  process.stdout.write("Next: Update links/checklist fields as needed and keep repo-relative links in frontmatter lists.\n");
 }
 
 async function main(): Promise<void> {
@@ -156,7 +186,7 @@ async function main(): Promise<void> {
     process.stdout.write(`${schema(value)}\n`);
     return;
   }
-  if (args[0] === "create") {
+  if (args[0] === "create" || args[0] === "-create") {
     await create(args);
     return;
   }
@@ -168,4 +198,3 @@ main().catch((error) => {
   process.stderr.write(`${message}\n`);
   process.exit(1);
 });
-
