@@ -3,7 +3,6 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
 import YAML from "yaml";
-import { fileURLToPath } from "node:url";
 
 type Kind = "prd" | "spec" | "todo";
 
@@ -74,6 +73,8 @@ function pick(args: string[], names: string[]): string | undefined {
 }
 
 function dir(): string {
+  const value = process.env.PI_TODOS_CWD;
+  if (value && value.trim()) return value.trim();
   return process.cwd();
 }
 

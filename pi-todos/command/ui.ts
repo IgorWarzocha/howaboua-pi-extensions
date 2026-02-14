@@ -267,10 +267,10 @@ export async function runTodoUi(
           const cli = getCliPath();
           const prompt =
             mode === "prds"
-              ? buildCreatePrdPrompt(userPrompt, cli)
+              ? buildCreatePrdPrompt(userPrompt, cli, ctx.cwd)
               : mode === "specs"
-                ? buildCreateSpecPrompt(userPrompt, cli)
-                : buildCreateTodoPrompt(userPrompt, cli);
+                ? buildCreateSpecPrompt(userPrompt, cli, ctx.cwd)
+                : buildCreateTodoPrompt(userPrompt, cli, ctx.cwd);
           setPrompt(prompt);
           done();
         },
