@@ -6,6 +6,8 @@ export function buildCreateSpecPrompt(userPrompt: string, cli: string, cwd: stri
         "Attach this spec to these PRDs and treat them as required context:",
         ...prds.map((item) => `- ${item}`),
         "",
+        "You MUST read every listed PRD file before drafting or creating the spec.",
+        "",
         "After creating the spec, you MUST update each listed PRD frontmatter links.specs to include the new spec path (repo-relative).",
         "",
       ].join("\n")
