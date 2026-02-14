@@ -139,8 +139,6 @@ export default function (pi: ExtensionAPI) {
           });
         }
 
-        clearTimeout(timeoutId);
-
         if (!response.ok) {
           throw new Error(`Request failed with status code: ${response.status}`);
         }
@@ -150,8 +148,8 @@ export default function (pi: ExtensionAPI) {
         if (contentLength && parseInt(contentLength) > MAX_RESPONSE_SIZE) {
           throw new Error("Response too large (exceeds 5MB limit)");
         }
-
         const arrayBuffer = await response.arrayBuffer();
+        clearTimeout(timeoutId);
         if (arrayBuffer.byteLength > MAX_RESPONSE_SIZE) {
           throw new Error("Response too large (exceeds 5MB limit)");
         }
@@ -164,7 +162,8 @@ export default function (pi: ExtensionAPI) {
         // Handle content based on requested format and actual content type
         if (format === "markdown" && contentType.includes("text/html")) {
           output = convertHTMLToMarkdown(content);
-        } else if (format === "text" && contentType.includes("text/html")) {
+        }
+        if (format === "text" && contentType.includes("text/html")) {
           output = await extractTextFromHTML(content);
         }
 
@@ -204,43 +203,37 @@ export default function (pi: ExtensionAPI) {
 
 async function extractTextFromHTML(html: string) {
   let text = "";
-  let skipContent = false;
-
-  // @ts-ignore - HTMLRewriter is available in Bun
+  let depth = 0;
+  const tags = ["script", "style", "noscript", "iframe", "object", "embed"];
+  // @ts-expect-error - HTMLRewriter is available in Bun
   const rewriter = new HTMLRewriter()
-    .on("script, style, noscript, iframe, object, embed", {
-      element() {
-        skipContent = true;
-      },
-    })
     .on("*", {
       element(element) {
-        if (
-          !["script", "style", "noscript", "iframe", "object", "embed"].includes(element.tagName)
-        ) {
-          skipContent = false;
+        if (tags.includes(element.tagName)) {
+          depth++;
+          element.onEndTag(() => {
+            depth--;
+          });
         }
       },
       text(input) {
-        if (!skipContent) {
+        if (depth === 0) {
           text += input.text;
         }
       },
     })
     .transform(new Response(html));
-
-  await rewriter.text();
   return text.trim();
 }
 
 function convertHTMLToMarkdown(html: string): string {
-  const turndownService = new TurndownService({
+  const turndown = new TurndownService({
     headingStyle: "atx",
     hr: "---",
     bulletListMarker: "-",
     codeBlockStyle: "fenced",
     emDelimiter: "*",
   });
-  turndownService.remove(["script", "style", "meta", "link"]);
-  return turndownService.turndown(html);
+  turndown.remove(["script", "style", "meta", "link"]);
+  return turndown.turndown(html);
 }
