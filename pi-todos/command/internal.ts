@@ -42,7 +42,7 @@ async function load(todosDir: string, id: string): Promise<TodoRecord> {
 }
 
 async function save(todosDir: string, todo: TodoRecord): Promise<void> {
-  const filePath = getTodoPath(todosDir, todo.id);
+  const filePath = getTodoPath(todosDir, todo.id, todo.kind);
   await writeTodoFile(filePath, todo);
 }
 

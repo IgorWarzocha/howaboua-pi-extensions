@@ -74,8 +74,7 @@ function pick(args: string[], names: string[]): string | undefined {
 }
 
 function dir(): string {
-  const file = fileURLToPath(import.meta.url);
-  return path.dirname(file);
+  return process.cwd();
 }
 
 function links(root: string): { root_abs: string; prds: string[]; specs: string[]; todos: string[] } {
