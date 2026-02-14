@@ -195,7 +195,7 @@ export async function runTodoUi(
             if (data === "r" || data === "R")
               return (clearLeader(), void handleSelection(record, "refine", source));
             if (data === "y" || data === "Y")
-              return (clearLeader(), void handleSelection(record, "review", source));
+              return (clearLeader(), void handleSelection(record, "review-item", source));
             if (data === "c" || data === "C")
               return (clearLeader(), void handleSelection(record, "complete", source));
             if (data === "a" || data === "A")

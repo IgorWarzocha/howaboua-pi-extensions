@@ -27,7 +27,7 @@ export class TodoActionMenuComponent extends Container {
     const title = todo.title || "(untitled)";
     const items: SelectItem[] = [
       { value: "work", label: "work", description: "Work on todo" },
-      { value: "review", label: "review", description: "Review implementation" },
+      { value: "review-item", label: "review-item", description: "Review selected item" },
       ...(closed
         ? [
             { value: "reopen", label: "reopen", description: "Reopen todo" },

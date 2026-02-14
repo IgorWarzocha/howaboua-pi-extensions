@@ -65,7 +65,8 @@ export type TodoOverlayAction = "back" | "work" | "edit-checklist";
 
 export type TodoMenuAction =
   | "work"
-  | "review"
+  | "review-item"
+  | "review-all"
   | "refine"
   | "complete"
   | "abandon"
@@ -99,5 +100,5 @@ export type TodoToolDetails =
 
 export type TodoCreateCallback = (prompt: string) => void;
 
-export type TodoQuickAction = "work" | "review" | "refine" | "create";
+export type TodoQuickAction = "work" | "refine" | "create";
 export type TodoListMode = "tasks" | "prds" | "specs" | "closed";

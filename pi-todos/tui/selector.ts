@@ -137,10 +137,8 @@ export class TodoSelectorComponent extends Container implements Focusable {
       return (this.onQuickAction?.(selected, "work"), this.clearLeader(), true);
     if ((keyData === "r" || keyData === "R") && selected)
       return (this.onQuickAction?.(selected, "refine"), this.clearLeader(), true);
-    if ((keyData === "y" || keyData === "Y") && this.mode === "closed")
+    if (keyData === "y" || keyData === "Y")
       return (this.onCommandCallback?.("review-all"), this.clearLeader(), true);
-    if ((keyData === "y" || keyData === "Y") && selected)
-      return (this.onQuickAction?.(selected, "review"), this.clearLeader(), true);
     if ((keyData === "v" || keyData === "V") && selected)
       return (this.onSelectCallback(selected), this.clearLeader(), true);
     if ((keyData === "a" || keyData === "A") && this.mode === "closed")

@@ -64,7 +64,7 @@ export async function applyTodoAction(
     return "exit";
   }
   if (action === "work") return runWork(record, ctx, done, setPrompt);
-  if (action === "review") {
+  if (action === "review-item") {
     const links = validateLinks(record);
     if ("error" in links) {
       ctx.ui.notify(links.error, "error");
@@ -131,11 +131,6 @@ export async function handleQuickAction(
   if (action === "create") return showCreateInput();
   if (!todo) return;
   const title = getTodoTitle(todo);
-  if (action === "review") {
-    setPrompt(buildReviewPrompt(title, todo.links));
-    done();
-    return;
-  }
   if (action === "refine") {
     setPrompt(buildRefinePrompt(title));
     done();
