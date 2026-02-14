@@ -7,7 +7,7 @@ export function buildCreateBase(kind: "PRD" | "Spec" | "Todo", rules: string, us
     "3. You MUST read schema output and satisfy every REQUIRED field.\n" +
     "4. You MUST use the same command prefix to execute create.\n" +
     "5. After create, you MUST edit markdown body sections only.\n" +
-    "6. You MUST NOT modify frontmatter fields unless the user explicitly requests a frontmatter change.\n" +
+    "6. You MUST NOT modify frontmatter fields unless explicitly required by these instructions or explicitly requested by the user.\n" +
     "7. You MUST assume this may run in a fresh session with no prior context.\n" +
     "8. You MAY ask clarifying questions when requirements are ambiguous.\n\n" +
     `${rules}\n\n` +

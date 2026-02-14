@@ -8,13 +8,17 @@ export function buildCreateSpecPrompt(userPrompt: string, cli: string, cwd: stri
         "",
         "You MUST read every listed PRD file before drafting or creating the spec.",
         "",
+        "You MUST update the new spec frontmatter links.prds to include every selected PRD path (repo-relative) and set links.root_abs.",
+        "",
         "After creating the spec, you MUST update each listed PRD frontmatter links.specs to include the new spec path (repo-relative).",
+        "",
+        "You MUST preserve and merge existing links arrays; you MUST NOT overwrite existing linked entries.",
         "",
       ].join("\n")
     : "No PRD attachments were selected. This is a standalone spec.\n";
   return buildCreateBase(
     "Spec",
-    `${attach}You MUST produce a spec-kind plan tied to PRD context when provided. You MUST define deterministic behavior, constraints, and verification plan. You MUST keep lifecycle user-controlled.`,
+    `${attach}You MUST produce a spec-kind plan tied to PRD context when provided. You MUST define deterministic behavior, constraints, and verification plan. You MUST keep lifecycle user-controlled. You MUST maximize cross-links between related PRD/spec/todo items so relationships form a complete web.`,
     userPrompt,
     cli,
     cwd,
