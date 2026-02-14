@@ -91,7 +91,13 @@ export default function (pi: ExtensionAPI) {
       return new Text(lines.map((line) => theme.fg("toolOutput", line)).join("\n"), 0, 0);
     },
     async execute(toolCallId, params, signal, onUpdate, ctx) {
+<<<<<<< HEAD
       const url = params.url;
+=======
+      const url = params.url.startsWith("http://")
+        ? params.url.replace("http://", "https://")
+        : params.url;
+>>>>>>> master
       const format = params.format ?? "markdown";
 
       // Validate URL
@@ -139,8 +145,11 @@ export default function (pi: ExtensionAPI) {
           });
         }
 
+<<<<<<< HEAD
         clearTimeout(timeoutId);
 
+=======
+>>>>>>> master
         if (!response.ok) {
           throw new Error(`Request failed with status code: ${response.status}`);
         }
@@ -150,8 +159,13 @@ export default function (pi: ExtensionAPI) {
         if (contentLength && parseInt(contentLength) > MAX_RESPONSE_SIZE) {
           throw new Error("Response too large (exceeds 5MB limit)");
         }
+<<<<<<< HEAD
 
         const arrayBuffer = await response.arrayBuffer();
+=======
+        const arrayBuffer = await response.arrayBuffer();
+        clearTimeout(timeoutId);
+>>>>>>> master
         if (arrayBuffer.byteLength > MAX_RESPONSE_SIZE) {
           throw new Error("Response too large (exceeds 5MB limit)");
         }
@@ -164,7 +178,12 @@ export default function (pi: ExtensionAPI) {
         // Handle content based on requested format and actual content type
         if (format === "markdown" && contentType.includes("text/html")) {
           output = convertHTMLToMarkdown(content);
+<<<<<<< HEAD
         } else if (format === "text" && contentType.includes("text/html")) {
+=======
+        }
+        if (format === "text" && contentType.includes("text/html")) {
+>>>>>>> master
           output = await extractTextFromHTML(content);
         }
 
@@ -204,6 +223,7 @@ export default function (pi: ExtensionAPI) {
 
 async function extractTextFromHTML(html: string) {
   let text = "";
+<<<<<<< HEAD
   let skipContent = false;
 
   // @ts-ignore - HTMLRewriter is available in Bun
@@ -223,24 +243,53 @@ async function extractTextFromHTML(html: string) {
       },
       text(input) {
         if (!skipContent) {
+=======
+  let depth = 0;
+  const tags = ["script", "style", "noscript", "iframe", "object", "embed"];
+  // @ts-expect-error - HTMLRewriter is available in Bun
+  const rewriter = new HTMLRewriter()
+    .on("*", {
+      element(element) {
+        if (tags.includes(element.tagName)) {
+          depth++;
+          element.onEndTag(() => {
+            depth--;
+          });
+        }
+      },
+      text(input) {
+        if (depth === 0) {
+>>>>>>> master
           text += input.text;
         }
       },
     })
     .transform(new Response(html));
+<<<<<<< HEAD
 
   await rewriter.text();
+=======
+>>>>>>> master
   return text.trim();
 }
 
 function convertHTMLToMarkdown(html: string): string {
+<<<<<<< HEAD
   const turndownService = new TurndownService({
+=======
+  const turndown = new TurndownService({
+>>>>>>> master
     headingStyle: "atx",
     hr: "---",
     bulletListMarker: "-",
     codeBlockStyle: "fenced",
     emDelimiter: "*",
   });
+<<<<<<< HEAD
   turndownService.remove(["script", "style", "meta", "link"]);
   return turndownService.turndown(html);
+=======
+  turndown.remove(["script", "style", "meta", "link"]);
+  return turndown.turndown(html);
+>>>>>>> master
 }
