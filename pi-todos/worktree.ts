@@ -93,7 +93,11 @@ function initRepo(repo: string): void {
   run("git", ["commit", "--allow-empty", "-m", "chore(repo): initial commit"], repo);
 }
 
-function pickRepo(repos: Repo[], record: TodoFrontMatter): Repo | { error: string } {
+async function pickRepo(
+  repos: Repo[],
+  record: TodoFrontMatter,
+  ctx: ExtensionCommandContext,
+): Promise<Repo | { error: string }> {
   if (repos.length === 1) return repos[0];
   const root = record.links?.root_abs;
   if (root) {
@@ -105,7 +109,12 @@ function pickRepo(repos: Repo[], record: TodoFrontMatter): Repo | { error: strin
     });
     if (found) return found;
   }
-  return { error: "Multiple git repositories found. Set links.root_abs to target repository." };
+  if (!ctx.hasUI) return { error: "Multiple git repositories found. Set links.root_abs to target repository." };
+  for (const repo of repos) {
+    const ok = await ctx.ui.confirm("Select repository", `Use repository:\n${repo.path}`);
+    if (ok) return repo;
+  }
+  return { error: "Repository selection required." };
 }
 
 export async function ensureWorktree(record: TodoFrontMatter, ctx: ExtensionCommandContext) {
@@ -124,7 +133,7 @@ export async function ensureWorktree(record: TodoFrontMatter, ctx: ExtensionComm
     initRepo(root);
     repos.push({ path: root });
   }
-  const selected = pickRepo(repos, record);
+  const selected = await pickRepo(repos, record, ctx);
   if ("error" in selected) return selected;
   const repo = selected.path;
   const branch = record.worktree.branch || normalizeBranch(record);
@@ -138,4 +147,3 @@ export async function ensureWorktree(record: TodoFrontMatter, ctx: ExtensionComm
   if (!known) run("git", ["worktree", "add", "-b", branch, dir], repo);
   return { ok: true as const, path: dir, branch, created: true };
 }
-
