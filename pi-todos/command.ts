@@ -6,7 +6,7 @@ import { runTodoUi } from "./command/ui.js";
 
 export function registerTodoCommand(pi: ExtensionAPI) {
   pi.registerCommand("todo", {
-    description: "List plan items from plans",
+    description: "List plan items from .pi/plans",
     getArgumentCompletions: (argumentPrefix: string) => getTodoCompletions(argumentPrefix),
     handler: async (args: string, ctx: ExtensionCommandContext) => {
       const trimmed = (args || "").trim();

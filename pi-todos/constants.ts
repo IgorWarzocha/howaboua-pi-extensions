@@ -1,4 +1,4 @@
-export const TODO_DIR_NAME = "plans";
+export const TODO_DIR_NAME = ".pi/plans";
 export const TODO_PATH_ENV = "PI_TODO_PATH";
 export const TODO_SETTINGS_NAME = "settings.json";
 export const TODO_ID_PREFIX = "TODO-";

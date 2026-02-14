@@ -144,7 +144,7 @@ async function create(args: string[]): Promise<void> {
           ]
         : [],
   };
-  const outdir = path.join(root, "plans", map(value));
+  const outdir = path.join(root, ".pi", "plans", map(value));
   await fs.mkdir(outdir, { recursive: true });
   const file = path.join(outdir, `${valueId}.md`);
   const front = YAML.stringify(entry).trimEnd();
