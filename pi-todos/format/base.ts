@@ -52,18 +52,15 @@ export function clearAssignmentIfClosed(todo: TodoFrontMatter): void {
 
 export function sortTodos(todos: TodoFrontMatter[]): TodoFrontMatter[] {
   const rank = (todo: TodoFrontMatter): number => {
-    const status = todo.status.toLowerCase();
+    const status = deriveTodoStatus(todo as TodoRecord).toLowerCase();
     if (status === "done") return 0;
     if (status === "closed") return 1;
     if (status === "abandoned") return 2;
     return 3;
   };
   const openRank = (todo: TodoFrontMatter): number => {
-    if (todo.checklist?.length) {
-      const checked = countChecklistDone(todo);
-      if (checked === todo.checklist.length) return -1;
-    }
-    const status = todo.status.toLowerCase();
+    const status = deriveTodoStatus(todo as TodoRecord).toLowerCase();
+    if (status === "done") return -1;
     if (status === "in-progress") return 0;
     if (status === "open") return 1;
     return 2;
@@ -74,8 +71,10 @@ export function sortTodos(todos: TodoFrontMatter[]): TodoFrontMatter[] {
     return value;
   };
   return [...todos].sort((a, b) => {
-    const aClosed = isTodoClosed(a.status);
-    const bClosed = isTodoClosed(b.status);
+    const aStatus = deriveTodoStatus(a as TodoRecord);
+    const bStatus = deriveTodoStatus(b as TodoRecord);
+    const aClosed = isTodoClosed(aStatus);
+    const bClosed = isTodoClosed(bStatus);
     if (aClosed !== bClosed) return aClosed ? 1 : -1;
     if (!aClosed) {
       const aOpenRank = openRank(a);
@@ -111,3 +110,4 @@ export function formatTodoHeading(todo: TodoFrontMatter): string {
   const progress = formatChecklistProgress(todo);
   return `${getTodoTitle(todo)}${tagText}${formatAssignmentSuffix(todo)}${progress}`;
 }
+

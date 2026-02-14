@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import type { ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
-import type { TodoRecord } from "./types.js";
+import type { TodoFrontMatter } from "./types.js";
 
 interface Repo {
   path: string;
@@ -65,7 +65,7 @@ function parseWorktrees(raw: string): { path: string; branch?: string }[] {
   return items;
 }
 
-function normalizeBranch(record: TodoRecord): string {
+function normalizeBranch(record: TodoFrontMatter): string {
   const kind = record.kind === "prd" ? "prd" : "todo";
   const slug = (record.title || "task")
     .toLowerCase()
@@ -81,17 +81,22 @@ function initRepo(repo: string): void {
   run("git", ["commit", "--allow-empty", "-m", "chore(repo): initial commit"], repo);
 }
 
-function pickRepo(repos: Repo[], record: TodoRecord): Repo | { error: string } {
+function pickRepo(repos: Repo[], record: TodoFrontMatter): Repo | { error: string } {
   if (repos.length === 1) return repos[0];
   const root = record.links?.root_abs;
   if (root) {
-    const found = repos.find((repo) => root.startsWith(repo.path));
+    const found = repos.find((repo) => {
+      const rel = path.relative(repo.path, root);
+      if (!rel) return true;
+      if (rel.startsWith("..")) return false;
+      return !path.isAbsolute(rel);
+    });
     if (found) return found;
   }
   return { error: "Multiple git repositories found. Set links.root_abs to target repository." };
 }
 
-export async function ensureWorktree(record: TodoRecord, ctx: ExtensionCommandContext) {
+export async function ensureWorktree(record: TodoFrontMatter, ctx: ExtensionCommandContext) {
   if (!record.worktree?.enabled) return { ok: true as const };
   const root = record.links?.root_abs ?? ctx.cwd;
   const repos = findRepos(root);
@@ -111,7 +116,9 @@ export async function ensureWorktree(record: TodoRecord, ctx: ExtensionCommandCo
   if (existing) return { ok: true as const, path: existing.path, branch, created: false };
   const base = path.dirname(repo);
   const dir = path.join(base, "worktrees", branch.replace(/[\/]/g, "-"));
-  run("git", ["worktree", "add", "-b", branch, dir], repo);
+  const known = run("git", ["branch", "--list", branch], repo);
+  if (known) run("git", ["worktree", "add", dir, branch], repo);
+  if (!known) run("git", ["worktree", "add", "-b", branch, dir], repo);
   return { ok: true as const, path: dir, branch, created: true };
 }
 
