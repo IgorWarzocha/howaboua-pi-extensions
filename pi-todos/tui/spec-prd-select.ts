@@ -1,4 +1,4 @@
-import { Container, Spacer, Text, TUI } from "@mariozechner/pi-tui";
+import { Container, Spacer, Text, TUI, getEditorKeybindings } from "@mariozechner/pi-tui";
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import { DynamicBorder } from "@mariozechner/pi-coding-agent";
 import type { TodoFrontMatter } from "../types.js";
@@ -59,13 +59,14 @@ export class SpecPrdSelectComponent extends Container {
   }
 
   handleInput(data: string): void {
-    if (data === "\u001b" || data === "\u0003") return this.onCancel();
-    if (data === "\r") return this.confirm();
-    if (data === "k" || data === "\u001b[A") {
+    const kb = getEditorKeybindings();
+    if (kb.matches(data, "selectCancel") || data === "\u0003") return this.onCancel();
+    if (kb.matches(data, "selectConfirm") || data === "\r") return this.confirm();
+    if (kb.matches(data, "selectUp") || data === "k") {
       this.selected = this.selected === 0 ? this.rows.length - 1 : this.selected - 1;
       return this.renderState();
     }
-    if (data === "j" || data === "\u001b[B") {
+    if (kb.matches(data, "selectDown") || data === "j") {
       this.selected = this.selected === this.rows.length - 1 ? 0 : this.selected + 1;
       return this.renderState();
     }
@@ -83,4 +84,3 @@ export class SpecPrdSelectComponent extends Container {
     this.renderState();
   }
 }
-
