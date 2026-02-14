@@ -70,6 +70,7 @@ export async function applyTodoAction(
     return "exit";
   }
   if (action === "view") return "stay";
+  if (action === "attach-links") return "stay";
   if (action === "release") {
     const result = await releaseTodoAssignment(todosDir, record.id, ctx, true);
     if ("error" in result) {

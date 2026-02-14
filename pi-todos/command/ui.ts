@@ -7,7 +7,7 @@ import {
   buildEditChecklistPrompt,
   buildReviewPrompt,
 } from "../format.js";
-import { deleteTodo, ensureTodoExists, getTodoPath, getTodosDir, listTodos } from "../file-io.js";
+import { attachLinks, deleteTodo, ensureTodoExists, getTodoPath, getTodosDir, listTodos } from "../file-io.js";
 import {
   TodoActionMenuComponent,
   TodoCreateInputComponent,
@@ -16,6 +16,7 @@ import {
   TodoSelectorComponent,
   SpecPrdSelectComponent,
   TodoParentSelectComponent,
+  LinkSelectComponent,
 } from "../tui/index.js";
 import { Key, matchesKey } from "@mariozechner/pi-tui";
 import { applyTodoAction, handleQuickAction } from "./actions.js";
@@ -246,12 +247,45 @@ export async function runTodoUi(
       };
       setActive(detailView);
     };
+    const showAttachInput = (record: TodoRecord, source: TodoListMode) => {
+      const prds = all.filter((item) => item.id !== record.id && item.kind === "prd");
+      const specs = all.filter((item) => item.id !== record.id && item.kind === "spec");
+      const todos = all.filter((item) => item.id !== record.id && (item.kind || "todo") === "todo");
+      const picker = new LinkSelectComponent(
+        tui,
+        theme,
+        prds,
+        specs,
+        todos,
+        async (selected) => {
+          const targets = all.filter(
+            (item) =>
+              selected.prds.has(item.id) ||
+              selected.specs.has(item.id) ||
+              selected.todos.has(item.id),
+          );
+          const result = await attachLinks(todosDir, record, targets, ctx);
+          if ("error" in result) {
+            ctx.ui.notify(result.error, "error");
+            return setActive(picker);
+          }
+          await refresh();
+          const updated = await resolve(record);
+          if (!updated) return setActive(selectors[source] ?? currentSelector());
+          ctx.ui.notify(`Attached links across ${result.updated} items`, "info");
+          showDetailView(updated, source);
+        },
+        () => showDetailView(record, source),
+      );
+      setActive(picker);
+    };
     const handleSelection = async (
       record: TodoRecord,
       action: TodoMenuAction,
       source: TodoListMode,
     ) => {
       if (action === "view") return showDetailView(record, source);
+      if (action === "attach-links") return showAttachInput(record, source);
       const result = await applyTodoAction(todosDir, ctx, refresh, done, record, action, setPrompt);
       if (result === "stay") setActive(selectors[source] ?? currentSelector());
     };
