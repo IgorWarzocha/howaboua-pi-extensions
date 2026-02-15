@@ -4,6 +4,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import YAML from "yaml";
 import { resolveRoot } from "./cli/root.js";
+import { validateItem } from "./cli/validate.js";
 type Kind = "prd" | "spec" | "todo";
 
 interface Entry {
@@ -161,6 +162,13 @@ async function create(args: string[]): Promise<void> {
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   if (!args.length) fail("Missing command. Use '-schema <kind>' or 'create --kind <kind> --title <title>'.");
+  if (args[0] === "--validate" || args[0] === "-validate") {
+    const filePath = pick(args, ["--filepath", "-filepath"]);
+    if (!filePath) fail("Missing --filepath for validate command.");
+    const result = await validateItem(dir(), filePath);
+    process.stdout.write(`${JSON.stringify(result)}\n`);
+    return;
+  }
   if (args[0] === "-schema") {
     const value = kind(args[1]);
     process.stdout.write(`${schema(value)}\n`);
@@ -170,7 +178,7 @@ async function main(): Promise<void> {
     await create(args);
     return;
   }
-  fail("Unsupported command. Use '-schema' or 'create'.");
+  fail("Unsupported command. Use '--validate', '-schema', or 'create'.");
 }
 
 main().catch((error) => {

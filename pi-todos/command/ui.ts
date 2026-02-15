@@ -6,6 +6,7 @@ import {
   buildCreateTodoPrompt,
   buildEditChecklistPrompt,
   buildReviewPrompt,
+  buildValidateAuditPrompt,
 } from "../format.js";
 import { attachLinks, deleteTodo, ensureTodoExists, getTodoPath, getTodosDir, listTodos } from "../file-io.js";
 import {
@@ -17,10 +18,12 @@ import {
   SpecPrdSelectComponent,
   TodoParentSelectComponent,
   LinkSelectComponent,
+  ValidateSelectComponent,
 } from "../tui/index.js";
 import { Key, matchesKey } from "@mariozechner/pi-tui";
 import { applyTodoAction, handleQuickAction } from "./actions.js";
 import { getCliPath } from "../cli-path.js";
+import { runValidateCli } from "./validate.js";
 import { footer, leader } from "../gui/detail.js";
 
 export async function runTodoUi(
@@ -279,6 +282,53 @@ export async function runTodoUi(
       );
       setActive(picker);
     };
+    const showValidateInput = async (record: TodoRecord, source: TodoListMode) => {
+      const cli = getCliPath();
+      const file = getTodoPath(todosDir, record.id, record.kind);
+      let result: { issues: Array<{ kind: "prd" | "spec" | "todo"; name: string; issue: string; file: string }>; recommendations: Array<{ target: string; kind: "prd" | "spec" | "todo"; name: string; reason: string }> };
+      try {
+        result = runValidateCli(cli, ctx.cwd, file);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Validate command failed.";
+        ctx.ui.notify(message, "error");
+        return showDetailView(record, source);
+      }
+      if (!result.recommendations.length) {
+        const issueCount = result.issues.length;
+        ctx.ui.notify(issueCount ? `No attach recommendations. Found ${issueCount} issue(s).` : "No issues found.", "info");
+        return showDetailView(record, source);
+      }
+      const picker = new ValidateSelectComponent(
+        tui,
+        theme,
+        result.recommendations.map((item) => ({ key: item.target, label: item.name, kind: item.kind, reason: item.reason })),
+        async (selected) => {
+          const targets = all.filter((item) => {
+            const target = normalizePath(getTodoPath(todosDir, item.id, item.kind));
+            return selected.prds.has(target) || selected.specs.has(target) || selected.todos.has(target);
+          });
+          const applied = await attachLinks(todosDir, record, targets, ctx);
+          if ("error" in applied) {
+            ctx.ui.notify(applied.error, "error");
+            return setActive(picker);
+          }
+          await refresh();
+          const updated = await resolve(record);
+          if (!updated) return setActive(selectors[source] ?? currentSelector());
+          ctx.ui.notify(`Applied ${targets.length} recommended attachment(s)`, "info");
+          showDetailView(updated, source);
+        },
+        () => showDetailView(record, source),
+      );
+      setActive(picker);
+    };
+    const showAuditPrompt = (record: TodoRecord) => {
+      const current = getTodoPath(todosDir, record.id, record.kind);
+      const scope = all.map((item) => getTodoPath(todosDir, item.id, item.kind));
+      setPrompt(buildValidateAuditPrompt(current, scope));
+      done();
+    };
+    const normalizePath = (value: string) => value.replaceAll("\\", "/");
     const handleSelection = async (
       record: TodoRecord,
       action: TodoMenuAction,
@@ -286,6 +336,8 @@ export async function runTodoUi(
     ) => {
       if (action === "view") return showDetailView(record, source);
       if (action === "attach-links") return showAttachInput(record, source);
+      if (action === "validate-links") return showValidateInput(record, source);
+      if (action === "audit") return showAuditPrompt(record);
       const result = await applyTodoAction(todosDir, ctx, refresh, done, record, action, setPrompt);
       if (result === "stay") setActive(selectors[source] ?? currentSelector());
     };

@@ -74,6 +74,8 @@ export type TodoMenuAction =
   | "delete"
   | "release"
   | "attach-links"
+  | "validate-links"
+  | "audit"
   | "copyPath"
   | "copyText"
   | "view";

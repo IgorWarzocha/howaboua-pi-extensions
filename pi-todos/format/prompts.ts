@@ -87,3 +87,22 @@ export function buildReviewPrompt(title: string, links?: {
   const work = buildWorkPrompt(title, links);
   return `${work}\n\nThen review whether implementation is complete and list gaps.`;
 }
+
+export function buildValidateAuditPrompt(currentPath: string, scope: string[]): string {
+  const lines = scope.map((item) => `- ${item}`).join("\n");
+  return (
+    `Perform an audit on the following item:\n${currentPath}\n\n` +
+    "Requirements:\n" +
+    "1. You MUST treat this as an audit-only task. You MUST NOT edit any files.\n" +
+    "2. You MUST read every listed file before producing findings.\n" +
+    "3. You MUST verify frontmatter link integrity across PRD/spec/todo items: bidirectional links, kind-correct buckets, root_abs presence when repo-relative links exist, missing or broken linked files, duplicate or stale links.\n" +
+    "4. You MUST verify cross-document consistency: requirement coverage across PRD -> spec -> todo, contradictory statements, missing implementation tasks for required spec behavior, orphaned or obsolete items.\n" +
+    "5. You MUST separate deterministic facts from judgment calls.\n" +
+    "6. You MUST output a short Executive Summary first.\n" +
+    "7. You MUST output one findings table with these exact columns: kind | name | issue (3-5 words).\n" +
+    "8. You MUST include only issues in the table.\n" +
+    "9. After the table, you MUST output a markdown bullet list named 'Proposed Changes' with concrete recommended changes/questions.\n" +
+    "10. You MAY ask clarifying questions only if a blocking ambiguity prevents assessment.\n\n" +
+    `Audit scope (absolute paths):\n${lines}`
+  );
+}

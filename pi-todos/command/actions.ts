@@ -71,6 +71,8 @@ export async function applyTodoAction(
   }
   if (action === "view") return "stay";
   if (action === "attach-links") return "stay";
+  if (action === "validate-links") return "stay";
+  if (action === "audit") return "stay";
   if (action === "release") {
     const result = await releaseTodoAssignment(todosDir, record.id, ctx, true);
     if ("error" in result) {

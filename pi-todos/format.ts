@@ -12,7 +12,14 @@ export {
   formatAssignmentSuffix,
   formatTodoHeading,
 } from "./format/base.js";
-export { buildRefinePrompt, buildEditChecklistPrompt, buildWorkPrompt, buildReviewPrompt, resolveLinkedPaths } from "./format/prompts.js";
+export {
+  buildRefinePrompt,
+  buildEditChecklistPrompt,
+  buildWorkPrompt,
+  buildReviewPrompt,
+  buildValidateAuditPrompt,
+  resolveLinkedPaths,
+} from "./format/prompts.js";
 export { buildCreatePrdPrompt } from "./prd/create.js";
 export { buildCreateSpecPrompt } from "./spec/create.js";
 export { buildCreateTodoPrompt } from "./todo/create.js";

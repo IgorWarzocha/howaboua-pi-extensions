@@ -15,6 +15,8 @@ export function specItems(closed: boolean, assigned: boolean, showView: boolean)
           { value: "abandon", label: "abandon", description: "Mark spec as abandoned" },
         ]),
     ...(closed ? [] : [{ value: "attach-links", label: "attach-links", description: "Attach existing items" }]),
+    ...(closed ? [] : [{ value: "validate-links", label: "validate-links", description: "Validate link graph" }]),
+    ...(closed ? [] : [{ value: "audit", label: "audit", description: "Audit coherence with AI" }]),
     ...(assigned ? [{ value: "release", label: "release", description: "Release assignment" }] : []),
     ...(showView ? [{ value: "view", label: "view", description: "View spec details" }] : []),
   ];
