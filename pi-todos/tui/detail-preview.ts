@@ -1,9 +1,11 @@
 import { Markdown, TUI, truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import { getMarkdownTheme } from "@mariozechner/pi-coding-agent";
 import type { TodoRecord } from "../types.js";
-import { isTodoClosed, renderChecklist } from "../format.js";
+import { isTodoClosed, renderChecklist, resolveLinkedPaths } from "../format.js";
+import { parseTodoContent } from "../parser.js";
 import { noun } from "../gui/kind.js";
 
 export class TodoDetailPreviewComponent {
@@ -24,24 +26,52 @@ export class TodoDetailPreviewComponent {
 
   private getMarkdownText(): string {
     const body = this.todo.body?.trim();
-    const linked =
-      this.todo.kind === "spec" && this.todo.links?.prds?.length
-        ? [
-            "## Linked PRDs",
-            "",
-            ...this.todo.links.prds.map((item) => {
-              const root = this.todo.links?.root_abs || "";
-              const full = root ? path.resolve(root, item) : item;
-              return `- ${full}`;
-            }),
-          ].join("\n")
-        : "";
+    const related = this.buildRelatedSection();
     const checklist = this.todo.checklist?.length
       ? renderChecklist(this.theme, this.todo.checklist).join("\n")
       : "";
     const main = body ? body : "_No details yet._";
-    const sections = [checklist, linked, main].filter((item) => Boolean(item));
-    return sections.join("\n\n---\n\n");
+    return [related, checklist, main].filter((item) => Boolean(item)).join("\n\n---\n\n");
+  }
+
+  private buildRelatedSection(): string {
+    const abs = resolveLinkedPaths(this.todo.links);
+    if (!abs.length) return "## Related items\n\n_No related items._";
+    const lines = [
+      "## Related items",
+      "",
+      "| Kind | Name | Path |",
+      "| --- | --- | --- |",
+      ...abs
+        .map((item) => this.relatedRow(item))
+        .sort((a, b) => this.groupRank(a.kind) - this.groupRank(b.kind) || a.name.localeCompare(b.name))
+        .map((item) => `| ${item.kind} | ${item.name} | ${item.path} |`),
+    ];
+    return lines.join("\n");
+  }
+
+  private relatedRow(file: string): { kind: string; name: string; path: string } {
+    const root = this.todo.links?.root_abs || "";
+    const value = root ? path.relative(root, file).replaceAll("\\", "/") : file;
+    try {
+      const raw = readFileSync(file, "utf8");
+      const id = path.basename(file, ".md");
+      const parsed = parseTodoContent(raw, id);
+      return {
+        kind: (parsed.kind || "todo").toUpperCase(),
+        name: parsed.title || "(untitled)",
+        path: value,
+      };
+    } catch {
+      return { kind: "UNKNOWN", name: "(missing)", path: value };
+    }
+  }
+
+  private groupRank(kind: string): number {
+    if (kind === "PRD") return 0;
+    if (kind === "SPEC") return 1;
+    if (kind === "TODO") return 2;
+    return 3;
   }
 
   render(width: number, maxHeight: number): string[] {

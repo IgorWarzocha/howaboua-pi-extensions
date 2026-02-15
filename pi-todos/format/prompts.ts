@@ -74,7 +74,7 @@ export function buildWorkPrompt(title: string, links?: {
   const abs = resolveLinkedPaths(links);
   if (!abs.length) return `work on todo "${title}"`;
   const text = abs.map((item) => `- ${item}`).join("\n");
-  return `work on todo "${title}"\n\nYou MUST read these files before making changes:\n${text}`;
+  return `work on todo "${title}"\n\nYou MUST read these files before making changes:\n${text}\n\nYou MUST ensure linked PRD/spec/todo markdowns form a complete bidirectional web. If a gap is found, you MUST update links by merging entries instead of overwriting arrays.`;
 }
 
 export function buildReviewPrompt(title: string, links?: {
@@ -85,7 +85,7 @@ export function buildReviewPrompt(title: string, links?: {
   reads?: string[];
 }): string {
   const work = buildWorkPrompt(title, links);
-  return `${work}\n\nThen review whether implementation is complete and list gaps.`;
+  return `${work}\n\nThen review whether implementation is complete, list gaps, and list missing relationship links across PRD/spec/todo files.`;
 }
 
 export function buildValidateAuditPrompt(currentPath: string, scope: string[]): string {

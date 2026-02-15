@@ -9,7 +9,8 @@ export function buildCreateBase(kind: "PRD" | "Spec" | "Todo", rules: string, us
     "5. After create, you MUST edit markdown body sections only.\n" +
     "6. You MUST NOT modify frontmatter fields unless explicitly required by these instructions or explicitly requested by the user.\n" +
     "7. You MUST assume this may run in a fresh session with no prior context.\n" +
-    "8. You MAY ask clarifying questions when requirements are ambiguous.\n\n" +
+    "8. When related PRD/spec/todo markdown files are identified, you MUST connect them as a complete bidirectional web using links.prds/specs/todos while preserving and merging existing entries.\n" +
+    "9. You MAY ask clarifying questions when requirements are ambiguous.\n\n" +
     `${rules}\n\n` +
     `User request: ${userPrompt}`
   );
