@@ -40,17 +40,17 @@ export class TodoDetailPreviewComponent {
     const lines = [
       "## Related items",
       "",
-      "| Kind | Name | Path |",
+      "| Kind | Name | ID |",
       "| --- | --- | --- |",
       ...abs
         .map((item) => this.relatedRow(item))
         .sort((a, b) => this.groupRank(a.kind) - this.groupRank(b.kind) || a.name.localeCompare(b.name))
-        .map((item) => `| ${item.kind} | ${item.name} | ${item.path} |`),
+        .map((item) => `| ${item.kind} | ${item.name} | ${item.id} |`),
     ];
     return lines.join("\n");
   }
 
-  private relatedRow(file: string): { kind: string; name: string; path: string } {
+  private relatedRow(file: string): { kind: string; name: string; id: string } {
     const root = this.todo.links?.root_abs || "";
     const value = root ? path.relative(root, file).replaceAll("\\", "/") : file;
     try {
@@ -60,10 +60,10 @@ export class TodoDetailPreviewComponent {
       return {
         kind: (parsed.kind || "todo").toUpperCase(),
         name: parsed.title || "(untitled)",
-        path: value,
+        id,
       };
     } catch {
-      return { kind: "UNKNOWN", name: "(missing)", path: value };
+      return { kind: "UNKNOWN", name: "(missing)", id: path.basename(value, ".md") || "unknown" };
     }
   }
 
