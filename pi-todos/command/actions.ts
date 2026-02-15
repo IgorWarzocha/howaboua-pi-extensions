@@ -34,10 +34,6 @@ async function runWork(
     return "stay";
   }
   const worktree = await ensureWorktree(record, ctx);
-  if ("error" in worktree) {
-    ctx.ui.notify(worktree.error, "error");
-    return "stay";
-  }
   if ("path" in worktree && worktree.created) ctx.ui.notify(`Created worktree ${worktree.path}`, "info");
   setPrompt(flow.work(record));
   done();
@@ -140,3 +136,4 @@ export async function handleQuickAction(
     return;
   }
 }
+

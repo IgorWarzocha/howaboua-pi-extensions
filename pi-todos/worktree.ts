@@ -49,8 +49,7 @@ function findRepos(root: string): Repo[] {
 }
 
 function findEnclosingRepo(root: string): Repo | null {
-  const first = path.resolve(root);
-  let current = first;
+  let current = path.resolve(root);
   while (true) {
     const git = path.join(current, ".git");
     if (exists(git)) return { path: current };
@@ -93,23 +92,9 @@ function initRepo(repo: string): void {
   run("git", ["commit", "--allow-empty", "-m", "chore(repo): initial commit"], repo);
 }
 
-async function pickRepo(
-  repos: Repo[],
-  record: TodoFrontMatter,
-  ctx: ExtensionCommandContext,
-): Promise<Repo | { error: string }> {
+async function pickRepo(repos: Repo[], ctx: ExtensionCommandContext): Promise<Repo | { error: string }> {
   if (repos.length === 1) return repos[0];
-  const root = record.links?.root_abs;
-  if (root) {
-    const found = repos.find((repo) => {
-      const rel = path.relative(repo.path, root);
-      if (!rel) return true;
-      if (rel.startsWith("..")) return false;
-      return !path.isAbsolute(rel);
-    });
-    if (found) return found;
-  }
-  if (!ctx.hasUI) return { error: "Multiple git repositories found. Set links.root_abs to target repository." };
+  if (!ctx.hasUI) return { error: "Multiple git repositories found. User selection required." };
   for (const repo of repos) {
     const ok = await ctx.ui.confirm("Select repository", `Use repository:\n${repo.path}`);
     if (ok) return repo;
@@ -117,33 +102,55 @@ async function pickRepo(
   return { error: "Repository selection required." };
 }
 
-export async function ensureWorktree(record: TodoFrontMatter, ctx: ExtensionCommandContext) {
-  if (!record.worktree?.enabled) return { ok: true as const };
-  const root = record.links?.root_abs ?? ctx.cwd;
-  const repos = findRepos(root);
-  const enclosing = findEnclosingRepo(root);
-  if (enclosing) {
-    const found = repos.some((item) => item.path === enclosing.path);
-    if (!found) repos.unshift(enclosing);
+async function pickMode(
+  repos: Repo[],
+  root: string,
+  ctx: ExtensionCommandContext,
+): Promise<{ mode: "none" } | { mode: "init" } | { mode: "repo"; repo: string }> {
+  if (!ctx.hasUI) {
+    if (!repos.length) return { mode: "none" };
+    return { mode: "repo", repo: repos[0].path };
   }
+  const noRepo = await ctx.ui.confirm("Work on item", "Continue without repository? (default)");
+  if (noRepo) return { mode: "none" };
   if (!repos.length) {
-    if (!ctx.hasUI) return { error: "No git repository found." };
-    const ok = await ctx.ui.confirm("Initialize repository", "No git repository found. Initialize one now?");
-    if (!ok) return { error: "No git repository found." };
-    initRepo(root);
-    repos.push({ path: root });
+    const init = await ctx.ui.confirm(
+      "Initialize repository",
+      "Initialize git repository here and create initial commit?",
+    );
+    if (init) return { mode: "init" };
+    return { mode: "none" };
   }
-  const selected = await pickRepo(repos, record, ctx);
-  if ("error" in selected) return selected;
-  const repo = selected.path;
-  const branch = record.worktree.branch || normalizeBranch(record);
+  const selected = await pickRepo(repos, ctx);
+  if ("error" in selected) return { mode: "none" };
+  return { mode: "repo", repo: selected.path };
+}
+
+function ensureRepoWorktree(record: TodoFrontMatter, repo: string) {
+  const branch = record.worktree?.branch || normalizeBranch(record);
   const list = parseWorktrees(run("git", ["worktree", "list", "--porcelain"], repo));
   const existing = list.find((item) => item.branch === branch);
   if (existing) return { ok: true as const, path: existing.path, branch, created: false };
-  const base = path.dirname(repo);
-  const dir = path.join(base, "worktrees", branch.replace(/[\/]/g, "-"));
+  const dir = path.join(repo, ".pi", "worktrees", branch.replace(/[\/]/g, "-"));
+  fs.mkdirSync(path.dirname(dir), { recursive: true });
   const known = run("git", ["branch", "--list", branch], repo);
   if (known) run("git", ["worktree", "add", dir, branch], repo);
   if (!known) run("git", ["worktree", "add", "-b", branch, dir], repo);
   return { ok: true as const, path: dir, branch, created: true };
 }
+
+export async function ensureWorktree(record: TodoFrontMatter, ctx: ExtensionCommandContext) {
+  if (!record.worktree?.enabled) return { ok: true as const };
+  const root = record.links?.root_abs ?? ctx.cwd;
+  const rootRepo = findEnclosingRepo(root);
+  if (rootRepo) return ensureRepoWorktree(record, rootRepo.path);
+  const repos = findRepos(root);
+  const pick = await pickMode(repos, root, ctx);
+  if (pick.mode === "none") return { ok: true as const, skipped: true };
+  if (pick.mode === "init") {
+    initRepo(root);
+    return ensureRepoWorktree(record, root);
+  }
+  return ensureRepoWorktree(record, pick.repo);
+}
+
