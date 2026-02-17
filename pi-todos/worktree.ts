@@ -105,22 +105,47 @@ async function pickRepo(repos: Repo[], ctx: ExtensionCommandContext): Promise<Re
 async function pickMode(
   repos: Repo[],
   root: string,
+  record: TodoFrontMatter,
   ctx: ExtensionCommandContext,
 ): Promise<{ mode: "none" } | { mode: "init" } | { mode: "repo"; repo: string }> {
   if (!ctx.hasUI) {
     if (!repos.length) return { mode: "none" };
     return { mode: "repo", repo: repos[0].path };
   }
-  const noRepo = await ctx.ui.confirm("Work on item", "Continue without repository? (default)");
-  if (noRepo) return { mode: "none" };
+
+  const repo = repos.length === 1 ? repos[0] : null;
+  let worktreeInfo = "";
+  if (repo) {
+    try {
+      const list = parseWorktrees(run("git", ["worktree", "list", "--porcelain"], repo.path));
+      const current = list.find(w => w.path === path.resolve(repo.path));
+      const others = list.filter(w => w.path !== path.resolve(repo.path));
+      worktreeInfo = `\nCurrent branch: ${current?.branch || "detached"}`;
+      if (others.length) {
+        worktreeInfo += `\nExisting worktrees:\n${others.map(w => `  - ${w.branch} (${path.basename(w.path)})`).join("\n")}`;
+      }
+    } catch {
+      // ignore git errors for info string
+    }
+  }
+
+  const branch = record.worktree?.branch || normalizeBranch(record);
+  const useWorktree = await ctx.ui.confirm(
+    "Worktree Orchestration",
+    `Would you like to create/switch to a dedicated worktree for this task?${worktreeInfo}\n\nTarget branch: ${branch}`
+  );
+
+  if (!useWorktree) return { mode: "none" };
+
   if (!repos.length) {
     const init = await ctx.ui.confirm(
       "Initialize repository",
-      "Initialize git repository here and create initial commit?",
+      "No repository found. Initialize git repository here and create initial commit?",
     );
     if (init) return { mode: "init" };
     return { mode: "none" };
   }
+
   const selected = await pickRepo(repos, ctx);
   if ("error" in selected) return { mode: "none" };
   return { mode: "repo", repo: selected.path };
@@ -128,24 +153,31 @@ async function pickMode(
 
 function ensureRepoWorktree(record: TodoFrontMatter, repo: string) {
   const branch = record.worktree?.branch || normalizeBranch(record);
-  const list = parseWorktrees(run("git", ["worktree", "list", "--porcelain"], repo));
+  const repoPath = path.resolve(repo);
+  const list = parseWorktrees(run("git", ["worktree", "list", "--porcelain"], repoPath));
+
+  // If we are already in a worktree/repo that has this branch checked out
+  const current = list.find(w => w.path === process.cwd() || w.path === repoPath);
+  if (current?.branch === branch) {
+    return { ok: true as const, path: current.path, branch, created: false };
+  }
+
   const existing = list.find((item) => item.branch === branch);
   if (existing) return { ok: true as const, path: existing.path, branch, created: false };
-  const dir = path.join(repo, ".pi", "worktrees", branch.replace(/[\/]/g, "-"));
+  const dir = path.join(repoPath, ".pi", "worktrees", branch.replace(/[\/]/g, "-"));
   fs.mkdirSync(path.dirname(dir), { recursive: true });
-  const known = run("git", ["branch", "--list", branch], repo);
-  if (known) run("git", ["worktree", "add", dir, branch], repo);
-  if (!known) run("git", ["worktree", "add", "-b", branch, dir], repo);
+  const known = run("git", ["branch", "--list", branch], repoPath);
+  if (known) run("git", ["worktree", "add", dir, branch], repoPath);
+  if (!known) run("git", ["worktree", "add", "-b", branch, dir], repoPath);
   return { ok: true as const, path: dir, branch, created: true };
 }
 
 export async function ensureWorktree(record: TodoFrontMatter, ctx: ExtensionCommandContext) {
-  if (!record.worktree?.enabled) return { ok: true as const };
   const root = record.links?.root_abs ?? ctx.cwd;
   const rootRepo = findEnclosingRepo(root);
-  if (rootRepo) return ensureRepoWorktree(record, rootRepo.path);
-  const repos = findRepos(root);
-  const pick = await pickMode(repos, root, ctx);
+  const repos = rootRepo ? [rootRepo] : findRepos(root);
+
+  const pick = await pickMode(repos, root, record, ctx);
   if (pick.mode === "none") return { ok: true as const, skipped: true };
   if (pick.mode === "init") {
     initRepo(root);
