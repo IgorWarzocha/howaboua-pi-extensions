@@ -7,4 +7,3 @@ export const DEFAULT_TODO_SETTINGS = {
   gc: true,
   gcDays: 7,
 };
-export const LOCK_TTL_MS = 30 * 60 * 1000;

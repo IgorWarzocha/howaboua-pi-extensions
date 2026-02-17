@@ -20,7 +20,7 @@ export function buildCreateTodoPrompt(userPrompt: string, cli: string, cwd: stri
       : "No parent plans were selected. This is a standalone todo.\n";
   return buildCreateBase(
     "Todo",
-    `${attach}You MUST produce a todo-kind plan with a non-empty checklist using short IDs and done booleans. You MUST NOT close lifecycle state automatically. You MUST maximize cross-links between related PRD/spec/todo items so relationships form a complete web.`,
+    `${attach}You MUST produce a todo type document with a non-empty checklist using short IDs and done booleans. Checklist items MUST be concrete execution steps required to complete the task. Checklist items MUST include observable outcomes and MUST NOT use generic placeholders. You MUST NOT close lifecycle state automatically. You MUST maximize cross-links between related PRD/spec/todo items so relationships form a complete web.`,
     userPrompt,
     cli,
     cwd,

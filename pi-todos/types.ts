@@ -26,7 +26,9 @@ export interface TodoFrontMatter {
   created_at: string;
   modified_at?: string;
   assigned_to_session?: string;
+  assigned_to_session_file?: string;
   checklist?: ChecklistItem[];
+  type?: string;
   kind?: string;
   template?: boolean;
   links?: TodoLinks;
@@ -72,7 +74,9 @@ export type TodoMenuAction =
   | "abandon"
   | "reopen"
   | "delete"
+  | "assign"
   | "release"
+  | "go-to-session"
   | "attach-links"
   | "validate-links"
   | "audit"

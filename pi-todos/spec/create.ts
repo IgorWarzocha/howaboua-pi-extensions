@@ -18,7 +18,7 @@ export function buildCreateSpecPrompt(userPrompt: string, cli: string, cwd: stri
     : "No PRD attachments were selected. This is a standalone spec.\n";
   return buildCreateBase(
     "Spec",
-    `${attach}You MUST produce a spec-kind plan tied to PRD context when provided. You MUST define deterministic behavior, constraints, and verification plan. You MUST keep lifecycle user-controlled. You MUST maximize cross-links between related PRD/spec/todo items so relationships form a complete web.`,
+    `${attach}You MUST produce a spec type document that defines technical design, interfaces, constraints, edge cases, and deterministic verification criteria. You MUST keep lifecycle user-controlled. You MUST maximize cross-links between related PRD/spec/todo items so relationships form a complete web.`,
     userPrompt,
     cli,
     cwd,

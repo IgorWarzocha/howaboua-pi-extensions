@@ -47,7 +47,9 @@ export function getTodoStatus(todo: TodoFrontMatter): string {
 }
 
 export function clearAssignmentIfClosed(todo: TodoFrontMatter): void {
-  if (isTodoClosed(getTodoStatus(todo))) todo.assigned_to_session = undefined;
+  if (!isTodoClosed(getTodoStatus(todo))) return;
+  todo.assigned_to_session = undefined;
+  todo.assigned_to_session_file = undefined;
 }
 
 export function sortTodos(todos: TodoFrontMatter[]): TodoFrontMatter[] {

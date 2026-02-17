@@ -1,7 +1,7 @@
 import { Text, type TUI } from "@mariozechner/pi-tui";
 import type { Theme } from "@mariozechner/pi-coding-agent";
-import type { TodoFrontMatter, TodoListMode } from "../types.js";
-import { isTodoClosed, renderAssignmentSuffix } from "../format.js";
+import type { TodoFrontMatter, TodoListMode, TodoRecord } from "../types.js";
+import { deriveTodoStatus, formatChecklistProgress, isTodoClosed, renderAssignmentSuffix } from "../format.js";
 
 export function buildHeader(theme: Theme, todos: TodoFrontMatter[], mode: TodoListMode): string {
   if (mode === "tasks") return theme.fg("accent", theme.bold(`Tasks (${todos.length})`));
@@ -15,8 +15,8 @@ export function buildHints(theme: Theme, mode: TodoListMode, leaderActive = fals
     return theme.fg(
       "warning",
       mode !== "closed"
-        ? "Leader: c create • w work • y review-all • r refine • v view • x cancel"
-        : "Leader: w work • y review-all • r refine • v view • a sweep abandoned • d sweep completed • x cancel",
+        ? "Leader: c create • w work • y review-all • r repair • v view • x cancel"
+        : "Leader: w work • y review-all • r repair • v view • a sweep abandoned • d sweep completed • x cancel",
     );
   }
   return theme.fg(
@@ -55,19 +55,22 @@ export function renderList(
     const todo = todos[i - offset];
     if (!todo) continue;
     const isSelected = i === selectedIndex;
-    const closed = isTodoClosed(todo.status);
+    const derived = deriveTodoStatus(todo as TodoRecord);
+    const closed = isTodoClosed(derived);
     const prefix = isSelected ? theme.fg("accent", "→ ") : "  ";
     const titleColor = isSelected ? "accent" : closed ? "dim" : "text";
-    const statusColor = todo.status.toLowerCase() === "abandoned" ? "error" : closed ? "dim" : "success";
+    const statusColor = derived.toLowerCase() === "abandoned" ? "error" : closed ? "dim" : "success";
     const tagText = todo.tags.length ? ` [${todo.tags.join(", ")}]` : "";
     const assignmentText = renderAssignmentSuffix(theme, todo, currentSessionId);
+    const progress = formatChecklistProgress(todo);
     const line =
       prefix +
       theme.fg(titleColor, todo.title || "(untitled)") +
       theme.fg("muted", tagText) +
       assignmentText +
+      theme.fg("muted", progress) +
       " " +
-      theme.fg(statusColor, `(${todo.status || "open"})`);
+      theme.fg(statusColor, `(${derived || "open"})`);
     listContainer.addChild(new Text(line, 0, 0));
   }
   if (startIndex > 0 || endIndex < totalItems) {

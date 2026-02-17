@@ -5,8 +5,11 @@ import {
   buildCreateSpecPrompt,
   buildCreateTodoPrompt,
   buildEditChecklistPrompt,
-  buildReviewPrompt,
+  buildPrdReviewPrompt,
+  buildSpecReviewPrompt,
+  buildTodoReviewPrompt,
   buildValidateAuditPrompt,
+  deriveTodoStatus,
 } from "../format.js";
 import { attachLinks, deleteTodo, ensureTodoExists, getTodoPath, getTodosDir, listTodos } from "../file-io.js";
 import {
@@ -20,11 +23,12 @@ import {
   LinkSelectComponent,
   ValidateSelectComponent,
 } from "../tui/index.js";
-import { Key, matchesKey } from "@mariozechner/pi-tui";
+import { Key, matchesKey, type TUI } from "@mariozechner/pi-tui";
 import { applyTodoAction, handleQuickAction } from "./actions.js";
 import { getCliPath } from "../cli-path.js";
 import { runValidateCli } from "./validate.js";
 import { footer, leader } from "../gui/detail.js";
+import { runRepairFrontmatter } from "./repair.js";
 
 export async function runTodoUi(
   args: string,
@@ -36,6 +40,7 @@ export async function runTodoUi(
   const searchTerm = (args ?? "").trim();
   let nextPrompt: string | null = null;
   await ctx.ui.custom<void>((tui, theme, _kb, done) => {
+    const uiTui = tui as unknown as TUI;
     const selectors: Partial<Record<TodoListMode, TodoSelectorComponent>> = {};
     const modes: TodoListMode[] = ["tasks", "prds", "specs", "closed"];
     let index = 0;
@@ -49,30 +54,31 @@ export async function runTodoUi(
       focused?: boolean;
     } | null = null;
     let focused = false;
+    const status = (todo: TodoFrontMatter) => deriveTodoStatus(todo as TodoRecord).toLowerCase();
     const isDeprecated = (todo: TodoFrontMatter) => {
-      const status = todo.status.toLowerCase();
-      return status === "abandoned" || status === "deprecated";
+      const value = status(todo);
+      return value === "abandoned" || value === "deprecated";
     };
     const isDone = (todo: TodoFrontMatter) => {
-      const status = todo.status.toLowerCase();
-      return status === "done" || status === "closed";
+      const value = status(todo);
+      return value === "done" || value === "closed";
     };
     const modified = (todo: TodoFrontMatter) => Date.parse(todo.modified_at || todo.created_at || "") || 0;
     const listTasks = (all: TodoFrontMatter[]) =>
-      all.filter((todo) => (todo.kind || "todo") === "todo" && !isDone(todo) && !isDeprecated(todo));
+      all.filter((todo) => (todo.type || todo.kind || "todo") === "todo" && !isDone(todo) && !isDeprecated(todo));
     const listPrds = (all: TodoFrontMatter[]) =>
-      all.filter((todo) => todo.kind === "prd" && !isDone(todo) && !isDeprecated(todo));
+      all.filter((todo) => (todo.type || todo.kind) === "prd" && !isDone(todo) && !isDeprecated(todo));
     const listSpecs = (all: TodoFrontMatter[]) =>
-      all.filter((todo) => todo.kind === "spec" && !isDone(todo) && !isDeprecated(todo));
+      all.filter((todo) => (todo.type || todo.kind) === "spec" && !isDone(todo) && !isDeprecated(todo));
     const listClosed = (all: TodoFrontMatter[]) => {
       const prds = all
-        .filter((todo) => todo.kind === "prd" && (isDone(todo) || isDeprecated(todo)))
+        .filter((todo) => (todo.type || todo.kind) === "prd" && (isDone(todo) || isDeprecated(todo)))
         .sort((a, b) => modified(b) - modified(a));
       const specs = all
-        .filter((todo) => todo.kind === "spec" && (isDone(todo) || isDeprecated(todo)))
+        .filter((todo) => (todo.type || todo.kind) === "spec" && (isDone(todo) || isDeprecated(todo)))
         .sort((a, b) => modified(b) - modified(a));
       const tasks = all
-        .filter((todo) => (todo.kind || "todo") === "todo" && (isDone(todo) || isDeprecated(todo)))
+        .filter((todo) => (todo.type || todo.kind || "todo") === "todo" && (isDone(todo) || isDeprecated(todo)))
         .sort((a, b) => modified(b) - modified(a));
       return [...prds, ...specs, ...tasks];
     };
@@ -102,7 +108,34 @@ export async function runTodoUi(
       selectors.specs?.setTodos(listSpecs(updated));
       selectors.closed?.setTodos(listClosed(updated));
     };
-    const runListCommand = async (action: "sweep-abandoned" | "sweep-completed" | "review-all") => {
+    const sync = async (): Promise<TodoFrontMatter[]> => {
+      await refresh();
+      return all;
+    };
+    const setRepairing = (value: boolean) => {
+      selectors.tasks?.setRepairing(value);
+      selectors.prds?.setRepairing(value);
+      selectors.specs?.setRepairing(value);
+      selectors.closed?.setRepairing(value);
+    };
+    const runListCommand = async (action: "sweep-abandoned" | "sweep-completed" | "review-all" | "repair-frontmatter") => {
+      try {
+        if (action === "repair-frontmatter") {
+          setRepairing(true);
+          const repaired = await runRepairFrontmatter(ctx);
+          setRepairing(false);
+          if ("error" in repaired) {
+            ctx.ui.notify(repaired.error, "error");
+            return;
+          }
+          await refresh();
+          if (!repaired.broken) {
+            ctx.ui.notify(`Frontmatter validation complete. ${repaired.scanned} file(s) scanned, no issues found.`, "info");
+            return;
+          }
+          ctx.ui.notify(`Frontmatter repair complete. ${repaired.repaired} repaired, ${repaired.failed} failed, ${repaired.broken} broken of ${repaired.scanned} scanned.`, repaired.failed ? "warning" : "info");
+          return;
+        }
       if (action === "review-all") {
         const mode = currentMode();
         const updated = await listTodos(todosDir);
@@ -118,18 +151,27 @@ export async function runTodoUi(
           ctx.ui.notify("No items available to review", "error");
           return;
         }
-        const lines = scoped.map((todo) => `- ${buildReviewPrompt(todo.title || "(untitled)", todo.links)}`).join("\n\n");
+        const lines = scoped
+          .map((todo) => {
+            const filePath = getTodoPath(todosDir, todo.id, todo.type || todo.kind);
+            const title = todo.title || "(untitled)";
+            const type = todo.type || todo.kind || "todo";
+            if (type === "prd") return `- ${buildPrdReviewPrompt(title, filePath, todo.links)}`;
+            if (type === "spec") return `- ${buildSpecReviewPrompt(title, filePath, todo.links)}`;
+            return `- ${buildTodoReviewPrompt(title, filePath, todo.links)}`;
+          })
+          .join("\n\n");
         setPrompt(`Review all items in ${mode} list:\n\n${lines}`);
         done();
         return;
       }
       const updated = await listTodos(todosDir);
       const ids = updated
-        .filter((todo) =>
-          action === "sweep-abandoned"
-            ? todo.status === "abandoned"
-            : todo.status === "done" || todo.status === "closed",
-        )
+        .filter((todo) => {
+          const value = status(todo);
+          if (action === "sweep-abandoned") return value === "abandoned";
+          return value === "done" || value === "closed";
+        })
         .map((todo) => todo.id);
       for (const id of ids) await deleteTodo(todosDir, id, ctx);
       await refresh();
@@ -139,6 +181,11 @@ export async function runTodoUi(
           : `Deleted ${ids.length} completed/closed todos`,
         "info",
       );
+      } catch (error) {
+        setRepairing(false);
+        const message = error instanceof Error ? error.message : "List command failed.";
+        ctx.ui.notify(message, "error");
+      }
     };
     const resolve = async (todo: TodoFrontMatter): Promise<TodoRecord | null> => {
       const record = await ensureTodoExists(getTodoPath(todosDir, todo.id), todo.id);
@@ -146,13 +193,26 @@ export async function runTodoUi(
       ctx.ui.notify("Todo not found", "error");
       return null;
     };
-    const showDetailView = (record: TodoRecord, source: TodoListMode) => {
-      const preview = new TodoDetailPreviewComponent(tui, theme, record);
-      const detailFooter = footer(record);
+    const showDetailView = (
+      record: TodoRecord,
+      source: TodoListMode,
+      onBack?: () => void,
+    ) => {
+      const preview = new TodoDetailPreviewComponent(uiTui, theme, record);
+      const detailFooter = onBack ? `${footer(record)} • b back` : footer(record);
       const leaderFooter = leader(record);
       let previewVisible = true;
       let leaderActive = false;
       let leaderTimer: ReturnType<typeof setTimeout> | null = null;
+      const back = onBack || (() => setActive(selectors[source] ?? currentSelector()));
+      const openRelated = () => {
+        const related = preview.getSelectedRelated();
+        if (!related) {
+          ctx.ui.notify("Related item not found", "error");
+          return;
+        }
+        showDetailView(related, source, () => showDetailView(record, source, onBack));
+      };
       const clearLeader = () => {
         if (leaderTimer) clearTimeout(leaderTimer);
         leaderTimer = null;
@@ -225,11 +285,37 @@ export async function runTodoUi(
             return clearLeader();
           }
           if (data === "\u0018" || matchesKey(data, Key.ctrl("x"))) return startLeader();
+          if (data === "b" && onBack) return back();
           if (data === "v") {
             previewVisible = !previewVisible;
             tui.requestRender();
             return;
           }
+          if (data === "/") {
+            if (!previewVisible || !preview.hasRelated()) return;
+            preview.moveRelated(1);
+            return;
+          }
+          if (data === "?") {
+            if (!previewVisible || !preview.hasRelated()) return;
+            preview.moveRelated(-1);
+            return;
+          }
+          if (data === "[") {
+            if (!previewVisible || !preview.hasRelated()) return;
+            preview.moveRelated(-1);
+            return;
+          }
+          if (data === "]") {
+            if (!previewVisible || !preview.hasRelated()) return;
+            preview.moveRelated(1);
+            return;
+          }
+          if (data === "o" || data === "O") {
+            if (previewVisible && preview.hasRelated()) return openRelated();
+            return;
+          }
+          if (data === "\r") return detailMenu.handleInput(data);
           if (data === "k") return detailMenu.handleInput("\u001b[A");
           if (data === "j") return detailMenu.handleInput("\u001b[B");
           if (data === "K") {
@@ -250,18 +336,20 @@ export async function runTodoUi(
       };
       setActive(detailView);
     };
-    const showAttachInput = (record: TodoRecord, source: TodoListMode) => {
-      const prds = all.filter((item) => item.id !== record.id && item.kind === "prd");
-      const specs = all.filter((item) => item.id !== record.id && item.kind === "spec");
-      const todos = all.filter((item) => item.id !== record.id && (item.kind || "todo") === "todo");
+    const showAttachInput = async (record: TodoRecord, source: TodoListMode) => {
+      const current = await sync();
+      const prds = current.filter((item) => item.id !== record.id && (item.type || item.kind) === "prd");
+      const specs = current.filter((item) => item.id !== record.id && (item.type || item.kind) === "spec");
+      const todos = current.filter((item) => item.id !== record.id && (item.type || item.kind || "todo") === "todo");
       const picker = new LinkSelectComponent(
-        tui,
+        uiTui,
         theme,
         prds,
         specs,
         todos,
         async (selected) => {
-          const targets = all.filter(
+          const latest = await sync();
+          const targets = latest.filter(
             (item) =>
               selected.prds.has(item.id) ||
               selected.specs.has(item.id) ||
@@ -284,7 +372,7 @@ export async function runTodoUi(
     };
     const showValidateInput = async (record: TodoRecord, source: TodoListMode) => {
       const cli = getCliPath();
-      const file = getTodoPath(todosDir, record.id, record.kind);
+      const file = getTodoPath(todosDir, record.id, record.type || record.kind);
       let result: { issues: Array<{ kind: "prd" | "spec" | "todo"; name: string; issue: string; file: string }>; recommendations: Array<{ target: string; kind: "prd" | "spec" | "todo"; name: string; reason: string }> };
       try {
         result = runValidateCli(cli, ctx.cwd, file);
@@ -299,12 +387,13 @@ export async function runTodoUi(
         return showDetailView(record, source);
       }
       const picker = new ValidateSelectComponent(
-        tui,
+        uiTui,
         theme,
         result.recommendations.map((item) => ({ key: item.target, label: item.name, kind: item.kind, reason: item.reason })),
         async (selected) => {
-          const targets = all.filter((item) => {
-            const target = normalizePath(getTodoPath(todosDir, item.id, item.kind));
+          const latest = await sync();
+          const targets = latest.filter((item) => {
+            const target = normalizePath(getTodoPath(todosDir, item.id, item.type || item.kind));
             return selected.prds.has(target) || selected.specs.has(target) || selected.todos.has(target);
           });
           const applied = await attachLinks(todosDir, record, targets, ctx);
@@ -322,9 +411,10 @@ export async function runTodoUi(
       );
       setActive(picker);
     };
-    const showAuditPrompt = (record: TodoRecord) => {
-      const current = getTodoPath(todosDir, record.id, record.kind);
-      const scope = all.map((item) => getTodoPath(todosDir, item.id, item.kind));
+    const showAuditPrompt = async (record: TodoRecord) => {
+      const latest = await sync();
+      const current = getTodoPath(todosDir, record.id, record.type || record.kind);
+      const scope = latest.map((item) => getTodoPath(todosDir, item.id, item.type || item.kind));
       setPrompt(buildValidateAuditPrompt(current, scope));
       done();
     };
@@ -335,9 +425,9 @@ export async function runTodoUi(
       source: TodoListMode,
     ) => {
       if (action === "view") return showDetailView(record, source);
-      if (action === "attach-links") return showAttachInput(record, source);
-      if (action === "validate-links") return showValidateInput(record, source);
-      if (action === "audit") return showAuditPrompt(record);
+      if (action === "attach-links") return void showAttachInput(record, source);
+      if (action === "validate-links") return void showValidateInput(record, source);
+      if (action === "audit") return void showAuditPrompt(record);
       const result = await applyTodoAction(todosDir, ctx, refresh, done, record, action, setPrompt);
       if (result === "stay") setActive(selectors[source] ?? currentSelector());
     };
@@ -346,28 +436,32 @@ export async function runTodoUi(
       if (!record) return;
       showDetailView(record, source);
     };
-    const showCreateInput = (mode: TodoListMode) => {
+    const showCreateInput = async (mode: TodoListMode) => {
+      const current = await sync();
       if (mode === "tasks") {
         const picker = new TodoParentSelectComponent(
-          tui,
+          uiTui,
           theme,
-          listPrds(all),
-          listSpecs(all),
+          listPrds(current),
+          listSpecs(current),
           (selected) => {
             createInput = new TodoCreateInputComponent(
-              tui,
+              uiTui,
               theme,
               (userPrompt) => {
-                const cli = getCliPath();
-                const prdPaths = listPrds(all)
-                  .filter((item) => selected.prds.has(item.id))
-                  .map((item) => getTodoPath(todosDir, item.id, "prd"));
-                const specPaths = listSpecs(all)
-                  .filter((item) => selected.specs.has(item.id))
-                  .map((item) => getTodoPath(todosDir, item.id, "spec"));
-                const standalone = selected.prds.has("__NONE__") || selected.specs.has("__NONE__");
-                setPrompt(buildCreateTodoPrompt(userPrompt, cli, ctx.cwd, standalone ? [] : prdPaths, standalone ? [] : specPaths));
-                done();
+                void (async () => {
+                  const cli = getCliPath();
+                  const latest = await sync();
+                  const prdPaths = listPrds(latest)
+                    .filter((item) => selected.prds.has(item.id))
+                    .map((item) => getTodoPath(todosDir, item.id, "prd"));
+                  const specPaths = listSpecs(latest)
+                    .filter((item) => selected.specs.has(item.id))
+                    .map((item) => getTodoPath(todosDir, item.id, "spec"));
+                  const standalone = selected.prds.has("__NONE__") || selected.specs.has("__NONE__");
+                  setPrompt(buildCreateTodoPrompt(userPrompt, cli, ctx.cwd, standalone ? [] : prdPaths, standalone ? [] : specPaths));
+                  done();
+                })();
               },
               () => setActive(currentSelector()),
               {
@@ -384,12 +478,12 @@ export async function runTodoUi(
       }
       if (mode === "specs") {
         const picker = new SpecPrdSelectComponent(
-          tui,
+          uiTui,
           theme,
-          listPrds(all),
+          listPrds(current),
           (selectedPrds) => {
             createInput = new TodoCreateInputComponent(
-              tui,
+              uiTui,
               theme,
               (userPrompt) => {
                 const cli = getCliPath();
@@ -411,7 +505,7 @@ export async function runTodoUi(
         return;
       }
       createInput = new TodoCreateInputComponent(
-        tui,
+        uiTui,
         theme,
         (userPrompt) => {
           const cli = getCliPath();
@@ -436,12 +530,13 @@ export async function runTodoUi(
     };
     const showEditChecklistInput = (record: TodoRecord, source: TodoListMode) => {
       editInput = new TodoEditChecklistInputComponent(
-        tui,
+        uiTui,
         theme,
         record,
         (userPrompt) => {
           const checklist = record.checklist || [];
-          setPrompt(buildEditChecklistPrompt(record.title || "(untitled)", checklist, userPrompt));
+          const filePath = getTodoPath(todosDir, record.id, record.type || record.kind);
+          setPrompt(buildEditChecklistPrompt(record.title || "(untitled)", filePath, checklist, userPrompt));
           done();
         },
         () => showDetailView(record, source),
@@ -450,7 +545,7 @@ export async function runTodoUi(
     };
     const buildSelector = (mode: TodoListMode, items: TodoFrontMatter[], initial?: string) =>
       new TodoSelectorComponent(
-        tui,
+        uiTui,
         theme,
         items,
         (todo) => void openDetailFromTodo(todo, mode),
@@ -459,8 +554,8 @@ export async function runTodoUi(
         currentSessionId,
         (todo, action) =>
           action === "create"
-            ? showCreateInput(mode)
-            : void handleQuickAction(todo, action, () => showCreateInput(mode), done, setPrompt, ctx, resolve),
+            ? void showCreateInput(mode)
+            : void handleQuickAction(todosDir, todo, action, () => void showCreateInput(mode), done, setPrompt, ctx, resolve),
         () => {
           index = (index + 1) % modes.length;
           setActive(currentSelector());

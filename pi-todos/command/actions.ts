@@ -3,7 +3,9 @@ import type { ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import type { TodoFrontMatter, TodoMenuAction, TodoQuickAction, TodoRecord } from "../types.js";
 import { resolveLinkedPaths } from "../format.js";
 import {
+  claimTodoAssignment,
   deleteTodo,
+  getTodoPath,
   releaseTodoAssignment,
   reopenTodoForUser,
   updateTodoStatus,
@@ -23,6 +25,7 @@ function validateLinks(record: TodoFrontMatter): { ok: true } | { error: string 
 }
 
 async function runWork(
+  todosDir: string,
   record: TodoFrontMatter,
   ctx: ExtensionCommandContext,
   done: () => void,
@@ -35,7 +38,8 @@ async function runWork(
   }
   const worktree = await ensureWorktree(record, ctx);
   if ("path" in worktree && worktree.created) ctx.ui.notify(`Created worktree ${worktree.path}`, "info");
-  setPrompt(flow.work(record));
+  const filePath = getTodoPath(todosDir, record.id, record.type || record.kind);
+  setPrompt(flow.work(record, filePath));
   done();
   return "exit";
 }
@@ -50,18 +54,20 @@ export async function applyTodoAction(
   setPrompt: (value: string) => void,
 ): Promise<"stay" | "exit"> {
   if (action === "refine") {
-    setPrompt(flow.refine(record));
+    const filePath = getTodoPath(todosDir, record.id, record.type || record.kind);
+    setPrompt(flow.refine(record, filePath));
     done();
     return "exit";
   }
-  if (action === "work") return runWork(record, ctx, done, setPrompt);
+  if (action === "work") return runWork(todosDir, record, ctx, done, setPrompt);
   if (action === "review-item") {
     const links = validateLinks(record);
     if ("error" in links) {
       ctx.ui.notify(links.error, "error");
       return "stay";
     }
-    setPrompt(flow.review(record));
+    const filePath = getTodoPath(todosDir, record.id, record.type || record.kind);
+    setPrompt(flow.review(record, filePath));
     done();
     return "exit";
   }
@@ -69,6 +75,16 @@ export async function applyTodoAction(
   if (action === "attach-links") return "stay";
   if (action === "validate-links") return "stay";
   if (action === "audit") return "stay";
+  if (action === "assign") {
+    const result = await claimTodoAssignment(todosDir, record.id, ctx, false);
+    if ("error" in result) {
+      ctx.ui.notify(result.error, "error");
+      return "stay";
+    }
+    await refresh();
+    ctx.ui.notify(flow.assigned(record), "info");
+    return "stay";
+  }
   if (action === "release") {
     const result = await releaseTodoAssignment(todosDir, record.id, ctx, true);
     if ("error" in result) {
@@ -78,6 +94,25 @@ export async function applyTodoAction(
     await refresh();
     ctx.ui.notify(flow.released(record), "info");
     return "stay";
+  }
+  if (action === "go-to-session") {
+    const sessionPath = record.assigned_to_session_file;
+    if (!sessionPath) {
+      ctx.ui.notify("No assigned session path stored on this item.", "error");
+      return "stay";
+    }
+    const anyCtx = ctx as unknown as { switchSession?: (path: string) => Promise<{ cancelled: boolean }> };
+    if (!anyCtx.switchSession) {
+      ctx.ui.notify("Session switching is unavailable in this runtime. Use /resume.", "error");
+      return "stay";
+    }
+    const result = await anyCtx.switchSession(sessionPath);
+    if (result.cancelled) {
+      ctx.ui.notify("Session switch cancelled.", "error");
+      return "stay";
+    }
+    done();
+    return "exit";
   }
   if (action === "delete") {
     const removed = await deleteTodo(todosDir, record.id, ctx);
@@ -114,6 +149,7 @@ export async function applyTodoAction(
 }
 
 export async function handleQuickAction(
+  todosDir: string,
   todo: TodoFrontMatter | null,
   action: TodoQuickAction,
   showCreateInput: () => void,
@@ -125,14 +161,15 @@ export async function handleQuickAction(
   if (action === "create") return showCreateInput();
   if (!todo) return;
   if (action === "refine") {
-    setPrompt(flow.refine(todo));
+    const filePath = getTodoPath(todosDir, todo.id, todo.type || todo.kind);
+    setPrompt(flow.refine(todo, filePath));
     done();
     return;
   }
   if (action === "work") {
     const record = await resolve(todo);
     if (!record) return;
-    await runWork(record, ctx, done, setPrompt);
+    await runWork(todosDir, record, ctx, done, setPrompt);
     return;
   }
 }

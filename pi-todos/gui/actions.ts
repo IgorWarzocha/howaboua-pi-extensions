@@ -2,27 +2,33 @@ import type { TodoFrontMatter, TodoRecord } from "../types.js";
 import * as prd from "../prd/actions.js";
 import * as spec from "../spec/actions.js";
 import * as todo from "../todo/actions.js";
+import { todoType } from "../entity.js";
 
 function pick(record: TodoFrontMatter | TodoRecord) {
-  if (record.kind === "prd") return prd;
-  if (record.kind === "spec") return spec;
+  const type = todoType(record);
+  if (type === "prd") return prd;
+  if (type === "spec") return spec;
   return todo;
 }
 
-export function refine(record: TodoFrontMatter): string {
-  return pick(record).refine(record.title || "(untitled)");
+export function refine(record: TodoFrontMatter, filePath: string): string {
+  return pick(record).refine(record.title || "(untitled)", filePath, record.links);
 }
 
-export function work(record: TodoFrontMatter): string {
-  return pick(record).work(record.title || "(untitled)", record.links);
+export function work(record: TodoFrontMatter, filePath: string): string {
+  return pick(record).work(record.title || "(untitled)", filePath, record.links);
 }
 
-export function review(record: TodoFrontMatter): string {
-  return pick(record).review(record.title || "(untitled)", record.links);
+export function review(record: TodoFrontMatter, filePath: string): string {
+  return pick(record).review(record.title || "(untitled)", filePath, record.links);
 }
 
 export function done(action: "complete" | "abandon", record: TodoRecord): string {
   return pick(record).done(action, record);
+}
+
+export function assigned(record: TodoRecord): string {
+  return pick(record).assigned(record);
 }
 
 export function released(record: TodoRecord): string {

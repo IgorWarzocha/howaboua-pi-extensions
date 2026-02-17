@@ -1,31 +1,25 @@
 import type { TodoFrontMatter, TodoRecord } from "../types.js";
-import { resolveLinkedPaths } from "../format/prompts.js";
+import { buildSpecRefinePrompt, buildSpecReviewPrompt, buildSpecWorkPrompt } from "../format/prompts.js";
 
-export function refine(title: string): string {
-  return (
-    `let's refine spec "${title}":\n\n` +
-    "You MUST NOT rewrite the spec yet. You MUST ask clear, concrete questions to clarify:\n" +
-    "- What files MUST be read?\n" +
-    "- What deterministic behavior is required?\n" +
-    "- What verification criteria MUST pass?\n\n" +
-    "You SHOULD research the codebase before asking questions. You MAY ask for clarification on ambiguous points. Wait for user answers before drafting structured content.\n"
-  );
+export function refine(title: string, filePath: string, links?: TodoFrontMatter["links"]): string {
+  return buildSpecRefinePrompt(title, filePath, links);
 }
 
-export function work(title: string, links?: TodoFrontMatter["links"]): string {
-  const abs = resolveLinkedPaths(links);
-  if (!abs.length) return `work on spec "${title}"`;
-  const text = abs.map((item) => `- ${item}`).join("\n");
-  return `work on spec "${title}"\n\nYou MUST read these files before making changes:\n${text}`;
+export function work(title: string, filePath: string, links?: TodoFrontMatter["links"]): string {
+  return buildSpecWorkPrompt(title, filePath, links);
 }
 
-export function review(title: string, links?: TodoFrontMatter["links"]): string {
-  return `${work(title, links)}\n\nThen review whether implementation is complete and list gaps.`;
+export function review(title: string, filePath: string, links?: TodoFrontMatter["links"]): string {
+  return buildSpecReviewPrompt(title, filePath, links);
 }
 
 export function done(action: "complete" | "abandon", record: TodoRecord): string {
   const verb = action === "complete" ? "Completed" : "Abandoned";
   return `${verb} spec "${record.title || "(untitled)"}"`;
+}
+
+export function assigned(record: TodoRecord): string {
+  return `Assigned spec "${record.title || "(untitled)"}"`;
 }
 
 export function released(record: TodoRecord): string {

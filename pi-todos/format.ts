@@ -13,10 +13,16 @@ export {
   formatTodoHeading,
 } from "./format/base.js";
 export {
-  buildRefinePrompt,
+  buildTodoRefinePrompt,
+  buildPrdRefinePrompt,
+  buildSpecRefinePrompt,
   buildEditChecklistPrompt,
-  buildWorkPrompt,
-  buildReviewPrompt,
+  buildTodoWorkPrompt,
+  buildPrdWorkPrompt,
+  buildSpecWorkPrompt,
+  buildTodoReviewPrompt,
+  buildPrdReviewPrompt,
+  buildSpecReviewPrompt,
   buildValidateAuditPrompt,
   resolveLinkedPaths,
 } from "./format/prompts.js";

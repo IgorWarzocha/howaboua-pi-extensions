@@ -2,7 +2,6 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
 import type { LockInfo } from "./types.js";
-import { LOCK_TTL_MS } from "./constants.js";
 import { displayTodoId } from "./format.js";
 
 function getLockPath(todosDir: string, id: string): string {
@@ -29,62 +28,39 @@ function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   return "unknown error";
 }
+
 export async function acquireLock(
   todosDir: string,
   id: string,
   ctx: ExtensionContext,
 ): Promise<(() => Promise<void>) | { error: string }> {
   const lockPath = getLockPath(todosDir, id);
-  const now = Date.now();
   const session = ctx.sessionManager.getSessionFile();
-
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      const handle = await fs.open(lockPath, "wx");
-      const info: LockInfo = {
-        id,
-        pid: process.pid,
-        session,
-        created_at: new Date(now).toISOString(),
-      };
-      await handle.writeFile(JSON.stringify(info, null, 2), "utf8");
-      await handle.close();
-      return async () => {
-        try {
-          await fs.unlink(lockPath);
-        } catch {
-          // ignore
-        }
-      };
-    } catch (error: unknown) {
-      if (getErrorCode(error) !== "EEXIST") {
-        return { error: `Failed to acquire lock: ${getErrorMessage(error)}` };
+  try {
+    const handle = await fs.open(lockPath, "wx");
+    const info: LockInfo = {
+      id,
+      pid: process.pid,
+      session,
+      created_at: new Date().toISOString(),
+    };
+    await handle.writeFile(JSON.stringify(info, null, 2), "utf8");
+    await handle.close();
+    return async () => {
+      try {
+        await fs.unlink(lockPath);
+      } catch {
+        return;
       }
-      const stats = await fs.stat(lockPath).catch(() => null);
-      if (!stats) continue;
-      const lockAge = now - stats.mtimeMs;
-      if (lockAge <= LOCK_TTL_MS) {
-        const info = await readLockInfo(lockPath);
-        const owner = info?.session ? ` (session ${info.session})` : "";
-        return { error: `Todo ${displayTodoId(id)} is locked${owner}. Try again later.` };
-      }
-      if (!ctx.hasUI) {
-        return {
-          error: `Todo ${displayTodoId(id)} lock is stale; rerun in interactive mode to steal it.`,
-        };
-      }
-      const ok = await ctx.ui.confirm(
-        "Todo locked",
-        `Todo ${displayTodoId(id)} appears locked. Steal the lock?`,
-      );
-      if (!ok) {
-        return { error: `Todo ${displayTodoId(id)} remains locked.` };
-      }
-      await fs.unlink(lockPath).catch(() => undefined);
+    };
+  } catch (error: unknown) {
+    if (getErrorCode(error) !== "EEXIST") {
+      return { error: `Failed to acquire lock: ${getErrorMessage(error)}` };
     }
+    const info = await readLockInfo(lockPath);
+    const owner = info?.session ? ` (session ${info.session})` : "";
+    return { error: `Todo ${displayTodoId(id)} is locked${owner}. Try again later.` };
   }
-
-  return { error: `Failed to acquire lock for todo ${displayTodoId(id)}.` };
 }
 
 export async function withTodoLock<T>(

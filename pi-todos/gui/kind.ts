@@ -1,8 +1,10 @@
 import type { TodoFrontMatter, TodoListMode } from "../types.js";
+import { todoType } from "../entity.js";
 
 export function noun(todo: TodoFrontMatter): string {
-  if (todo.kind === "prd") return "PRD";
-  if (todo.kind === "spec") return "spec";
+  const type = todoType(todo);
+  if (type === "prd") return "PRD";
+  if (type === "spec") return "spec";
   return "todo";
 }
 

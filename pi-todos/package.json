@@ -16,7 +16,6 @@
     "verify": "bun run format && bun run typecheck && bun run format:check && bun run build"
   },
   "dependencies": {
-    "@sinclair/typebox": "^0.34.41",
     "yaml": "^2.8.1"
   },
   "peerDependencies": {

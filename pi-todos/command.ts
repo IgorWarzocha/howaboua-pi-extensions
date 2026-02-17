@@ -1,7 +1,7 @@
 import type { ExtensionAPI, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import { getTodosDir } from "./file-io.js";
 import { getTodoCompletions } from "./command/completions.js";
-import { blockedResponse, parseInternalArgs, runInternal } from "./command/internal.js";
+import { blockedResponse } from "./command/internal.js";
 import { runTodoUi } from "./command/ui.js";
 
 export function registerTodoCommand(pi: ExtensionAPI) {
@@ -10,6 +10,14 @@ export function registerTodoCommand(pi: ExtensionAPI) {
     getArgumentCompletions: (argumentPrefix: string) => getTodoCompletions(argumentPrefix),
     handler: async (args: string, ctx: ExtensionCommandContext) => {
       const trimmed = (args || "").trim();
+      if (trimmed.startsWith("--internal")) {
+        process.stdout.write(
+          `${JSON.stringify({ ok: false, error: "internal mode is temporarily disabled" })}\n`,
+        );
+        return;
+      }
+
+      /*
       if (trimmed.startsWith("--internal")) {
         try {
           const payload = parseInternalArgs(trimmed);
@@ -25,6 +33,7 @@ export function registerTodoCommand(pi: ExtensionAPI) {
           return;
         }
       }
+      */
       if (!ctx.hasUI) {
         process.stdout.write(`${blockedResponse()}\n`);
         return;
