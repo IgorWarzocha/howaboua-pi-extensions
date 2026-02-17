@@ -17,7 +17,8 @@ function validateLinks(record: TodoFrontMatter): { ok: true } | { error: string 
   if (!record.links) return { ok: true };
   const root = record.links.root_abs || "";
   const paths = resolveLinkedPaths(record.links);
-  if (paths.length && !root) return { error: "links.root_abs is required when links contain repo-relative files." };
+  const hasRelative = paths.some(p => !p.startsWith("/"));
+  if (hasRelative && !root) return { error: "links.root_abs is required when links contain repo-relative files." };
   for (const item of paths) {
     if (!fs.existsSync(item)) return { error: `Required linked file not found: ${item}` };
   }
@@ -36,8 +37,13 @@ async function runWork(
     ctx.ui.notify(links.error, "error");
     return "stay";
   }
-  const worktree = await ensureWorktree(record, ctx);
-  if ("path" in worktree && worktree.created) ctx.ui.notify(`Created worktree ${worktree.path}`, "info");
+  try {
+    const worktree = await ensureWorktree(record, ctx);
+    if ("path" in worktree && worktree.created) ctx.ui.notify(`Created worktree ${worktree.path}`, "info");
+  } catch (e: any) {
+    ctx.ui.notify(`Worktree setup failed: ${e.message}`, "error");
+    return "stay";
+  }
   const filePath = getTodoPath(todosDir, record.id, record.type || record.kind);
   setPrompt(flow.work(record, filePath));
   done();
