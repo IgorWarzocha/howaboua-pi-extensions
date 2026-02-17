@@ -113,19 +113,28 @@ async function pickMode(
     return { mode: "repo", repo: repos[0].path };
   }
 
-  const repo = repos.length === 1 ? repos[0] : null;
   let worktreeInfo = "";
-  if (repo) {
+  const allWorktrees: { repo: string; branch: string; path: string }[] = [];
+
+  for (const repo of repos) {
     try {
       const list = parseWorktrees(run("git", ["worktree", "list", "--porcelain"], repo.path));
-      const current = list.find(w => w.path === path.resolve(repo.path));
-      const others = list.filter(w => w.path !== path.resolve(repo.path));
-      worktreeInfo = `\nCurrent branch: ${current?.branch || "detached"}`;
-      if (others.length) {
-        worktreeInfo += `\nExisting worktrees:\n${others.map(w => `  - ${w.branch} (${path.basename(w.path)})`).join("\n")}`;
+      for (const w of list) {
+        if (w.branch) {
+          allWorktrees.push({ repo: repo.path, branch: w.branch, path: w.path });
+        }
       }
     } catch {
-      // ignore git errors for info string
+      // skip repo if git fails
+    }
+  }
+
+  if (allWorktrees.length) {
+    worktreeInfo = "\n\nExisting worktrees/branches found:";
+    for (const w of allWorktrees) {
+      const isCurrent = w.path === process.cwd() || w.path === path.resolve(w.repo);
+      const label = isCurrent ? " (current)" : "";
+      worktreeInfo += `\n  - ${w.branch}${label} [${path.basename(w.repo)}]`;
     }
   }
 
