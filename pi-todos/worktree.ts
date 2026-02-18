@@ -109,8 +109,8 @@ export async function ensureWorktree(record: TodoFrontMatter, ctx: ExtensionComm
     void ctx.ui.custom<void>((tui, theme, _kb, done) => {
       const uiTui = tui as unknown as TUI;
       const items = [
-        { value: "none", label: "Work in current branch", description: "No git actions" },
-        { value: "new", label: `Create/Switch to: ${targetBranch}`, description: "Use dedicated worktree" },
+        { value: "none", label: "Work in current branch", description: "no git actions" },
+        { value: "new", label: `Create/Switch to: ${targetBranch}`, description: "dedicated worktree" },
       ];
 
       for (const repo of repos) {
@@ -118,12 +118,11 @@ export async function ensureWorktree(record: TodoFrontMatter, ctx: ExtensionComm
           const list = parseWorktrees(run("git", ["worktree", "list", "--porcelain"], repo.path));
           for (const w of list) {
             if (!w.branch) continue;
-            const isTarget = w.branch === targetBranch;
-            if (isTarget) continue; // Already covered by "new" (which becomes switch if exists)
+            if (w.branch === targetBranch) continue;
             items.push({
               value: `switch:${repo.path}:${w.branch}:${w.path}`,
               label: `Switch to: ${w.branch}`,
-              description: `Existing worktree in ${path.basename(repo.path)}`,
+              description: `in ${path.basename(repo.path)}`,
             });
           }
         } catch { /* ignore */ }
@@ -147,6 +146,7 @@ export async function ensureWorktree(record: TodoFrontMatter, ctx: ExtensionComm
         render: (w) => component.render(w),
         handleInput: (d) => component.handleInput(d),
         invalidate: () => component.invalidate(),
+        focused: true,
       };
     });
   });
@@ -168,7 +168,7 @@ export async function ensureWorktree(record: TodoFrontMatter, ctx: ExtensionComm
   }
 
   if (selection.startsWith("switch:")) {
-    const [, repoPath, branch, worktreePath] = selection.split(":");
+    const [, _repoPath, branch, worktreePath] = selection.split(":");
     return { ok: true as const, path: worktreePath, branch, created: false };
   }
 
