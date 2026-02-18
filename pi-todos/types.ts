@@ -80,6 +80,7 @@ export type TodoMenuAction =
   | "attach-links"
   | "validate-links"
   | "audit"
+  | "edit-checklist"
   | "copyPath"
   | "copyText"
   | "view";

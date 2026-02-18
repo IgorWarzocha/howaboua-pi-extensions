@@ -24,7 +24,12 @@ function normalizePaths(paths: string[]): string[] {
 
 export function resolveLinkedPaths(links?: Links): string[] {
   const base = links?.root_abs ?? "";
-  const rel = [...(links?.prds ?? []), ...(links?.specs ?? []), ...(links?.todos ?? []), ...(links?.reads ?? [])];
+  const rel = [
+    ...(links?.prds ?? []),
+    ...(links?.specs ?? []),
+    ...(links?.todos ?? []),
+    ...(links?.reads ?? []),
+  ];
   return normalizePaths(
     rel.map((item) => {
       if (!base) return item;
@@ -36,7 +41,11 @@ export function resolveLinkedPaths(links?: Links): string[] {
 function readBlock(filePath: string, links?: Links): string {
   const resolved = resolveLinkedPaths(links);
   const lines = [`- ${filePath}`, ...resolved.map((item) => `- ${item}`)];
-  return `You MUST read these files before making changes:\n${normalizePaths(lines.map((item) => item.slice(2))).map((item) => `- ${item}`).join("\n")}`;
+  return `You MUST read these files before making changes:\n${normalizePaths(
+    lines.map((item) => item.slice(2)),
+  )
+    .map((item) => `- ${item}`)
+    .join("\n")}`;
 }
 
 export function buildTodoRefinePrompt(title: string, filePath: string, links?: Links): string {
@@ -78,7 +87,10 @@ export function buildTodoWorkPrompt(title: string, filePath: string, links?: Lin
     `Work on todo at path "${filePath}" (title: "${title}").\n\n` +
     `${readBlock(filePath, links)}\n\n` +
     "You MUST execute checklist steps in order unless dependencies require reordering.\n" +
+    "As work progresses, you MUST update checklist done booleans during execution; you MUST NOT batch checklist updates after completion.\n" +
     "As work progresses, you MUST edit ONLY frontmatter fields in this todo file (checklist/status/links/assignment fields as needed).\n" +
+    "You MUST NOT modify frontmatter fields outside checklist/status/links/assignment.\n" +
+    "You MUST NOT modify the agent_rules field.\n" +
     "You MUST NOT write progress notes into the markdown body during work execution.\n" +
     "Goal: complete this todo document to 100%. You MUST NOT stop after partial progress, and you MUST continue until all required steps are done.\n" +
     "You MUST ensure linked PRD/spec/todo markdown files remain a complete bidirectional link web.\n"
@@ -90,7 +102,10 @@ export function buildPrdWorkPrompt(title: string, filePath: string, links?: Link
     `Work on PRD at path "${filePath}" (title: "${title}").\n\n` +
     `${readBlock(filePath, links)}\n\n` +
     "You MUST focus on product definition quality and requirement clarity.\n" +
+    "As work progresses, you MUST update checklist done booleans during execution; you MUST NOT batch checklist updates after completion.\n" +
     "As work progresses, you MUST edit ONLY frontmatter fields in this PRD file (checklist/status/links/assignment fields as needed).\n" +
+    "You MUST NOT modify frontmatter fields outside checklist/status/links/assignment.\n" +
+    "You MUST NOT modify the agent_rules field.\n" +
     "You MUST NOT write progress notes into the markdown body during work execution.\n" +
     "Goal: complete this PRD document to 100%. You MUST NOT stop after partial progress, and you MUST continue until all required steps are done.\n" +
     "You MUST preserve intent consistency across linked specs and todos.\n"
@@ -102,7 +117,10 @@ export function buildSpecWorkPrompt(title: string, filePath: string, links?: Lin
     `Work on spec at path "${filePath}" (title: "${title}").\n\n` +
     `${readBlock(filePath, links)}\n\n` +
     "You MUST focus on deterministic technical behavior and implementation constraints.\n" +
+    "As work progresses, you MUST update checklist done booleans during execution; you MUST NOT batch checklist updates after completion.\n" +
     "As work progresses, you MUST edit ONLY frontmatter fields in this spec file (checklist/status/links/assignment fields as needed).\n" +
+    "You MUST NOT modify frontmatter fields outside checklist/status/links/assignment.\n" +
+    "You MUST NOT modify the agent_rules field.\n" +
     "You MUST NOT write progress notes into the markdown body during work execution.\n" +
     "Goal: complete this spec document to 100%. You MUST NOT stop after partial progress, and you MUST continue until all required steps are done.\n" +
     "You MUST preserve consistency with linked PRDs and implementation todos.\n"
@@ -142,6 +160,10 @@ export function buildEditChecklistPrompt(
     `${readBlock(filePath)}\n\n` +
     `Current checklist:\n${checklistText}\n\n` +
     "You MUST keep existing frontmatter fields stable.\n" +
+    "You MUST edit only checklist entries and checklist-related status updates.\n" +
+    "You MUST NOT modify the agent_rules field.\n" +
+    "You MUST review all linked files before editing the checklist.\n" +
+    "If links show the todo is mis-scoped and needs a full rework, you MUST report that first and wait for confirmation before editing.\n" +
     "You MUST write checklist items as concrete actions required to complete the task.\n" +
     "Generic checklist items MUST NOT be used.\n"
   );

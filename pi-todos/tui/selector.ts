@@ -32,7 +32,9 @@ export class TodoSelectorComponent extends Container implements Focusable {
   private currentSessionId?: string;
   private onQuickAction?: (todo: TodoFrontMatter | null, action: TodoQuickAction) => void;
   private onTabCallback?: () => void;
-  private onCommandCallback?: (action: "sweep-abandoned" | "sweep-completed" | "review-all" | "repair-frontmatter") => void;
+  private onCommandCallback?: (
+    action: "sweep-abandoned" | "sweep-completed" | "review-all" | "repair-frontmatter",
+  ) => void;
   private mode: TodoListMode;
   private leaderActive = false;
   private leaderTimer: ReturnType<typeof setTimeout> | null = null;
@@ -61,7 +63,9 @@ export class TodoSelectorComponent extends Container implements Focusable {
     currentSessionId?: string,
     onQuickAction?: (todo: TodoFrontMatter | null, action: TodoQuickAction) => void,
     onTab?: () => void,
-    onCommand?: (action: "sweep-abandoned" | "sweep-completed" | "review-all" | "repair-frontmatter") => void,
+    onCommand?: (
+      action: "sweep-abandoned" | "sweep-completed" | "review-all" | "repair-frontmatter",
+    ) => void,
     mode: TodoListMode = "tasks",
   ) {
     super();
@@ -134,17 +138,14 @@ export class TodoSelectorComponent extends Container implements Focusable {
 
   private runLeader(keyData: string): boolean {
     const selected = this.getSelectedItem();
-    if (keyData === "x" || keyData === "X") return (this.clearLeader(), true);
-    if (keyData === "c" || keyData === "C")
-      return (this.onQuickAction?.(null, "create"), this.clearLeader(), true);
     if ((keyData === "w" || keyData === "W") && selected)
       return (this.onQuickAction?.(selected, "work"), this.clearLeader(), true);
-    if (keyData === "r" || keyData === "R")
-      return (this.onCommandCallback?.("repair-frontmatter"), this.clearLeader(), true);
+    if (keyData === "c" || keyData === "C")
+      return (this.onQuickAction?.(null, "create"), this.clearLeader(), true);
     if (keyData === "y" || keyData === "Y")
       return (this.onCommandCallback?.("review-all"), this.clearLeader(), true);
-    if ((keyData === "v" || keyData === "V") && selected)
-      return (this.onSelectCallback(selected), this.clearLeader(), true);
+    if (keyData === "r" || keyData === "R")
+      return (this.onCommandCallback?.("repair-frontmatter"), this.clearLeader(), true);
     if ((keyData === "a" || keyData === "A") && this.mode === "closed")
       return (this.onCommandCallback?.("sweep-abandoned"), this.clearLeader(), true);
     if ((keyData === "d" || keyData === "D") && this.mode === "closed")

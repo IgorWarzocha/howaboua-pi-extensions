@@ -9,8 +9,19 @@ export function items(todo: TodoRecord, closed: boolean, showView: boolean): Sel
   const assigned = Boolean(todo.assigned_to_session);
   const jump = Boolean(todo.assigned_to_session_file);
   const type = todoType(todo);
-  if (type === "prd") return prdItems(closed, assigned, jump, showView);
-  if (type === "spec") return specItems(closed, assigned, jump, showView);
-  return todoItems(closed, assigned, jump, showView);
+  const base =
+    type === "prd"
+      ? prdItems(closed, assigned, jump, showView)
+      : type === "spec"
+        ? specItems(closed, assigned, jump, showView)
+        : todoItems(closed, assigned, jump, showView);
+  if (!todo.checklist?.length) return base;
+  const insert = base.findIndex((item) => item.value === "refine");
+  const entry = {
+    value: "edit-checklist",
+    label: "edit-checklist",
+    description: "Edit checklist with AI",
+  };
+  if (insert === -1) return [...base, entry];
+  return [...base.slice(0, insert), entry, ...base.slice(insert)];
 }
-

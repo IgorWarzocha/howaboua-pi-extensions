@@ -1,6 +1,12 @@
 import { buildCreateBase } from "../gui/create-prompt.js";
 
-export function buildCreateTodoPrompt(userPrompt: string, cli: string, cwd: string, prds: string[], specs: string[]): string {
+export function buildCreateTodoPrompt(
+  userPrompt: string,
+  cli: string,
+  cwd: string,
+  prds: string[],
+  specs: string[],
+): string {
   const attach =
     prds.length || specs.length
       ? [

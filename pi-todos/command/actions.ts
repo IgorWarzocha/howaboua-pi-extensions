@@ -17,8 +17,9 @@ function validateLinks(record: TodoFrontMatter): { ok: true } | { error: string 
   if (!record.links) return { ok: true };
   const root = record.links.root_abs || "";
   const paths = resolveLinkedPaths(record.links);
-  const hasRelative = paths.some(p => !p.startsWith("/"));
-  if (hasRelative && !root) return { error: "links.root_abs is required when links contain repo-relative files." };
+  const hasRelative = paths.some((p) => !p.startsWith("/"));
+  if (hasRelative && !root)
+    return { error: "links.root_abs is required when links contain repo-relative files." };
   for (const item of paths) {
     if (!fs.existsSync(item)) return { error: `Required linked file not found: ${item}` };
   }
@@ -39,7 +40,8 @@ async function runWork(
   }
   try {
     const worktree = await ensureWorktree(record, ctx);
-    if ("path" in worktree && worktree.created) ctx.ui.notify(`Created worktree ${worktree.path}`, "info");
+    if ("path" in worktree && worktree.created)
+      ctx.ui.notify(`Created worktree ${worktree.path}`, "info");
   } catch (e: any) {
     ctx.ui.notify(`Worktree setup failed: ${e.message}`, "error");
     return "stay";
@@ -78,6 +80,7 @@ export async function applyTodoAction(
     return "exit";
   }
   if (action === "view") return "stay";
+  if (action === "edit-checklist") return "stay";
   if (action === "attach-links") return "stay";
   if (action === "validate-links") return "stay";
   if (action === "audit") return "stay";
@@ -107,7 +110,9 @@ export async function applyTodoAction(
       ctx.ui.notify("No assigned session path stored on this item.", "error");
       return "stay";
     }
-    const anyCtx = ctx as unknown as { switchSession?: (path: string) => Promise<{ cancelled: boolean }> };
+    const anyCtx = ctx as unknown as {
+      switchSession?: (path: string) => Promise<{ cancelled: boolean }>;
+    };
     if (!anyCtx.switchSession) {
       ctx.ui.notify("Session switching is unavailable in this runtime. Use /resume.", "error");
       return "stay";
@@ -147,10 +152,7 @@ export async function applyTodoAction(
     return "stay";
   }
   await refresh();
-  ctx.ui.notify(
-    flow.done(action === "complete" ? "complete" : "abandon", record),
-    "info",
-  );
+  ctx.ui.notify(flow.done(action === "complete" ? "complete" : "abandon", record), "info");
   return "stay";
 }
 
@@ -179,4 +181,3 @@ export async function handleQuickAction(
     return;
   }
 }
-

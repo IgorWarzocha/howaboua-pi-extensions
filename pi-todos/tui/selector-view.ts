@@ -1,7 +1,12 @@
 import { Text, type TUI } from "@mariozechner/pi-tui";
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import type { TodoFrontMatter, TodoListMode, TodoRecord } from "../types.js";
-import { deriveTodoStatus, formatChecklistProgress, isTodoClosed, renderAssignmentSuffix } from "../format.js";
+import {
+  deriveTodoStatus,
+  formatChecklistProgress,
+  isTodoClosed,
+  renderAssignmentSuffix,
+} from "../format.js";
 
 export function buildHeader(theme: Theme, todos: TodoFrontMatter[], mode: TodoListMode): string {
   if (mode === "tasks") return theme.fg("accent", theme.bold(`Tasks (${todos.length})`));
@@ -15,13 +20,13 @@ export function buildHints(theme: Theme, mode: TodoListMode, leaderActive = fals
     return theme.fg(
       "warning",
       mode !== "closed"
-        ? "Leader: c create • w work • y review-all • r repair • v view • x cancel"
-        : "Leader: w work • y review-all • r repair • v view • a sweep abandoned • d sweep completed • x cancel",
+        ? "More options: w work • c create • y review-all • r repair"
+        : "More options: w work • y review-all • r repair • a sweep abandoned • d sweep completed",
     );
   }
   return theme.fg(
     "dim",
-    "Press / to search • ↑↓ or j/k select • Enter view • Tab switch lists • Ctrl+X leader • Esc close",
+    "Press / to search • ↑↓ or j/k select • Enter view • Tab switch lists • Ctrl+X more options • Esc close",
   );
 }
 
@@ -37,7 +42,10 @@ export function renderList(
   const create = mode !== "closed";
   const totalItems = todos.length + (create ? 1 : 0);
   const maxVisible = 10;
-  const startIndex = Math.max(0, Math.min(selectedIndex - Math.floor(maxVisible / 2), totalItems - maxVisible));
+  const startIndex = Math.max(
+    0,
+    Math.min(selectedIndex - Math.floor(maxVisible / 2), totalItems - maxVisible),
+  );
   const endIndex = Math.min(startIndex + maxVisible, totalItems);
   for (let i = startIndex; i < endIndex; i += 1) {
     if (create && i === 0) {
@@ -59,7 +67,8 @@ export function renderList(
     const closed = isTodoClosed(derived);
     const prefix = isSelected ? theme.fg("accent", "→ ") : "  ";
     const titleColor = isSelected ? "accent" : closed ? "dim" : "text";
-    const statusColor = derived.toLowerCase() === "abandoned" ? "error" : closed ? "dim" : "success";
+    const statusColor =
+      derived.toLowerCase() === "abandoned" ? "error" : closed ? "dim" : "success";
     const tagText = todo.tags.length ? ` [${todo.tags.join(", ")}]` : "";
     const assignmentText = renderAssignmentSuffix(theme, todo, currentSessionId);
     const progress = formatChecklistProgress(todo);
@@ -74,7 +83,9 @@ export function renderList(
     listContainer.addChild(new Text(line, 0, 0));
   }
   if (startIndex > 0 || endIndex < totalItems) {
-    listContainer.addChild(new Text(theme.fg("dim", `  (${selectedIndex + 1}/${totalItems})`), 0, 0));
+    listContainer.addChild(
+      new Text(theme.fg("dim", `  (${selectedIndex + 1}/${totalItems})`), 0, 0),
+    );
   }
 }
 

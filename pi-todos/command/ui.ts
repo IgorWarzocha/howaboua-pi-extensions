@@ -11,7 +11,14 @@ import {
   buildValidateAuditPrompt,
   deriveTodoStatus,
 } from "../format.js";
-import { attachLinks, deleteTodo, ensureTodoExists, getTodoPath, getTodosDir, listTodos } from "../file-io.js";
+import {
+  attachLinks,
+  deleteTodo,
+  ensureTodoExists,
+  getTodoPath,
+  getTodosDir,
+  listTodos,
+} from "../file-io.js";
 import {
   TodoActionMenuComponent,
   TodoCreateInputComponent,
@@ -63,22 +70,37 @@ export async function runTodoUi(
       const value = status(todo);
       return value === "done" || value === "closed";
     };
-    const modified = (todo: TodoFrontMatter) => Date.parse(todo.modified_at || todo.created_at || "") || 0;
+    const modified = (todo: TodoFrontMatter) =>
+      Date.parse(todo.modified_at || todo.created_at || "") || 0;
     const listTasks = (all: TodoFrontMatter[]) =>
-      all.filter((todo) => (todo.type || todo.kind || "todo") === "todo" && !isDone(todo) && !isDeprecated(todo));
+      all.filter(
+        (todo) =>
+          (todo.type || todo.kind || "todo") === "todo" && !isDone(todo) && !isDeprecated(todo),
+      );
     const listPrds = (all: TodoFrontMatter[]) =>
-      all.filter((todo) => (todo.type || todo.kind) === "prd" && !isDone(todo) && !isDeprecated(todo));
+      all.filter(
+        (todo) => (todo.type || todo.kind) === "prd" && !isDone(todo) && !isDeprecated(todo),
+      );
     const listSpecs = (all: TodoFrontMatter[]) =>
-      all.filter((todo) => (todo.type || todo.kind) === "spec" && !isDone(todo) && !isDeprecated(todo));
+      all.filter(
+        (todo) => (todo.type || todo.kind) === "spec" && !isDone(todo) && !isDeprecated(todo),
+      );
     const listClosed = (all: TodoFrontMatter[]) => {
       const prds = all
-        .filter((todo) => (todo.type || todo.kind) === "prd" && (isDone(todo) || isDeprecated(todo)))
+        .filter(
+          (todo) => (todo.type || todo.kind) === "prd" && (isDone(todo) || isDeprecated(todo)),
+        )
         .sort((a, b) => modified(b) - modified(a));
       const specs = all
-        .filter((todo) => (todo.type || todo.kind) === "spec" && (isDone(todo) || isDeprecated(todo)))
+        .filter(
+          (todo) => (todo.type || todo.kind) === "spec" && (isDone(todo) || isDeprecated(todo)),
+        )
         .sort((a, b) => modified(b) - modified(a));
       const tasks = all
-        .filter((todo) => (todo.type || todo.kind || "todo") === "todo" && (isDone(todo) || isDeprecated(todo)))
+        .filter(
+          (todo) =>
+            (todo.type || todo.kind || "todo") === "todo" && (isDone(todo) || isDeprecated(todo)),
+        )
         .sort((a, b) => modified(b) - modified(a));
       return [...prds, ...specs, ...tasks];
     };
@@ -118,7 +140,9 @@ export async function runTodoUi(
       selectors.specs?.setRepairing(value);
       selectors.closed?.setRepairing(value);
     };
-    const runListCommand = async (action: "sweep-abandoned" | "sweep-completed" | "review-all" | "repair-frontmatter") => {
+    const runListCommand = async (
+      action: "sweep-abandoned" | "sweep-completed" | "review-all" | "repair-frontmatter",
+    ) => {
       try {
         if (action === "repair-frontmatter") {
           setRepairing(true);
@@ -130,57 +154,63 @@ export async function runTodoUi(
           }
           await refresh();
           if (!repaired.broken) {
-            ctx.ui.notify(`Frontmatter validation complete. ${repaired.scanned} file(s) scanned, no issues found.`, "info");
+            ctx.ui.notify(
+              `Frontmatter validation complete. ${repaired.scanned} file(s) scanned, no issues found.`,
+              "info",
+            );
             return;
           }
-          ctx.ui.notify(`Frontmatter repair complete. ${repaired.repaired} repaired, ${repaired.failed} failed, ${repaired.broken} broken of ${repaired.scanned} scanned.`, repaired.failed ? "warning" : "info");
+          ctx.ui.notify(
+            `Frontmatter repair complete. ${repaired.repaired} repaired, ${repaired.failed} failed, ${repaired.broken} broken of ${repaired.scanned} scanned.`,
+            repaired.failed ? "warning" : "info",
+          );
           return;
         }
-      if (action === "review-all") {
-        const mode = currentMode();
+        if (action === "review-all") {
+          const mode = currentMode();
+          const updated = await listTodos(todosDir);
+          const scoped =
+            mode === "prds"
+              ? listPrds(updated)
+              : mode === "specs"
+                ? listSpecs(updated)
+                : mode === "closed"
+                  ? listClosed(updated)
+                  : listTasks(updated);
+          if (!scoped.length) {
+            ctx.ui.notify("No items available to review", "error");
+            return;
+          }
+          const lines = scoped
+            .map((todo) => {
+              const filePath = getTodoPath(todosDir, todo.id, todo.type || todo.kind);
+              const title = todo.title || "(untitled)";
+              const type = todo.type || todo.kind || "todo";
+              if (type === "prd") return `- ${buildPrdReviewPrompt(title, filePath, todo.links)}`;
+              if (type === "spec") return `- ${buildSpecReviewPrompt(title, filePath, todo.links)}`;
+              return `- ${buildTodoReviewPrompt(title, filePath, todo.links)}`;
+            })
+            .join("\n\n");
+          setPrompt(`Review all items in ${mode} list:\n\n${lines}`);
+          done();
+          return;
+        }
         const updated = await listTodos(todosDir);
-        const scoped =
-          mode === "prds"
-            ? listPrds(updated)
-            : mode === "specs"
-              ? listSpecs(updated)
-              : mode === "closed"
-                ? listClosed(updated)
-                : listTasks(updated);
-        if (!scoped.length) {
-          ctx.ui.notify("No items available to review", "error");
-          return;
-        }
-        const lines = scoped
-          .map((todo) => {
-            const filePath = getTodoPath(todosDir, todo.id, todo.type || todo.kind);
-            const title = todo.title || "(untitled)";
-            const type = todo.type || todo.kind || "todo";
-            if (type === "prd") return `- ${buildPrdReviewPrompt(title, filePath, todo.links)}`;
-            if (type === "spec") return `- ${buildSpecReviewPrompt(title, filePath, todo.links)}`;
-            return `- ${buildTodoReviewPrompt(title, filePath, todo.links)}`;
+        const ids = updated
+          .filter((todo) => {
+            const value = status(todo);
+            if (action === "sweep-abandoned") return value === "abandoned";
+            return value === "done" || value === "closed";
           })
-          .join("\n\n");
-        setPrompt(`Review all items in ${mode} list:\n\n${lines}`);
-        done();
-        return;
-      }
-      const updated = await listTodos(todosDir);
-      const ids = updated
-        .filter((todo) => {
-          const value = status(todo);
-          if (action === "sweep-abandoned") return value === "abandoned";
-          return value === "done" || value === "closed";
-        })
-        .map((todo) => todo.id);
-      for (const id of ids) await deleteTodo(todosDir, id, ctx);
-      await refresh();
-      ctx.ui.notify(
-        action === "sweep-abandoned"
-          ? `Deleted ${ids.length} abandoned todos`
-          : `Deleted ${ids.length} completed/closed todos`,
-        "info",
-      );
+          .map((todo) => todo.id);
+        for (const id of ids) await deleteTodo(todosDir, id, ctx);
+        await refresh();
+        ctx.ui.notify(
+          action === "sweep-abandoned"
+            ? `Deleted ${ids.length} abandoned todos`
+            : `Deleted ${ids.length} completed/closed todos`,
+          "info",
+        );
       } catch (error) {
         setRepairing(false);
         const message = error instanceof Error ? error.message : "List command failed.";
@@ -193,11 +223,7 @@ export async function runTodoUi(
       ctx.ui.notify("Todo not found", "error");
       return null;
     };
-    const showDetailView = (
-      record: TodoRecord,
-      source: TodoListMode,
-      onBack?: () => void,
-    ) => {
+    const showDetailView = (record: TodoRecord, source: TodoListMode, onBack?: () => void) => {
       const preview = new TodoDetailPreviewComponent(uiTui, theme, record);
       const detailFooter = onBack ? `${footer(record)} • b back` : footer(record);
       const leaderFooter = leader(record);
@@ -255,29 +281,6 @@ export async function runTodoUi(
         },
         handleInput(data: string) {
           if (leaderActive) {
-            if (
-              data === "x" ||
-              data === "X" ||
-              data === "\u0018" ||
-              matchesKey(data, Key.ctrl("x"))
-            )
-              return clearLeader();
-            if (data === "w" || data === "W")
-              return (clearLeader(), void handleSelection(record, "work", source));
-            if (data === "r" || data === "R")
-              return (clearLeader(), void handleSelection(record, "refine", source));
-            if (data === "y" || data === "Y")
-              return (clearLeader(), void handleSelection(record, "review-item", source));
-            if (data === "c" || data === "C")
-              return (clearLeader(), void handleSelection(record, "complete", source));
-            if (data === "a" || data === "A")
-              return (clearLeader(), void handleSelection(record, "abandon", source));
-            if (data === "v" || data === "V") {
-              clearLeader();
-              previewVisible = !previewVisible;
-              tui.requestRender();
-              return;
-            }
             if ((data === "e" || data === "E") && record.checklist?.length) {
               clearLeader();
               return showEditChecklistInput(record, source);
@@ -338,9 +341,15 @@ export async function runTodoUi(
     };
     const showAttachInput = async (record: TodoRecord, source: TodoListMode) => {
       const current = await sync();
-      const prds = current.filter((item) => item.id !== record.id && (item.type || item.kind) === "prd");
-      const specs = current.filter((item) => item.id !== record.id && (item.type || item.kind) === "spec");
-      const todos = current.filter((item) => item.id !== record.id && (item.type || item.kind || "todo") === "todo");
+      const prds = current.filter(
+        (item) => item.id !== record.id && (item.type || item.kind) === "prd",
+      );
+      const specs = current.filter(
+        (item) => item.id !== record.id && (item.type || item.kind) === "spec",
+      );
+      const todos = current.filter(
+        (item) => item.id !== record.id && (item.type || item.kind || "todo") === "todo",
+      );
       const picker = new LinkSelectComponent(
         uiTui,
         theme,
@@ -373,7 +382,15 @@ export async function runTodoUi(
     const showValidateInput = async (record: TodoRecord, source: TodoListMode) => {
       const cli = getCliPath();
       const file = getTodoPath(todosDir, record.id, record.type || record.kind);
-      let result: { issues: Array<{ kind: "prd" | "spec" | "todo"; name: string; issue: string; file: string }>; recommendations: Array<{ target: string; kind: "prd" | "spec" | "todo"; name: string; reason: string }> };
+      let result: {
+        issues: Array<{ kind: "prd" | "spec" | "todo"; name: string; issue: string; file: string }>;
+        recommendations: Array<{
+          target: string;
+          kind: "prd" | "spec" | "todo";
+          name: string;
+          reason: string;
+        }>;
+      };
       try {
         result = runValidateCli(cli, ctx.cwd, file);
       } catch (error) {
@@ -383,18 +400,30 @@ export async function runTodoUi(
       }
       if (!result.recommendations.length) {
         const issueCount = result.issues.length;
-        ctx.ui.notify(issueCount ? `No attach recommendations. Found ${issueCount} issue(s).` : "No issues found.", "info");
+        ctx.ui.notify(
+          issueCount
+            ? `No attach recommendations. Found ${issueCount} issue(s).`
+            : "No issues found.",
+          "info",
+        );
         return showDetailView(record, source);
       }
       const picker = new ValidateSelectComponent(
         uiTui,
         theme,
-        result.recommendations.map((item) => ({ key: item.target, label: item.name, kind: item.kind, reason: item.reason })),
+        result.recommendations.map((item) => ({
+          key: item.target,
+          label: item.name,
+          kind: item.kind,
+          reason: item.reason,
+        })),
         async (selected) => {
           const latest = await sync();
           const targets = latest.filter((item) => {
             const target = normalizePath(getTodoPath(todosDir, item.id, item.type || item.kind));
-            return selected.prds.has(target) || selected.specs.has(target) || selected.todos.has(target);
+            return (
+              selected.prds.has(target) || selected.specs.has(target) || selected.todos.has(target)
+            );
           });
           const applied = await attachLinks(todosDir, record, targets, ctx);
           if ("error" in applied) {
@@ -425,6 +454,7 @@ export async function runTodoUi(
       source: TodoListMode,
     ) => {
       if (action === "view") return showDetailView(record, source);
+      if (action === "edit-checklist") return showEditChecklistInput(record, source);
       if (action === "attach-links") return void showAttachInput(record, source);
       if (action === "validate-links") return void showValidateInput(record, source);
       if (action === "audit") return void showAuditPrompt(record);
@@ -458,15 +488,25 @@ export async function runTodoUi(
                   const specPaths = listSpecs(latest)
                     .filter((item) => selected.specs.has(item.id))
                     .map((item) => getTodoPath(todosDir, item.id, "spec"));
-                  const standalone = selected.prds.has("__NONE__") || selected.specs.has("__NONE__");
-                  setPrompt(buildCreateTodoPrompt(userPrompt, cli, ctx.cwd, standalone ? [] : prdPaths, standalone ? [] : specPaths));
+                  const standalone =
+                    selected.prds.has("__NONE__") || selected.specs.has("__NONE__");
+                  setPrompt(
+                    buildCreateTodoPrompt(
+                      userPrompt,
+                      cli,
+                      ctx.cwd,
+                      standalone ? [] : prdPaths,
+                      standalone ? [] : specPaths,
+                    ),
+                  );
                   done();
                 })();
               },
               () => setActive(currentSelector()),
               {
                 title: "Create New Todo",
-                description: "Describe the task implementation plan. Selected PRDs/specs will be attached.",
+                description:
+                  "Describe the task implementation plan. Selected PRDs/specs will be attached.",
               },
             );
             setActive(createInput);
@@ -494,7 +534,8 @@ export async function runTodoUi(
               () => setActive(currentSelector()),
               {
                 title: "Create New Spec",
-                description: "Describe the technical specification. Selected PRDs will be attached.",
+                description:
+                  "Describe the technical specification. Selected PRDs will be attached.",
               },
             );
             setActive(createInput);
@@ -518,8 +559,7 @@ export async function runTodoUi(
         },
         () => setActive(currentSelector()),
         {
-          title:
-            mode === "prds" ? "Create New PRD" : "Create New Todo",
+          title: mode === "prds" ? "Create New PRD" : "Create New Todo",
           description:
             mode === "prds"
               ? "Describe the product requirement. The AI SHOULD read linked files and ask clarifying questions first."
@@ -536,7 +576,9 @@ export async function runTodoUi(
         (userPrompt) => {
           const checklist = record.checklist || [];
           const filePath = getTodoPath(todosDir, record.id, record.type || record.kind);
-          setPrompt(buildEditChecklistPrompt(record.title || "(untitled)", filePath, checklist, userPrompt));
+          setPrompt(
+            buildEditChecklistPrompt(record.title || "(untitled)", filePath, checklist, userPrompt),
+          );
           done();
         },
         () => showDetailView(record, source),
@@ -555,7 +597,16 @@ export async function runTodoUi(
         (todo, action) =>
           action === "create"
             ? void showCreateInput(mode)
-            : void handleQuickAction(todosDir, todo, action, () => void showCreateInput(mode), done, setPrompt, ctx, resolve),
+            : void handleQuickAction(
+                todosDir,
+                todo,
+                action,
+                () => void showCreateInput(mode),
+                done,
+                setPrompt,
+                ctx,
+                resolve,
+              ),
         () => {
           index = (index + 1) % modes.length;
           setActive(currentSelector());

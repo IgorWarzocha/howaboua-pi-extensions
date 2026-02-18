@@ -77,7 +77,12 @@ function dir(): string {
   return resolveRoot();
 }
 
-function links(root: string): { root_abs: string; prds: string[]; specs: string[]; todos: string[] } {
+function links(root: string): {
+  root_abs: string;
+  prds: string[];
+  specs: string[];
+  todos: string[];
+} {
   return { root_abs: root, prds: [], specs: [], todos: [] };
 }
 
@@ -89,8 +94,24 @@ function has(args: string[], names: string[]): boolean {
 }
 
 function enforce(kind: Kind, args: string[]): void {
-  const extra = has(args, ["--agent_rules", "-agent_rules", "--worktree", "-worktree", "--template", "-template", "--links", "-links", "--request", "-request", "--root", "-root"]);
-  if (extra) fail("Do not pass managed flags (agent_rules/worktree/template/links/request/root). Use minimal create inputs only.");
+  const extra = has(args, [
+    "--agent_rules",
+    "-agent_rules",
+    "--worktree",
+    "-worktree",
+    "--template",
+    "-template",
+    "--links",
+    "-links",
+    "--request",
+    "-request",
+    "--root",
+    "-root",
+  ]);
+  if (extra)
+    fail(
+      "Do not pass managed flags (agent_rules/worktree/template/links/request/root). Use minimal create inputs only.",
+    );
   const checklist = has(args, ["--checklist", "-checklist"]);
   if (kind !== "todo" && checklist) fail("Checklist is only supported for kind=todo.");
 }
@@ -117,7 +138,10 @@ async function create(args: string[]): Promise<void> {
   if (!title) fail("Missing --title for create command.");
   const body = pick(args, ["--body", "-body"])?.trim();
   if (!body) fail("Missing --body for create command.");
-  const tags = (pick(args, ["--tags", "-tags"]) || "").split(",").map((item) => item.trim()).filter(Boolean);
+  const tags = (pick(args, ["--tags", "-tags"]) || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
   if (!tags.length) fail("Missing --tags for create command.");
   const root = dir();
   const valueId = id();
@@ -132,7 +156,8 @@ async function create(args: string[]): Promise<void> {
     created_at: ts,
     modified_at: ts,
     assigned_to_session: null,
-    agent_rules: "MUST follow linked plans and keep lifecycle user-controlled.",
+    agent_rules:
+      "MUST update checklist done booleans during execution, not after completion. MUST edit only fields and sections explicitly allowed by the active instruction.",
     worktree: { enabled: true, branch: branch(value, title, valueId) },
     links: valueLinks,
     checklist:
@@ -151,17 +176,31 @@ async function create(args: string[]): Promise<void> {
   const text = `---\n${front}\n---\n\n${body}`;
   await fs.writeFile(file, `${text.trimEnd()}\n`, "utf8");
   process.stdout.write(`Created: ${file}\n`);
-  if (value === "prd") process.stdout.write("Next: You MUST ask the user whether they want to refine this PRD now.\n");
-  if (value === "spec") process.stdout.write("Next: You MUST ask the user whether they want to refine this spec now.\n");
-  if (value === "todo") process.stdout.write("Next: You MUST ask the user whether they want to refine this todo now.\n");
-  process.stdout.write("Next: You MUST keep frontmatter stable unless the user explicitly requests frontmatter changes.\n");
-  if (value === "prd") process.stdout.write("Next: You SHOULD suggest creating either a spec or a todo from this PRD.\n");
-  if (value === "spec") process.stdout.write("Next: You SHOULD suggest creating a todo from this spec.\n");
+  if (value === "prd")
+    process.stdout.write("Next: You MUST ask the user whether they want to refine this PRD now.\n");
+  if (value === "spec")
+    process.stdout.write(
+      "Next: You MUST ask the user whether they want to refine this spec now.\n",
+    );
+  if (value === "todo")
+    process.stdout.write(
+      "Next: You MUST ask the user whether they want to refine this todo now.\n",
+    );
+  process.stdout.write(
+    "Next: You MUST keep frontmatter stable unless the user explicitly requests frontmatter changes.\n",
+  );
+  if (value === "prd")
+    process.stdout.write(
+      "Next: You SHOULD suggest creating either a spec or a todo from this PRD.\n",
+    );
+  if (value === "spec")
+    process.stdout.write("Next: You SHOULD suggest creating a todo from this spec.\n");
 }
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
-  if (!args.length) fail("Missing command. Use '-schema <kind>' or 'create --kind <kind> --title <title>'.");
+  if (!args.length)
+    fail("Missing command. Use '-schema <kind>' or 'create --kind <kind> --title <title>'.");
   if (args[0] === "--validate" || args[0] === "-validate") {
     const filePath = pick(args, ["--filepath", "-filepath"]);
     if (!filePath) fail("Missing --filepath for validate command.");
