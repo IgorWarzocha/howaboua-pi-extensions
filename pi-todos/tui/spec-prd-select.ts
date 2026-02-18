@@ -55,7 +55,7 @@ export class SpecPrdSelectComponent extends Container {
       this.list.addChild(new Text(`${pointer}${mark} ${this.theme.fg(color, row.title)}`, 0, 0));
     }
     for (let index = end - start; index < ROWS; index += 1) {
-      this.list.addChild(new Text("\u200b", 0, 0));
+      this.list.addChild(new Text("⠀", 0, 0));
     }
     const pointer = this.rows.length ? this.selected + 1 : 0;
     this.list.addChild(new Text(this.theme.fg("dim", `  (${pointer}/${this.rows.length})`), 0, 0));

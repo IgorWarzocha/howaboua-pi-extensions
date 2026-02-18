@@ -69,7 +69,7 @@ export class WorktreeSelectComponent extends Container {
       this.listContainer.addChild(new Text(prefix + label + desc, 1, 0));
     }
     for (let index = end - start; index < ROWS; index += 1) {
-      this.listContainer.addChild(new Text("\u200b", 1, 0));
+      this.listContainer.addChild(new Text("⠀", 1, 0));
     }
     const pointer = this.items.length ? this.selectedIndex + 1 : 0;
     this.listContainer.addChild(

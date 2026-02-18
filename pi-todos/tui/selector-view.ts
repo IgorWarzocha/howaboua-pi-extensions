@@ -85,8 +85,10 @@ export function renderList(
         theme.fg(statusColor, `(${derived || "open"})`),
     );
   }
-  while (lines.length < LIST_ROWS) lines.push("\u200b");
   for (const line of lines) listContainer.addChild(new Text(line, 0, 0));
+  for (let index = lines.length; index < LIST_ROWS; index += 1) {
+    listContainer.addChild(new Text("⠀", 0, 0));
+  }
   const pointer = totalItems ? safeIndex + 1 : 0;
   listContainer.addChild(new Text(theme.fg("dim", `  (${pointer}/${totalItems})`), 0, 0));
 }
