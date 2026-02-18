@@ -26,6 +26,15 @@ function validateLinks(record: TodoFrontMatter): { ok: true } | { error: string 
   return { ok: true };
 }
 
+function withWorktree(prompt: string, worktreePath?: string): string {
+  if (!worktreePath) return prompt;
+  return (
+    `You MUST execute this task from worktree path "${worktreePath}".\n` +
+    `Before any edits, you MUST set your working directory to "${worktreePath}" and keep all repo operations scoped there.\n\n` +
+    prompt
+  );
+}
+
 async function runWork(
   todosDir: string,
   record: TodoFrontMatter,
@@ -38,16 +47,21 @@ async function runWork(
     ctx.ui.notify(links.error, "error");
     return "stay";
   }
+  let worktreePath: string | undefined;
   try {
     const worktree = await ensureWorktree(record, ctx);
-    if ("path" in worktree && worktree.created)
-      ctx.ui.notify(`Created worktree ${worktree.path}`, "info");
-  } catch (e: any) {
-    ctx.ui.notify(`Worktree setup failed: ${e.message}`, "error");
+    if ("path" in worktree) {
+      worktreePath = worktree.path;
+      if (worktree.created) ctx.ui.notify(`Created worktree ${worktree.path}`, "info");
+      if (!worktree.created) ctx.ui.notify(`Switched worktree ${worktree.path}`, "info");
+    }
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Unknown worktree setup error";
+    ctx.ui.notify(`Worktree setup failed: ${message}`, "error");
     return "stay";
   }
   const filePath = getTodoPath(todosDir, record.id, record.type || record.kind);
-  setPrompt(flow.work(record, filePath));
+  setPrompt(withWorktree(flow.work(record, filePath), worktreePath));
   done();
   return "exit";
 }

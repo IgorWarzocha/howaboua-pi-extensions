@@ -157,12 +157,10 @@ export function findJsonObjectEnd(content: string): number {
 }
 
 export function splitFrontMatter(content: string): { frontMatter: string; body: string } {
-  if (content.startsWith("---\n")) {
-    const marker = "\n---\n";
-    const index = content.indexOf(marker, 4);
-    if (index === -1) return { frontMatter: "", body: content };
-    const frontMatter = content.slice(4, index);
-    const body = content.slice(index + marker.length);
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+  if (match) {
+    const frontMatter = match[1] ?? "";
+    const body = content.slice(match[0].length);
     return { frontMatter, body };
   }
 
