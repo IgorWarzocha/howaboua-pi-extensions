@@ -4,6 +4,7 @@ import { DynamicBorder } from "@mariozechner/pi-coding-agent";
 import type { TodoFrontMatter } from "../types.js";
 
 const NONE = "__NONE__";
+const ROWS = 9;
 
 export class SpecPrdSelectComponent extends Container {
   private rows: Array<{ id: string; title: string }>;
@@ -41,13 +42,23 @@ export class SpecPrdSelectComponent extends Container {
 
   private renderState(): void {
     this.list.clear();
-    for (let index = 0; index < this.rows.length; index += 1) {
+    const start = Math.max(
+      0,
+      Math.min(this.selected - Math.floor(ROWS / 2), Math.max(0, this.rows.length - ROWS)),
+    );
+    const end = Math.min(start + ROWS, this.rows.length);
+    for (let index = start; index < end; index += 1) {
       const row = this.rows[index];
       const mark = this.chosen.has(row.id) ? "[x]" : "[ ]";
       const pointer = index === this.selected ? this.theme.fg("accent", "→ ") : "  ";
       const color = index === this.selected ? "accent" : "text";
       this.list.addChild(new Text(`${pointer}${mark} ${this.theme.fg(color, row.title)}`, 0, 0));
     }
+    for (let index = end - start; index < ROWS; index += 1) {
+      this.list.addChild(new Text(" ", 0, 0));
+    }
+    const pointer = this.rows.length ? this.selected + 1 : 0;
+    this.list.addChild(new Text(this.theme.fg("dim", `  (${pointer}/${this.rows.length})`), 0, 0));
     this.tui.requestRender();
   }
 

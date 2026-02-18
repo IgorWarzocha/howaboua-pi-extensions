@@ -109,6 +109,13 @@ export async function runTodoUi(
     };
     const currentMode = (): TodoListMode => modes[index] || "tasks";
     const currentSelector = () => selectors[currentMode()] ?? null;
+    type Viewport = "list" | "detail" | "panel";
+    let viewport: Viewport = "list";
+    const calcRows = (kind: Viewport): number => {
+      if (kind === "detail") return 24;
+      if (kind === "panel") return 18;
+      return 14;
+    };
     const setActive = (
       component: {
         render: (width: number) => string[];
@@ -116,16 +123,20 @@ export async function runTodoUi(
         handleInput?: (data: string) => void;
         focused?: boolean;
       } | null,
+      next: Viewport = "list",
     ) => {
       if (active && "focused" in active) active.focused = false;
       active = component;
+      viewport = next;
       if (active && "focused" in active) active.focused = focused;
       tui.requestRender();
     };
     const fill = (lines: string[]): string[] => {
       const rows = Math.max(1, (tui.terminal.rows || 24) - 1);
-      if (lines.length >= rows) return lines.slice(0, rows);
-      return [...Array.from({ length: rows - lines.length }, () => ""), ...lines];
+      const minimum = calcRows(viewport);
+      const target = Math.min(rows, Math.max(lines.length, minimum));
+      if (lines.length >= target) return lines.slice(lines.length - target);
+      return [...Array.from({ length: target - lines.length }, () => ""), ...lines];
     };
     const refresh = async () => {
       const updated = await listTodos(todosDir);
@@ -228,22 +239,71 @@ export async function runTodoUi(
       ctx.ui.notify("Todo not found", "error");
       return null;
     };
-    const showDetailView = (record: TodoRecord, source: TodoListMode, onBack?: () => void) => {
+    let showDetailView: (record: TodoRecord, source: TodoListMode, onBack?: () => void) => void;
+    const showPreview = (record: TodoRecord, source: TodoListMode, onBack?: () => void) => {
       const preview = new TodoDetailPreviewComponent(uiTui, theme, record);
-      const detailFooter = onBack ? `${footer(record)} • b back` : footer(record);
-      const leaderFooter = leader(record);
-      let previewVisible = true;
-      let leaderActive = false;
-      let leaderTimer: ReturnType<typeof setTimeout> | null = null;
-      const back = onBack || (() => setActive(selectors[source] ?? currentSelector()));
-      const openRelated = () => {
+      const base = "Esc back • b back • j/k scroll preview • / next • ? prev • o open related";
+      const note = onBack ? base : "Esc back • j/k scroll preview • / next • ? prev • o open related";
+      const open = () => {
         const related = preview.getSelectedRelated();
         if (!related) {
           ctx.ui.notify("Related item not found", "error");
           return;
         }
-        showDetailView(related, source, () => showDetailView(record, source, onBack));
+        showPreview(related, source, () => showPreview(record, source, onBack));
       };
+      const back = onBack || (() => showDetailView(record, source));
+      const view = {
+        render(width: number) {
+          const rows = tui.terminal.rows || 24;
+          const max = Math.max(10, Math.floor(rows * 0.62));
+          const top = preview.render(width, max);
+          return [...top, "", theme.fg("dim", note)];
+        },
+        invalidate() {
+          preview.invalidate();
+        },
+        handleInput(data: string) {
+          if (data === "\u001b" || data === "b" || data === "B") {
+            return back();
+          }
+          if (data === "j" || data === "J") {
+            preview.scrollBy(1);
+            tui.requestRender();
+            return;
+          }
+          if (data === "k" || data === "K") {
+            preview.scrollBy(-1);
+            tui.requestRender();
+            return;
+          }
+          if (data === "/" || data === "]") {
+            if (!preview.hasRelated()) return;
+            preview.moveRelated(1);
+            tui.requestRender();
+            return;
+          }
+          if (data === "?" || data === "[") {
+            if (!preview.hasRelated()) return;
+            preview.moveRelated(-1);
+            tui.requestRender();
+            return;
+          }
+          if (data === "o" || data === "O") {
+            if (!preview.hasRelated()) return;
+            return open();
+          }
+        },
+        focused,
+      };
+      setActive(view, "detail");
+    };
+    showDetailView = (record: TodoRecord, source: TodoListMode, onBack?: () => void) => {
+      const detailFooter = onBack ? `${footer(record)} • b back` : footer(record);
+      const leaderFooter = leader(record);
+      let leaderActive = false;
+      let leaderTimer: ReturnType<typeof setTimeout> | null = null;
+      const back = onBack || (() => setActive(selectors[source] ?? currentSelector(), "list"));
       const clearLeader = () => {
         if (leaderTimer) clearTimeout(leaderTimer);
         leaderTimer = null;
@@ -265,23 +325,17 @@ export async function runTodoUi(
         (action) => {
           void handleSelection(record, action, source);
         },
-        () => setActive(selectors[source] ?? currentSelector()),
+        () => setActive(selectors[source] ?? currentSelector(), "list"),
         {
-          showView: false,
+          showView: true,
           footer: detailFooter,
         },
       );
       const detailView = {
         render(width: number) {
-          const rows = tui.terminal.rows || 24;
-          const maxHeight = Math.max(10, Math.floor(rows * 0.55));
-          const previewLines = previewVisible ? preview.render(width, maxHeight) : [];
-          const menuLines = detailMenu.render(width);
-          if (!previewVisible) return [...menuLines];
-          return [...previewLines, "", ...menuLines];
+          return detailMenu.render(width);
         },
         invalidate() {
-          preview.invalidate();
           detailMenu.invalidate();
         },
         handleInput(data: string) {
@@ -294,55 +348,14 @@ export async function runTodoUi(
           }
           if (data === "\u0018" || matchesKey(data, Key.ctrl("x"))) return startLeader();
           if (data === "b" && onBack) return back();
-          if (data === "v") {
-            previewVisible = !previewVisible;
-            tui.requestRender();
-            return;
-          }
-          if (data === "/") {
-            if (!previewVisible || !preview.hasRelated()) return;
-            preview.moveRelated(1);
-            return;
-          }
-          if (data === "?") {
-            if (!previewVisible || !preview.hasRelated()) return;
-            preview.moveRelated(-1);
-            return;
-          }
-          if (data === "[") {
-            if (!previewVisible || !preview.hasRelated()) return;
-            preview.moveRelated(-1);
-            return;
-          }
-          if (data === "]") {
-            if (!previewVisible || !preview.hasRelated()) return;
-            preview.moveRelated(1);
-            return;
-          }
-          if (data === "o" || data === "O") {
-            if (previewVisible && preview.hasRelated()) return openRelated();
-            return;
-          }
-          if (data === "\r") return detailMenu.handleInput(data);
+          if (data === "v" || data === "V") return showPreview(record, source, () => showDetailView(record, source, onBack));
           if (data === "k") return detailMenu.handleInput("\u001b[A");
           if (data === "j") return detailMenu.handleInput("\u001b[B");
-          if (data === "K") {
-            if (!previewVisible) return detailMenu.handleInput("\u001b[A");
-            preview.scrollBy(-1);
-            tui.requestRender();
-            return;
-          }
-          if (data === "J") {
-            if (!previewVisible) return detailMenu.handleInput("\u001b[B");
-            preview.scrollBy(1);
-            tui.requestRender();
-            return;
-          }
           detailMenu.handleInput(data);
         },
         focused,
       };
-      setActive(detailView);
+      setActive(detailView, "panel");
     };
     const showAttachInput = async (record: TodoRecord, source: TodoListMode) => {
       const current = await sync();
@@ -372,17 +385,17 @@ export async function runTodoUi(
           const result = await attachLinks(todosDir, record, targets, ctx);
           if ("error" in result) {
             ctx.ui.notify(result.error, "error");
-            return setActive(picker);
+            return setActive(picker, "panel");
           }
           await refresh();
           const updated = await resolve(record);
-          if (!updated) return setActive(selectors[source] ?? currentSelector());
+          if (!updated) return setActive(selectors[source] ?? currentSelector(), "list");
           ctx.ui.notify(`Attached links across ${result.updated} items`, "info");
           showDetailView(updated, source);
         },
         () => showDetailView(record, source),
       );
-      setActive(picker);
+      setActive(picker, "panel");
     };
     const showValidateInput = async (record: TodoRecord, source: TodoListMode) => {
       const cli = getCliPath();
@@ -438,17 +451,17 @@ export async function runTodoUi(
           const applied = await attachLinks(todosDir, record, targets, ctx);
           if ("error" in applied) {
             ctx.ui.notify(applied.error, "error");
-            return setActive(picker);
+            return setActive(picker, "panel");
           }
           await refresh();
           const updated = await resolve(record);
-          if (!updated) return setActive(selectors[source] ?? currentSelector());
+          if (!updated) return setActive(selectors[source] ?? currentSelector(), "list");
           ctx.ui.notify(`Applied ${targets.length} recommended attachment(s)`, "info");
           showDetailView(updated, source);
         },
         () => showDetailView(record, source),
       );
-      setActive(picker);
+      setActive(picker, "panel");
     };
     const showAuditPrompt = async (record: TodoRecord) => {
       const latest = await sync();
@@ -463,13 +476,13 @@ export async function runTodoUi(
       action: TodoMenuAction,
       source: TodoListMode,
     ) => {
-      if (action === "view") return showDetailView(record, source);
+      if (action === "view") return showPreview(record, source, () => showDetailView(record, source));
       if (action === "edit-checklist") return showEditChecklistInput(record, source);
       if (action === "attach-links") return void showAttachInput(record, source);
       if (action === "validate-links") return void showValidateInput(record, source);
       if (action === "audit") return void showAuditPrompt(record);
       const result = await applyTodoAction(todosDir, ctx, refresh, done, record, action, setPrompt);
-      if (result === "stay") setActive(selectors[source] ?? currentSelector());
+      if (result === "stay") setActive(selectors[source] ?? currentSelector(), "list");
     };
     const openDetailFromTodo = async (todo: TodoFrontMatter | TodoRecord, source: TodoListMode) => {
       const record = "body" in todo ? todo : await resolve(todo);
@@ -512,18 +525,18 @@ export async function runTodoUi(
                   done();
                 })();
               },
-              () => setActive(currentSelector()),
+              () => setActive(currentSelector(), "list"),
               {
                 title: "Create New Todo",
                 description:
                   "Describe the task implementation plan. Selected PRDs/specs will be attached.",
               },
             );
-            setActive(createInput);
+            setActive(createInput, "panel");
           },
-          () => setActive(currentSelector()),
+          () => setActive(currentSelector(), "list"),
         );
-        setActive(picker);
+        setActive(picker, "panel");
         return;
       }
       if (mode === "specs") {
@@ -541,18 +554,18 @@ export async function runTodoUi(
                 setPrompt(buildCreateSpecPrompt(userPrompt, cli, ctx.cwd, prdPaths));
                 done();
               },
-              () => setActive(currentSelector()),
+              () => setActive(currentSelector(), "list"),
               {
                 title: "Create New Spec",
                 description:
                   "Describe the technical specification. Selected PRDs will be attached.",
               },
             );
-            setActive(createInput);
+            setActive(createInput, "panel");
           },
-          () => setActive(currentSelector()),
+          () => setActive(currentSelector(), "list"),
         );
-        setActive(picker);
+        setActive(picker, "panel");
         return;
       }
       createInput = new TodoCreateInputComponent(
@@ -567,7 +580,7 @@ export async function runTodoUi(
           setPrompt(prompt);
           done();
         },
-        () => setActive(currentSelector()),
+        () => setActive(currentSelector(), "list"),
         {
           title: mode === "prds" ? "Create New PRD" : "Create New Todo",
           description:
@@ -576,7 +589,7 @@ export async function runTodoUi(
               : "Describe the task. The AI will read files and ask questions before creating.",
         },
       );
-      setActive(createInput);
+      setActive(createInput, "panel");
     };
     const showEditChecklistInput = (record: TodoRecord, source: TodoListMode) => {
       editInput = new TodoEditChecklistInputComponent(
@@ -593,7 +606,7 @@ export async function runTodoUi(
         },
         () => showDetailView(record, source),
       );
-      setActive(editInput);
+      setActive(editInput, "panel");
     };
     const buildSelector = (mode: TodoListMode, items: TodoFrontMatter[], initial?: string) =>
       new TodoSelectorComponent(
@@ -619,7 +632,7 @@ export async function runTodoUi(
               ),
         () => {
           index = (index + 1) % modes.length;
-          setActive(currentSelector());
+          setActive(currentSelector(), "list");
         },
         (action) => void runListCommand(action),
         mode,
@@ -628,7 +641,7 @@ export async function runTodoUi(
     selectors.prds = buildSelector("prds", listPrds(todos));
     selectors.specs = buildSelector("specs", listSpecs(todos));
     selectors.closed = buildSelector("closed", listClosed(todos));
-    setActive(currentSelector());
+    setActive(currentSelector(), "list");
     return {
       get focused() {
         return focused;

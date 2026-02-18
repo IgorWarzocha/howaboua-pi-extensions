@@ -3,6 +3,8 @@ import type { Theme } from "@mariozechner/pi-coding-agent";
 import { DynamicBorder } from "@mariozechner/pi-coding-agent";
 import { mapIntent } from "./selector-keys.js";
 
+const ROWS = 9;
+
 export interface WorktreeItem {
   value: string;
   label: string;
@@ -50,13 +52,29 @@ export class WorktreeSelectComponent extends Container {
 
   private renderState(): void {
     this.listContainer.clear();
-    this.items.forEach((item, i) => {
-      const isSelected = i === this.selectedIndex;
+    const start = Math.max(
+      0,
+      Math.min(
+        this.selectedIndex - Math.floor(ROWS / 2),
+        Math.max(0, this.items.length - ROWS),
+      ),
+    );
+    const end = Math.min(start + ROWS, this.items.length);
+    for (let index = start; index < end; index += 1) {
+      const item = this.items[index];
+      const isSelected = index === this.selectedIndex;
       const prefix = isSelected ? this.theme.fg("accent", "→ ") : "  ";
       const label = isSelected ? this.theme.fg("accent", item.label) : item.label;
       const desc = item.description ? this.theme.fg("muted", ` (${item.description})`) : "";
       this.listContainer.addChild(new Text(prefix + label + desc, 1, 0));
-    });
+    }
+    for (let index = end - start; index < ROWS; index += 1) {
+      this.listContainer.addChild(new Text(" ", 1, 0));
+    }
+    const pointer = this.items.length ? this.selectedIndex + 1 : 0;
+    this.listContainer.addChild(
+      new Text(this.theme.fg("dim", `  (${pointer}/${this.items.length})`), 1, 0),
+    );
     this.tui.requestRender();
   }
 

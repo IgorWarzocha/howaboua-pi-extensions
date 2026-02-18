@@ -4,6 +4,7 @@ import { DynamicBorder } from "@mariozechner/pi-coding-agent";
 import type { TodoFrontMatter } from "../types.js";
 
 const NONE = "__NONE__";
+const ROWS = 9;
 
 interface ParentState {
   tab: "prds" | "specs";
@@ -73,18 +74,31 @@ export class TodoParentSelectComponent extends Container {
 
   private renderState(): void {
     this.list.clear();
-    const tabs = this.theme.fg(this.tab === "prds" ? "accent" : "muted", "PRDs") + this.theme.fg("muted", " | ") + this.theme.fg(this.tab === "specs" ? "accent" : "muted", "Specs");
+    const tabs =
+      this.theme.fg(this.tab === "prds" ? "accent" : "muted", "PRDs") +
+      this.theme.fg("muted", " | ") +
+      this.theme.fg(this.tab === "specs" ? "accent" : "muted", "Specs");
     this.list.addChild(new Text(tabs, 0, 0));
     this.list.addChild(new Spacer(1));
     const rows = this.rows();
     const active = this.activeSet();
-    for (let index = 0; index < rows.length; index += 1) {
+    const start = Math.max(
+      0,
+      Math.min(this.selected - Math.floor(ROWS / 2), Math.max(0, rows.length - ROWS)),
+    );
+    const end = Math.min(start + ROWS, rows.length);
+    for (let index = start; index < end; index += 1) {
       const row = rows[index];
       const mark = active.has(row.id) ? "[x]" : "[ ]";
       const pointer = index === this.selected ? this.theme.fg("accent", "→ ") : "  ";
       const color = index === this.selected ? "accent" : "text";
       this.list.addChild(new Text(`${pointer}${mark} ${this.theme.fg(color, row.title)}`, 0, 0));
     }
+    for (let index = end - start; index < ROWS; index += 1) {
+      this.list.addChild(new Text(" ", 0, 0));
+    }
+    const pointer = rows.length ? this.selected + 1 : 0;
+    this.list.addChild(new Text(this.theme.fg("dim", `  (${pointer}/${rows.length})`), 0, 0));
     this.tui.requestRender();
   }
 

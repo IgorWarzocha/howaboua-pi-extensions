@@ -31,7 +31,7 @@ export class TodoActionMenuComponent extends Container {
     this.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
     this.addChild(new Text(theme.fg("accent", theme.bold(`Actions for "${title}"`))));
 
-    this.selectList = new SelectList(entries, entries.length, {
+    this.selectList = new SelectList(entries, 9, {
       selectedPrefix: (text) => theme.fg("accent", text),
       selectedText: (text) => theme.fg("accent", text),
       description: (text) => theme.fg("muted", text),

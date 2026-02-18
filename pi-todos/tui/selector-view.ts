@@ -30,6 +30,8 @@ export function buildHints(theme: Theme, mode: TodoListMode, leaderActive = fals
   );
 }
 
+const LIST_ROWS = 9;
+
 export function renderList(
   listContainer: { clear: () => void; addChild: (node: Text) => void },
   theme: Theme,
@@ -41,28 +43,29 @@ export function renderList(
   listContainer.clear();
   const create = mode !== "closed";
   const totalItems = todos.length + (create ? 1 : 0);
-  const maxVisible = 10;
+  const safeIndex = totalItems ? Math.max(0, Math.min(selectedIndex, totalItems - 1)) : 0;
   const startIndex = Math.max(
     0,
-    Math.min(selectedIndex - Math.floor(maxVisible / 2), totalItems - maxVisible),
+    Math.min(safeIndex - Math.floor(LIST_ROWS / 2), Math.max(0, totalItems - LIST_ROWS)),
   );
-  const endIndex = Math.min(startIndex + maxVisible, totalItems);
+  const endIndex = Math.min(startIndex + LIST_ROWS, totalItems);
+  const lines: string[] = [];
   for (let i = startIndex; i < endIndex; i += 1) {
     if (create && i === 0) {
-      const prefix = i === selectedIndex ? theme.fg("success", "→ ") : "  ";
+      const prefix = i === safeIndex ? theme.fg("success", "→ ") : "  ";
       const plusSign = theme.fg("success", "+");
       const label = mode === "tasks" ? "todo" : mode === "prds" ? "prd" : "spec";
       const text =
-        i === selectedIndex
+        i === safeIndex
           ? theme.fg("accent", ` Create new ${label}...`)
           : theme.fg("dim", ` Create new ${label}...`);
-      listContainer.addChild(new Text(prefix + plusSign + text, 0, 0));
+      lines.push(prefix + plusSign + text);
       continue;
     }
     const offset = create ? 1 : 0;
     const todo = todos[i - offset];
     if (!todo) continue;
-    const isSelected = i === selectedIndex;
+    const isSelected = i === safeIndex;
     const derived = deriveTodoStatus(todo as TodoRecord);
     const closed = isTodoClosed(derived);
     const prefix = isSelected ? theme.fg("accent", "→ ") : "  ";
@@ -72,21 +75,20 @@ export function renderList(
     const tagText = todo.tags.length ? ` [${todo.tags.join(", ")}]` : "";
     const assignmentText = renderAssignmentSuffix(theme, todo, currentSessionId);
     const progress = formatChecklistProgress(todo);
-    const line =
+    lines.push(
       prefix +
-      theme.fg(titleColor, todo.title || "(untitled)") +
-      theme.fg("muted", tagText) +
-      assignmentText +
-      theme.fg("muted", progress) +
-      " " +
-      theme.fg(statusColor, `(${derived || "open"})`);
-    listContainer.addChild(new Text(line, 0, 0));
-  }
-  if (startIndex > 0 || endIndex < totalItems) {
-    listContainer.addChild(
-      new Text(theme.fg("dim", `  (${selectedIndex + 1}/${totalItems})`), 0, 0),
+        theme.fg(titleColor, todo.title || "(untitled)") +
+        theme.fg("muted", tagText) +
+        assignmentText +
+        theme.fg("muted", progress) +
+        " " +
+        theme.fg(statusColor, `(${derived || "open"})`),
     );
   }
+  while (lines.length < LIST_ROWS) lines.push(" ");
+  for (const line of lines) listContainer.addChild(new Text(line, 0, 0));
+  const pointer = totalItems ? safeIndex + 1 : 0;
+  listContainer.addChild(new Text(theme.fg("dim", `  (${pointer}/${totalItems})`), 0, 0));
 }
 
 export function renderAll(

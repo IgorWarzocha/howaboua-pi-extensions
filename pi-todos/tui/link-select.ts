@@ -3,6 +3,8 @@ import type { Theme } from "@mariozechner/pi-coding-agent";
 import { DynamicBorder } from "@mariozechner/pi-coding-agent";
 import type { TodoFrontMatter } from "../types.js";
 
+const ROWS = 9;
+
 interface LinkState {
   prds: Set<string>;
   specs: Set<string>;
@@ -80,13 +82,23 @@ export class LinkSelectComponent extends Container {
     this.list.addChild(new Spacer(1));
     const rows = this.rows();
     const active = this.active();
-    for (let index = 0; index < rows.length; index += 1) {
+    const start = Math.max(
+      0,
+      Math.min(this.selected - Math.floor(ROWS / 2), Math.max(0, rows.length - ROWS)),
+    );
+    const end = Math.min(start + ROWS, rows.length);
+    for (let index = start; index < end; index += 1) {
       const row = rows[index];
       const mark = active.has(row.id) ? "[x]" : "[ ]";
       const pointer = index === this.selected ? this.theme.fg("accent", "→ ") : "  ";
       const title = row.title || "(untitled)";
       this.list.addChild(new Text(`${pointer}${mark} ${title}`, 0, 0));
     }
+    for (let index = end - start; index < ROWS; index += 1) {
+      this.list.addChild(new Text(" ", 0, 0));
+    }
+    const pointer = rows.length ? this.selected + 1 : 0;
+    this.list.addChild(new Text(this.theme.fg("dim", `  (${pointer}/${rows.length})`), 0, 0));
     this.tui.requestRender();
   }
 
