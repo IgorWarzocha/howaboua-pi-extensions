@@ -1,20 +1,8 @@
 import path from "node:path";
 import { existsSync } from "node:fs";
-import { TODO_DIR_NAME, TODO_PATH_ENV, TODO_SETTINGS_NAME } from "../../core/constants.js";
+import { TODO_DIR_NAME, TODO_SETTINGS_NAME } from "../../core/constants.js";
 export function getTodosDir(cwd: string): string {
-  const overridePath = process.env[TODO_PATH_ENV];
-  if (overridePath && overridePath.trim()) {
-    return path.resolve(cwd, overridePath.trim());
-  }
   return path.resolve(cwd, TODO_DIR_NAME);
-}
-
-export function getTodosDirLabel(): string {
-  const overridePath = process.env[TODO_PATH_ENV];
-  if (overridePath && overridePath.trim()) {
-    return overridePath.trim();
-  }
-  return TODO_DIR_NAME;
 }
 
 export function getTodoSettingsPath(todosDir: string): string {

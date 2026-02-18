@@ -1,4 +1,4 @@
-export { getTodosDir, getTodosDirLabel, getTodoPath, getTodoSettingsPath } from "./files/path.js";
+export { getTodosDir, getTodoPath, getTodoSettingsPath } from "./files/path.js";
 export { readTodoSettings, garbageCollectTodos } from "./settings/index.js";
 export {
   ensureTodosDir,

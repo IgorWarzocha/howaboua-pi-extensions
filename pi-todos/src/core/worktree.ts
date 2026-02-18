@@ -20,6 +20,28 @@ interface Repo {
   path: string;
 }
 
+interface SwitchValue {
+  repo: string;
+  branch: string;
+  worktree: string;
+}
+
+function buildSwitchValue(value: SwitchValue): string {
+  return `switch:${JSON.stringify(value)}`;
+}
+
+function parseSwitchValue(value: string): SwitchValue | null {
+  if (!value.startsWith("switch:")) return null;
+  const raw = value.slice(7);
+  try {
+    const parsed = JSON.parse(raw) as SwitchValue;
+    if (!parsed.repo || !parsed.branch || !parsed.worktree) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 function run(command: string, args: string[], cwd: string): string {
   return execFileSync(command, args, { cwd, encoding: "utf8" }).trim();
 }
@@ -134,7 +156,7 @@ export async function ensureWorktree(record: TodoFrontMatter, ctx: ExtensionComm
             if (!w.branch) continue;
             if (w.branch === targetBranch) continue;
             items.push({
-              value: `switch:${repo.path}:${w.branch}:${w.path}`,
+              value: buildSwitchValue({ repo: repo.path, branch: w.branch, worktree: w.path }),
               label: `Switch to: ${w.branch}`,
               description: `in ${path.basename(repo.path)}`,
             });
@@ -185,8 +207,9 @@ export async function ensureWorktree(record: TodoFrontMatter, ctx: ExtensionComm
   }
 
   if (selection.startsWith("switch:")) {
-    const [, _repoPath, branch, worktreePath] = selection.split(":");
-    return { ok: true as const, path: worktreePath, branch, created: false };
+    const value = parseSwitchValue(selection);
+    if (!value) throw new Error("Invalid worktree switch selection value");
+    return { ok: true as const, path: value.worktree, branch: value.branch, created: false };
   }
 
   return { ok: true as const, skipped: true };
