@@ -22,6 +22,40 @@ interface Entry {
   checklist: Array<{ id: string; title: string; done: boolean }>;
 }
 
+function checklist(value: string | undefined): Array<{ id: string; title: string; done: boolean }> {
+  if (!value) return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    fail("Invalid --checklist JSON. Expected array of strings or checklist objects.");
+  }
+  if (!Array.isArray(parsed)) fail("Invalid --checklist JSON. Expected array.");
+  const list: Array<{ id: string; title: string; done: boolean }> = [];
+  for (let index = 0; index < parsed.length; index += 1) {
+    const item = parsed[index];
+    if (typeof item === "string") {
+      const title = item.trim();
+      if (!title) fail("Checklist items MUST NOT be empty.");
+      list.push({ id: `${index + 1}`, title, done: false });
+      continue;
+    }
+    if (typeof item !== "object" || item === null) {
+      fail("Invalid checklist item. Expected string or object.");
+    }
+    const row = item as { id?: unknown; title?: unknown; done?: unknown };
+    if (typeof row.title !== "string" || !row.title.trim()) {
+      fail("Checklist object items MUST include non-empty title.");
+    }
+    list.push({
+      id: typeof row.id === "string" && row.id.trim() ? row.id.trim() : `${index + 1}`,
+      title: row.title.trim(),
+      done: row.done === true,
+    });
+  }
+  return list;
+}
+
 function fail(message: string): never {
   throw new Error(message);
 }
@@ -143,6 +177,10 @@ async function create(args: string[]): Promise<void> {
     .map((item) => item.trim())
     .filter(Boolean);
   if (!tags.length) fail("Missing --tags for create command.");
+  const list = checklist(pick(args, ["--checklist", "-checklist"]));
+  if (value === "todo" && !list.length) {
+    fail("Missing --checklist for create command when type=todo.");
+  }
   const root = dir();
   const valueId = id();
   const ts = now();
@@ -160,14 +198,7 @@ async function create(args: string[]): Promise<void> {
       "MUST update checklist done booleans during execution, not after completion. MUST edit only fields and sections explicitly allowed by the active instruction.",
     worktree: { enabled: true, branch: branch(value, title, valueId) },
     links: valueLinks,
-    checklist:
-      value === "todo"
-        ? [
-            { id: "1", title: "Define scope", done: false },
-            { id: "2", title: "Implement changes", done: false },
-            { id: "3", title: "Verify acceptance criteria", done: false },
-          ]
-        : [],
+    checklist: value === "todo" ? list : [],
   };
   const outdir = path.join(root, ".pi", "plans", map(value));
   await fs.mkdir(outdir, { recursive: true });

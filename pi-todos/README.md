@@ -64,7 +64,6 @@ In the UI you can:
 
 - tasks can be claimed and released per session
 - conflicting updates are blocked when another session owns a task
-- write operations use locking to avoid silent overwrite races
 
 ## Storage
 
