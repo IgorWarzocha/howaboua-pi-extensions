@@ -38,15 +38,15 @@ export class WorktreeSelectComponent extends Container {
     this.addChild(new Spacer(1));
     this.addChild(new Text(theme.fg("accent", theme.bold("Worktree Orchestration")), 1, 0));
     this.addChild(new Spacer(1));
-    
+
     this.listContainer = new Container();
     this.addChild(this.listContainer);
-    
+
     this.addChild(new Spacer(1));
     this.addChild(new Text(theme.fg("dim", "↑↓ select • Enter confirm • Esc back"), 1, 0));
     this.addChild(new Spacer(1));
     this.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
-    
+
     this.renderState();
   }
 
@@ -54,10 +54,7 @@ export class WorktreeSelectComponent extends Container {
     this.listContainer.clear();
     const start = Math.max(
       0,
-      Math.min(
-        this.selectedIndex - Math.floor(ROWS / 2),
-        Math.max(0, this.items.length - ROWS),
-      ),
+      Math.min(this.selectedIndex - Math.floor(ROWS / 2), Math.max(0, this.items.length - ROWS)),
     );
     const end = Math.min(start + ROWS, this.items.length);
     for (let index = start; index < end; index += 1) {
@@ -80,12 +77,14 @@ export class WorktreeSelectComponent extends Container {
 
   handleInput(keyData: string): void {
     const intent = mapIntent(keyData, "tasks"); // Use "tasks" mode for standard selector mapping
-    
+
     if (intent === "up") {
-      this.selectedIndex = this.selectedIndex === 0 ? this.items.length - 1 : this.selectedIndex - 1;
+      this.selectedIndex =
+        this.selectedIndex === 0 ? this.items.length - 1 : this.selectedIndex - 1;
       this.renderState();
     } else if (intent === "down") {
-      this.selectedIndex = this.selectedIndex === this.items.length - 1 ? 0 : this.selectedIndex + 1;
+      this.selectedIndex =
+        this.selectedIndex === this.items.length - 1 ? 0 : this.selectedIndex + 1;
       this.renderState();
     } else if (intent === "confirm") {
       this.onSelectCallback(this.items[this.selectedIndex].value);

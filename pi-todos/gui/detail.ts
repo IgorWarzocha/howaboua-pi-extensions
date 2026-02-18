@@ -19,4 +19,3 @@ export function leader(record: TodoRecord): string {
   if (type === "spec") return specLeader(hasChecklist);
   return todoLeader(hasChecklist);
 }
-

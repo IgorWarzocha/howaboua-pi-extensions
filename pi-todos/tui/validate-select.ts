@@ -29,7 +29,13 @@ export class ValidateSelectComponent extends Container {
   private onCancel: () => void;
   private view: Container;
 
-  constructor(tui: TUI, theme: Theme, rows: Row[], onSubmit: (state: State) => void, onCancel: () => void) {
+  constructor(
+    tui: TUI,
+    theme: Theme,
+    rows: Row[],
+    onSubmit: (state: State) => void,
+    onCancel: () => void,
+  ) {
     super();
     this.tui = tui;
     this.theme = theme;
@@ -43,7 +49,16 @@ export class ValidateSelectComponent extends Container {
     this.addChild(new Spacer(1));
     this.addChild(this.view);
     this.addChild(new Spacer(1));
-    this.addChild(new Text(theme.fg("dim", "Order: PRDs -> Specs -> Todos • ↑↓ move • Space toggle • Enter apply • Esc back"), 1, 0));
+    this.addChild(
+      new Text(
+        theme.fg(
+          "dim",
+          "Order: PRDs -> Specs -> Todos • ↑↓ move • Space toggle • Enter apply • Esc back",
+        ),
+        1,
+        0,
+      ),
+    );
     this.addChild(new Spacer(1));
     this.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
     this.renderState();
@@ -92,7 +107,8 @@ export class ValidateSelectComponent extends Container {
       if (data === "\u001b" || kb.matches(data, "selectCancel")) this.onCancel();
       return;
     }
-    if (data === "\u001b" || kb.matches(data, "selectCancel") || data === "\u0003") return this.onCancel();
+    if (data === "\u001b" || kb.matches(data, "selectCancel") || data === "\u0003")
+      return this.onCancel();
     if (data === "\u001b[A" || kb.matches(data, "selectUp") || data === "k") {
       this.active = this.active === 0 ? rows.length - 1 : this.active - 1;
       return this.renderState();
@@ -109,7 +125,11 @@ export class ValidateSelectComponent extends Container {
       return this.renderState();
     }
     if (kb.matches(data, "selectConfirm") || data === "\r") {
-      const state: State = { prds: new Set<string>(), specs: new Set<string>(), todos: new Set<string>() };
+      const state: State = {
+        prds: new Set<string>(),
+        specs: new Set<string>(),
+        todos: new Set<string>(),
+      };
       for (const row of rows) {
         if (!this.selected.has(row.key)) continue;
         if (row.kind === "prd") state.prds.add(row.key);
@@ -120,4 +140,3 @@ export class ValidateSelectComponent extends Container {
     }
   }
 }
-

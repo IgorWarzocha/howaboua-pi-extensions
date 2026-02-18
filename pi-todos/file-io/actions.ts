@@ -68,7 +68,8 @@ export async function claimTodoAssignment(
     if (assigned !== sessionId) {
       existing.assigned_to_session = sessionId;
       const sessionFile = ctx.sessionManager.getSessionFile();
-      existing.assigned_to_session_file = sessionFile && sessionFile.trim() ? sessionFile : undefined;
+      existing.assigned_to_session_file =
+        sessionFile && sessionFile.trim() ? sessionFile : undefined;
       await writeTodoFile(filePath, existing);
     }
     return existing;

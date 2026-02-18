@@ -19,7 +19,9 @@ function isChecklistItemDone(item: { status?: string; done?: boolean }): boolean
   return item.status === "checked";
 }
 
-function countChecklistDone(todo: { checklist?: Array<{ status?: string; done?: boolean }> }): number {
+function countChecklistDone(todo: {
+  checklist?: Array<{ status?: string; done?: boolean }>;
+}): number {
   if (!todo.checklist?.length) return 0;
   return todo.checklist.filter((item) => isChecklistItemDone(item)).length;
 }
@@ -112,4 +114,3 @@ export function formatTodoHeading(todo: TodoFrontMatter): string {
   const progress = formatChecklistProgress(todo);
   return `${getTodoTitle(todo)}${tagText}${formatAssignmentSuffix(todo)}${progress}`;
 }
-

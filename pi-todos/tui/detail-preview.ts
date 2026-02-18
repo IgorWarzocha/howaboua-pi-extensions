@@ -85,7 +85,9 @@ export class TodoDetailPreviewComponent {
     this.pushRows(rows, links.specs, "SPEC");
     this.pushRows(rows, links.todos, "TODO");
     this.pushRows(rows, links.reads, "READ");
-    rows.sort((a, b) => this.groupRank(a.type) - this.groupRank(b.type) || a.title.localeCompare(b.title));
+    rows.sort(
+      (a, b) => this.groupRank(a.type) - this.groupRank(b.type) || a.title.localeCompare(b.title),
+    );
     return rows;
   }
 
@@ -129,13 +131,16 @@ export class TodoDetailPreviewComponent {
   }
 
   private relatedLines(width: number): string[] {
-    const heading = this.theme.fg("accent", "Related items") + this.theme.fg("dim", "  / next • ? prev • o open related • b back");
+    const heading =
+      this.theme.fg("accent", "Related items") +
+      this.theme.fg("dim", "  / next • ? prev • o open related • b back");
     if (!this.rows.length) return [heading, "", this.theme.fg("dim", "No related items.")];
     const lines = [heading, ""];
     for (let index = 0; index < this.rows.length; index += 1) {
       const row = this.rows[index];
       const marker = row.progress ? `${row.type}${row.progress}` : row.type;
-      const pointer = index === this.selected ? this.theme.fg("accent", "→") : this.theme.fg("dim", "·");
+      const pointer =
+        index === this.selected ? this.theme.fg("accent", "→") : this.theme.fg("dim", "·");
       const prefix = `${pointer} ${marker} `;
       const titleWidth = Math.max(10, width - visibleWidth(prefix));
       const wrapped = this.wrap(row.title, titleWidth);

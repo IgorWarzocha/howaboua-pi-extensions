@@ -110,7 +110,11 @@ export async function ensureWorktree(record: TodoFrontMatter, ctx: ExtensionComm
       const uiTui = tui as unknown as TUI;
       const items = [
         { value: "none", label: "Work in current branch", description: "no git actions" },
-        { value: "new", label: `Create/Switch to: ${targetBranch}`, description: "dedicated worktree" },
+        {
+          value: "new",
+          label: `Create/Switch to: ${targetBranch}`,
+          description: "dedicated worktree",
+        },
       ];
 
       for (const repo of repos) {
@@ -125,7 +129,9 @@ export async function ensureWorktree(record: TodoFrontMatter, ctx: ExtensionComm
               description: `in ${path.basename(repo.path)}`,
             });
           }
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
 
       const component = new WorktreeSelectComponent(
@@ -139,7 +145,7 @@ export async function ensureWorktree(record: TodoFrontMatter, ctx: ExtensionComm
         () => {
           resolve(null);
           done();
-        }
+        },
       );
 
       return {
@@ -155,7 +161,10 @@ export async function ensureWorktree(record: TodoFrontMatter, ctx: ExtensionComm
 
   if (selection === "new") {
     if (!repos.length) {
-      const init = await ctx.ui.confirm("Initialize repository", "No repository found. Initialize git repository here?");
+      const init = await ctx.ui.confirm(
+        "Initialize repository",
+        "No repository found. Initialize git repository here?",
+      );
       if (init) {
         initRepo(root);
         return ensureRepoWorktree(record, root);
@@ -175,7 +184,10 @@ export async function ensureWorktree(record: TodoFrontMatter, ctx: ExtensionComm
   return { ok: true as const, skipped: true };
 }
 
-async function pickRepo(repos: Repo[], ctx: ExtensionCommandContext): Promise<Repo | { error: string }> {
+async function pickRepo(
+  repos: Repo[],
+  ctx: ExtensionCommandContext,
+): Promise<Repo | { error: string }> {
   if (repos.length === 1) return repos[0];
   for (const repo of repos) {
     const ok = await ctx.ui.confirm("Select repository", `Use repository: ${repo.path}`);
@@ -189,14 +201,14 @@ function ensureRepoWorktree(record: TodoFrontMatter, repo: string) {
   const repoPath = path.resolve(repo);
   const list = parseWorktrees(run("git", ["worktree", "list", "--porcelain"], repoPath));
 
-  const current = list.find(w => w.path === process.cwd() || w.path === repoPath);
+  const current = list.find((w) => w.path === process.cwd() || w.path === repoPath);
   if (current?.branch === branch) {
     return { ok: true as const, path: current.path, branch, created: false };
   }
 
   const existing = list.find((item) => item.branch === branch);
   if (existing) return { ok: true as const, path: existing.path, branch, created: false };
-  
+
   const dir = path.join(repoPath, ".pi", "worktrees", branch.replace(/\//g, "-"));
   fs.mkdirSync(path.dirname(dir), { recursive: true });
   const known = run("git", ["branch", "--list", branch], repoPath);

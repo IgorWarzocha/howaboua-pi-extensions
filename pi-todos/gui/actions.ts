@@ -42,4 +42,3 @@ export function deleted(record: TodoRecord): string {
 export function reopened(record: TodoRecord): string {
   return pick(record).reopened(record);
 }
-

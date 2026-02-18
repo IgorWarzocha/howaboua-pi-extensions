@@ -8,4 +8,3 @@ export function getCliPath(): string {
   const dir = path.dirname(file);
   return path.join(dir, "cli.ts");
 }
-

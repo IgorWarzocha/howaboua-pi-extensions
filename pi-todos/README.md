@@ -34,6 +34,7 @@ Use:
 - `/todo`
 
 In the UI you can:
+
 - create, work, refine, complete, abandon, reopen, release, or delete
 - inspect details and edit checklist items
 - use explicit search mode for predictable keyboard navigation
@@ -72,7 +73,6 @@ Plans are stored as markdown files with frontmatter in your project plans direct
 By default, this is:
 
 - `.pi/plans/prds`, `.pi/plans/specs`, and `.pi/plans/todos`
-
 
 ## Why this extension is useful
 

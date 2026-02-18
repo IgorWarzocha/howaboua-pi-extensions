@@ -33,4 +33,3 @@ export function runValidateCli(cli: string, cwd: string, filePath: string): Resu
   }
   return parsed;
 }
-

@@ -1,4 +1,10 @@
-export function buildCreateBase(type: "PRD" | "Spec" | "Todo", rules: string, userPrompt: string, cli: string, cwd: string): string {
+export function buildCreateBase(
+  type: "PRD" | "Spec" | "Todo",
+  rules: string,
+  userPrompt: string,
+  cli: string,
+  cwd: string,
+): string {
   const run = `PI_TODOS_CWD="${cwd}" ${cli}`;
   return (
     "Procedure requirements:\n" +

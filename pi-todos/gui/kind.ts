@@ -13,4 +13,3 @@ export function nounFromMode(mode: TodoListMode): string {
   if (mode === "specs") return "spec";
   return "todo";
 }
-

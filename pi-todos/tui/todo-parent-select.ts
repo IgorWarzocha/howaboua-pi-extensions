@@ -1,4 +1,12 @@
-import { Container, Key, Spacer, Text, TUI, getEditorKeybindings, matchesKey } from "@mariozechner/pi-tui";
+import {
+  Container,
+  Key,
+  Spacer,
+  Text,
+  TUI,
+  getEditorKeybindings,
+  matchesKey,
+} from "@mariozechner/pi-tui";
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import { DynamicBorder } from "@mariozechner/pi-coding-agent";
 import type { TodoFrontMatter } from "../types.js";
@@ -45,11 +53,29 @@ export class TodoParentSelectComponent extends Container {
     this.addChild(new Spacer(1));
     this.addChild(new Text(theme.fg("accent", theme.bold("Attach PRDs/Specs to todo")), 1, 0));
     this.addChild(new Spacer(1));
-    this.addChild(new Text(theme.fg("muted", "Tab switches PRDs/Specs. Space toggles. Enter confirms. Top item creates standalone todo."), 1, 0));
+    this.addChild(
+      new Text(
+        theme.fg(
+          "muted",
+          "Tab switches PRDs/Specs. Space toggles. Enter confirms. Top item creates standalone todo.",
+        ),
+        1,
+        0,
+      ),
+    );
     this.addChild(new Spacer(1));
     this.addChild(this.list);
     this.addChild(new Spacer(1));
-    this.addChild(new Text(theme.fg("dim", "Tab switch lists • ↑↓ or j/k move • Space toggle • Enter confirm • Esc back"), 1, 0));
+    this.addChild(
+      new Text(
+        theme.fg(
+          "dim",
+          "Tab switch lists • ↑↓ or j/k move • Space toggle • Enter confirm • Esc back",
+        ),
+        1,
+        0,
+      ),
+    );
     this.addChild(new Spacer(1));
     this.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
     this.renderState();
@@ -57,9 +83,15 @@ export class TodoParentSelectComponent extends Container {
 
   private rows(): Array<{ id: string; title: string }> {
     if (this.tab === "prds") {
-      return [{ id: NONE, title: "Create standalone todo" }, ...this.prds.map((item) => ({ id: item.id, title: item.title || "(untitled PRD)" }))];
+      return [
+        { id: NONE, title: "Create standalone todo" },
+        ...this.prds.map((item) => ({ id: item.id, title: item.title || "(untitled PRD)" })),
+      ];
     }
-    return [{ id: NONE, title: "Create standalone todo" }, ...this.specs.map((item) => ({ id: item.id, title: item.title || "(untitled spec)" }))];
+    return [
+      { id: NONE, title: "Create standalone todo" },
+      ...this.specs.map((item) => ({ id: item.id, title: item.title || "(untitled spec)" })),
+    ];
   }
 
   private activeSet(): Set<string> {
@@ -118,8 +150,15 @@ export class TodoParentSelectComponent extends Container {
       this.selected = this.selected === rows.length - 1 ? 0 : this.selected + 1;
       return this.renderState();
     }
-    if (data === "\u001b" || kb.matches(data, "selectCancel") || data === "\u0003") return this.onCancel();
-    if (matchesKey(data, Key.tab) || data === "\t" || data === "\u0009" || data === "\u001b[Z" || data === "\u001b[1;2Z") {
+    if (data === "\u001b" || kb.matches(data, "selectCancel") || data === "\u0003")
+      return this.onCancel();
+    if (
+      matchesKey(data, Key.tab) ||
+      data === "\t" ||
+      data === "\u0009" ||
+      data === "\u001b[Z" ||
+      data === "\u001b[1;2Z"
+    ) {
       this.tab = this.tab === "prds" ? "specs" : "prds";
       this.selected = 0;
       return this.renderState();

@@ -17,24 +17,44 @@ export class SpecPrdSelectComponent extends Container {
   private theme: Theme;
   private tui: TUI;
 
-  constructor(tui: TUI, theme: Theme, prds: TodoFrontMatter[], onSubmit: (items: TodoFrontMatter[]) => void, onCancel: () => void) {
+  constructor(
+    tui: TUI,
+    theme: Theme,
+    prds: TodoFrontMatter[],
+    onSubmit: (items: TodoFrontMatter[]) => void,
+    onCancel: () => void,
+  ) {
     super();
     this.tui = tui;
     this.prds = prds;
     this.onSubmit = onSubmit;
     this.onCancel = onCancel;
     this.theme = theme;
-    this.rows = [{ id: NONE, title: "Create standalone spec" }, ...prds.map((item) => ({ id: item.id, title: item.title || "(untitled PRD)" }))];
+    this.rows = [
+      { id: NONE, title: "Create standalone spec" },
+      ...prds.map((item) => ({ id: item.id, title: item.title || "(untitled PRD)" })),
+    ];
     this.list = new Container();
     this.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
     this.addChild(new Spacer(1));
     this.addChild(new Text(theme.fg("accent", theme.bold("Attach PRDs to spec")), 1, 0));
     this.addChild(new Spacer(1));
-    this.addChild(new Text(theme.fg("muted", "Top item creates standalone spec. Select PRDs with Space. Enter confirms."), 1, 0));
+    this.addChild(
+      new Text(
+        theme.fg(
+          "muted",
+          "Top item creates standalone spec. Select PRDs with Space. Enter confirms.",
+        ),
+        1,
+        0,
+      ),
+    );
     this.addChild(new Spacer(1));
     this.addChild(this.list);
     this.addChild(new Spacer(1));
-    this.addChild(new Text(theme.fg("dim", "↑↓ or j/k move • Space toggle • Enter confirm • Esc back"), 1, 0));
+    this.addChild(
+      new Text(theme.fg("dim", "↑↓ or j/k move • Space toggle • Enter confirm • Esc back"), 1, 0),
+    );
     this.addChild(new Spacer(1));
     this.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
     this.renderState();
@@ -79,7 +99,8 @@ export class SpecPrdSelectComponent extends Container {
       this.selected = this.selected === this.rows.length - 1 ? 0 : this.selected + 1;
       return this.renderState();
     }
-    if (data === "\u001b" || kb.matches(data, "selectCancel") || data === "\u0003") return this.onCancel();
+    if (data === "\u001b" || kb.matches(data, "selectCancel") || data === "\u0003")
+      return this.onCancel();
     if (kb.matches(data, "selectConfirm") || data === "\r") return this.confirm();
     if (kb.matches(data, "selectUp") || data === "k") {
       this.selected = this.selected === 0 ? this.rows.length - 1 : this.selected - 1;

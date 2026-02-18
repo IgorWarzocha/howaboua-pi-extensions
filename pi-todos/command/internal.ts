@@ -1,7 +1,13 @@
 import fs from "node:fs/promises";
 import type { ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import type { ChecklistItem, TodoRecord } from "../types.js";
-import { generateTodoId, getTodosDir, getTodoPath, readTodoFile, writeTodoFile } from "../file-io.js";
+import {
+  generateTodoId,
+  getTodosDir,
+  getTodoPath,
+  readTodoFile,
+  writeTodoFile,
+} from "../file-io.js";
 
 interface InternalArgs {
   internal: true;
@@ -22,7 +28,9 @@ function fail(error: string): { ok: false; error: string } {
   return { ok: false, error };
 }
 
-function parseChecklist(items?: Array<{ id?: string; title: string; done?: boolean }>): ChecklistItem[] | undefined {
+function parseChecklist(
+  items?: Array<{ id?: string; title: string; done?: boolean }>,
+): ChecklistItem[] | undefined {
   if (!items) return undefined;
   if (!items.length) return [];
   const list: ChecklistItem[] = [];
@@ -49,7 +57,8 @@ async function save(todosDir: string, todo: TodoRecord): Promise<void> {
 async function runCreate(todosDir: string, args: InternalArgs) {
   const kind = args.kind || "todo";
   if (!args.title?.trim()) return fail("title is required");
-  if (kind === "todo" && (!args.checklist || !args.checklist.length)) return fail("checklist is required");
+  if (kind === "todo" && (!args.checklist || !args.checklist.length))
+    return fail("checklist is required");
   const id = await generateTodoId(todosDir);
   const todo: TodoRecord = {
     id,
@@ -112,7 +121,10 @@ export function parseInternalArgs(args: string): InternalArgs | null {
   return parsed;
 }
 
-export async function runInternal(args: InternalArgs, ctx: ExtensionCommandContext): Promise<string> {
+export async function runInternal(
+  args: InternalArgs,
+  ctx: ExtensionCommandContext,
+): Promise<string> {
   const todosDir = getTodosDir(ctx.cwd);
   await fs.mkdir(todosDir, { recursive: true });
   const action = args.action;

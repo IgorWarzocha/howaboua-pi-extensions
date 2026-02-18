@@ -244,7 +244,14 @@ export async function runTodoUi(
       let leaderActive = false;
       let leaderTimer: ReturnType<typeof setTimeout> | null = null;
       const state: {
-        action: "none" | "work" | "review-item" | "refine" | "complete" | "abandon" | "edit-checklist";
+        action:
+          | "none"
+          | "work"
+          | "review-item"
+          | "refine"
+          | "complete"
+          | "abandon"
+          | "edit-checklist";
         related: TodoRecord | null;
       } = {
         action: "none",
@@ -320,7 +327,12 @@ export async function runTodoUi(
                 return;
               }
               if (data === "\u0018" || matchesKey(data, Key.ctrl("x"))) return startLeader();
-              if (matchesKey(data, Key.escape) || data === "\u001b" || data === "b" || data === "B") {
+              if (
+                matchesKey(data, Key.escape) ||
+                data === "\u001b" ||
+                data === "b" ||
+                data === "B"
+              ) {
                 doneOverlay();
                 return;
               }
@@ -372,14 +384,26 @@ export async function runTodoUi(
         },
       );
       if (state.related) {
-        return openDetailOverlay(state.related, source, () => void openDetailOverlay(record, source, onBack));
+        return openDetailOverlay(
+          state.related,
+          source,
+          () => void openDetailOverlay(record, source, onBack),
+        );
       }
       if (state.action === "edit-checklist") return showEditChecklistInput(record, source);
       if (state.action === "none") {
         if (onBack) onBack();
         return;
       }
-      const result = await applyTodoAction(todosDir, ctx, refresh, done, record, state.action, setPrompt);
+      const result = await applyTodoAction(
+        todosDir,
+        ctx,
+        refresh,
+        done,
+        record,
+        state.action,
+        setPrompt,
+      );
       if (result !== "stay") return;
       const updated = await resolve(record);
       if (!updated) {

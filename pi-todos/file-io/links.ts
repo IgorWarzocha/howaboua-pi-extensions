@@ -37,7 +37,9 @@ export async function attachLinks(
   const sourcePath = getTodoPath(todosDir, source.id, source.kind);
   const sourceRecord = await ensureTodoExists(sourcePath, source.id);
   if (!sourceRecord) return { error: "Source item not found." };
-  const items: Array<{ record: TodoRecord; file: string }> = [{ record: sourceRecord, file: sourcePath }];
+  const items: Array<{ record: TodoRecord; file: string }> = [
+    { record: sourceRecord, file: sourcePath },
+  ];
   for (const target of targets) {
     if (target.id === source.id) return { error: "Cannot attach an item to itself." };
     const targetPath = getTodoPath(todosDir, target.id, target.kind);
@@ -63,4 +65,3 @@ export async function attachLinks(
   }
   return { updated: items.length };
 }
-

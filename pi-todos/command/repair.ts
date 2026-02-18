@@ -44,7 +44,7 @@ const SYSTEM =
   "You MUST prefer minimal quoting changes. " +
   "You MUST only fix frontmatter blocks for the listed files. " +
   "Problematic unquoted symbols include: : # [ ] { } , & * ? | > ! @ ` and leading - or trailing # comments. " +
-  "Return: {\"fixes\":[{\"path\":\"<absolute path>\",\"frontmatter\":\"<fixed yaml block without --- markers>\"}]}.";
+  'Return: {"fixes":[{"path":"<absolute path>","frontmatter":"<fixed yaml block without --- markers>"}]}.';
 
 function extractJson(text: string): RepairResponse | null {
   const block = text.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -125,7 +125,11 @@ async function runNoSessionPrompt(cwd: string, prompt: string): Promise<string> 
     proc.on("close", (code) => {
       clearTimeout(timer);
       if (code !== 0) {
-        reject(new Error(`No-session repair process MUST exit 0. Received ${String(code)}. ${err.trim()}`));
+        reject(
+          new Error(
+            `No-session repair process MUST exit 0. Received ${String(code)}. ${err.trim()}`,
+          ),
+        );
         return;
       }
       if (!out.trim()) {
@@ -215,7 +219,10 @@ async function requestFixes(
   }
 }
 
-async function applyFixes(items: Broken[], fixes: RepairResponse): Promise<{ repaired: number; failed: number }> {
+async function applyFixes(
+  items: Broken[],
+  fixes: RepairResponse,
+): Promise<{ repaired: number; failed: number }> {
   const map = new Map<string, Broken>();
   for (let index = 0; index < items.length; index += 1) {
     const item = items[index];
@@ -244,7 +251,9 @@ async function applyFixes(items: Broken[], fixes: RepairResponse): Promise<{ rep
   return { repaired, failed };
 }
 
-export async function runRepairFrontmatter(ctx: ExtensionCommandContext): Promise<RepairResult | { error: string }> {
+export async function runRepairFrontmatter(
+  ctx: ExtensionCommandContext,
+): Promise<RepairResult | { error: string }> {
   const scanned = await findBroken(ctx.cwd);
   if (!scanned.broken.length) {
     return { scanned: scanned.scanned, broken: 0, repaired: 0, failed: 0 };

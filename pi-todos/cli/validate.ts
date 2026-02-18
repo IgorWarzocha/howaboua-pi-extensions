@@ -90,7 +90,10 @@ function addRec(list: Recommendation[], node: Node, target: Node, reason: string
   list.push({ target: target.path, kind: target.kind, name: target.title, reason });
 }
 
-export async function validateItem(root: string, filePath: string): Promise<{ issues: Issue[]; recommendations: Recommendation[] }> {
+export async function validateItem(
+  root: string,
+  filePath: string,
+): Promise<{ issues: Issue[]; recommendations: Recommendation[] }> {
   const nodes = await scan(root);
   const map = new Map<string, Node>();
   for (const node of nodes) map.set(normalize(node.path), node);
@@ -98,7 +101,11 @@ export async function validateItem(root: string, filePath: string): Promise<{ is
   if (!current) throw new Error("Validate target not found in .pi/plans.");
   const issues: Issue[] = [];
   const recs: Recommendation[] = [];
-  const hasLinks = (current.links.prds?.length || 0) + (current.links.specs?.length || 0) + (current.links.todos?.length || 0) > 0;
+  const hasLinks =
+    (current.links.prds?.length || 0) +
+      (current.links.specs?.length || 0) +
+      (current.links.todos?.length || 0) >
+    0;
   if (hasLinks && !current.links.root_abs) addIssue(issues, current, "missing root_abs for links");
   const keys: Array<"prds" | "specs" | "todos"> = ["prds", "specs", "todos"];
   for (const key of keys) {
@@ -171,4 +178,3 @@ export async function validateItem(root: string, filePath: string): Promise<{ is
   }
   return { issues, recommendations: recs };
 }
-

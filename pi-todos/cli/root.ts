@@ -3,4 +3,3 @@ export function resolveRoot(): string {
   if (value && value.trim()) return value.trim();
   return process.cwd();
 }
-

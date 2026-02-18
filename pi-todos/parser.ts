@@ -1,5 +1,11 @@
 import YAML from "yaml";
-import type { ChecklistItem, TodoFrontMatter, TodoLinks, TodoRecord, TodoWorktree } from "./types.js";
+import type {
+  ChecklistItem,
+  TodoFrontMatter,
+  TodoLinks,
+  TodoRecord,
+  TodoWorktree,
+} from "./types.js";
 import { TODO_ID_PATTERN } from "./constants.js";
 
 export function parseFrontMatter(text: string, idFallback: string): TodoFrontMatter {
@@ -31,11 +37,15 @@ export function parseFrontMatter(text: string, idFallback: string): TodoFrontMat
     if (typeof parsed.title === "string") data.title = parsed.title;
     if (typeof parsed.status === "string" && parsed.status) data.status = parsed.status;
     if (typeof parsed.created_at === "string") data.created_at = parsed.created_at;
-    if (typeof parsed.modified_at === "string" && parsed.modified_at) data.modified_at = parsed.modified_at;
+    if (typeof parsed.modified_at === "string" && parsed.modified_at)
+      data.modified_at = parsed.modified_at;
     if (typeof parsed.assigned_to_session === "string" && parsed.assigned_to_session.trim()) {
       data.assigned_to_session = parsed.assigned_to_session;
     }
-    if (typeof parsed.assigned_to_session_file === "string" && parsed.assigned_to_session_file.trim()) {
+    if (
+      typeof parsed.assigned_to_session_file === "string" &&
+      parsed.assigned_to_session_file.trim()
+    ) {
       data.assigned_to_session_file = parsed.assigned_to_session_file;
     }
     if (Array.isArray(parsed.tags)) {

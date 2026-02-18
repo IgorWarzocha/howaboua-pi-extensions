@@ -1,6 +1,11 @@
 import { buildCreateBase } from "../gui/create-prompt.js";
 
-export function buildCreateSpecPrompt(userPrompt: string, cli: string, cwd: string, prds: string[]): string {
+export function buildCreateSpecPrompt(
+  userPrompt: string,
+  cli: string,
+  cwd: string,
+  prds: string[],
+): string {
   const attach = prds.length
     ? [
         "Attach this spec to these PRDs and treat them as required context:",

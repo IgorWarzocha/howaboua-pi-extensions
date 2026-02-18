@@ -1,5 +1,9 @@
 import type { TodoFrontMatter, TodoRecord } from "../types.js";
-import { buildSpecRefinePrompt, buildSpecReviewPrompt, buildSpecWorkPrompt } from "../format/prompts.js";
+import {
+  buildSpecRefinePrompt,
+  buildSpecReviewPrompt,
+  buildSpecWorkPrompt,
+} from "../format/prompts.js";
 
 export function refine(title: string, filePath: string, links?: TodoFrontMatter["links"]): string {
   return buildSpecRefinePrompt(title, filePath, links);
@@ -33,4 +37,3 @@ export function deleted(record: TodoRecord): string {
 export function reopened(record: TodoRecord): string {
   return `Reopened spec "${record.title || "(untitled)"}" and reset checklist`;
 }
-

@@ -1,4 +1,12 @@
-import { Container, Key, Spacer, Text, TUI, getEditorKeybindings, matchesKey } from "@mariozechner/pi-tui";
+import {
+  Container,
+  Key,
+  Spacer,
+  Text,
+  TUI,
+  getEditorKeybindings,
+  matchesKey,
+} from "@mariozechner/pi-tui";
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import { DynamicBorder } from "@mariozechner/pi-coding-agent";
 import type { TodoFrontMatter } from "../types.js";
@@ -48,11 +56,22 @@ export class LinkSelectComponent extends Container {
     this.addChild(new Spacer(1));
     this.addChild(new Text(theme.fg("accent", theme.bold("Attach existing items")), 1, 0));
     this.addChild(new Spacer(1));
-    this.addChild(new Text(theme.fg("muted", "Tab switches lists. Space toggles. Enter confirms."), 1, 0));
+    this.addChild(
+      new Text(theme.fg("muted", "Tab switches lists. Space toggles. Enter confirms."), 1, 0),
+    );
     this.addChild(new Spacer(1));
     this.addChild(this.list);
     this.addChild(new Spacer(1));
-    this.addChild(new Text(theme.fg("dim", "Tab switch lists • ↑↓ or j/k move • Space toggle • Enter confirm • Esc back"), 1, 0));
+    this.addChild(
+      new Text(
+        theme.fg(
+          "dim",
+          "Tab switch lists • ↑↓ or j/k move • Space toggle • Enter confirm • Esc back",
+        ),
+        1,
+        0,
+      ),
+    );
     this.addChild(new Spacer(1));
     this.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
     this.renderState();
@@ -114,7 +133,8 @@ export class LinkSelectComponent extends Container {
       this.selected = this.selected === Math.max(0, rows.length - 1) ? 0 : this.selected + 1;
       return this.renderState();
     }
-    if (data === "\u001b" || kb.matches(data, "selectCancel") || data === "\u0003") return this.onCancel();
+    if (data === "\u001b" || kb.matches(data, "selectCancel") || data === "\u0003")
+      return this.onCancel();
     if (matchesKey(data, Key.tab) || data === "\t" || data === "\u0009") {
       this.tab = this.tab === "prds" ? "specs" : this.tab === "specs" ? "todos" : "prds";
       this.selected = 0;
@@ -142,4 +162,3 @@ export class LinkSelectComponent extends Container {
     this.renderState();
   }
 }
-

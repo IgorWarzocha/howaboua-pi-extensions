@@ -21,7 +21,9 @@ export class TodoCreateInputComponent extends Container {
     this.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
     this.addChild(new Spacer(1));
 
-    this.addChild(new Text(theme.fg("accent", theme.bold(options?.title || "Create New Todo")), 1, 0));
+    this.addChild(
+      new Text(theme.fg("accent", theme.bold(options?.title || "Create New Todo")), 1, 0),
+    );
     this.addChild(new Spacer(1));
 
     this.addChild(
@@ -74,4 +76,3 @@ export class TodoCreateInputComponent extends Container {
     super.invalidate();
   }
 }
-

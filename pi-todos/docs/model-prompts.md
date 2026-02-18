@@ -3,11 +3,13 @@
 This document enumerates model-facing prompts emitted by `pi-todos`.
 
 Each entry uses the REQUIRED structure:
+
 - where present
 - type
 - prompt content
 
 ## Entry 1
+
 - where present:
   - `pi-todos/gui/create-prompt.ts` (`buildCreateBase`)
 - type:
@@ -32,6 +34,7 @@ User request: <userPrompt>
 ```
 
 ## Entry 2
+
 - where present:
   - `pi-todos/prd/create.ts` (`buildCreatePrdPrompt`)
 - type:
@@ -46,6 +49,7 @@ You MUST produce a PRD type document that captures product objective, user probl
 ```
 
 ## Entry 3
+
 - where present:
   - `pi-todos/spec/create.ts` (`buildCreateSpecPrompt`)
 - type:
@@ -77,6 +81,7 @@ You MUST produce a spec type document that defines technical design, interfaces,
 ```
 
 ## Entry 4
+
 - where present:
   - `pi-todos/todo/create.ts` (`buildCreateTodoPrompt`)
 - type:
@@ -109,6 +114,7 @@ You MUST produce a todo type document with a non-empty checklist using short IDs
 ```
 
 ## Entry 5
+
 - where present:
   - `pi-todos/format/prompts.ts` (`buildTodoRefinePrompt`)
 - type:
@@ -131,6 +137,7 @@ Each checklist item MUST describe one observable action with a verifiable outcom
 ```
 
 ## Entry 6
+
 - where present:
   - `pi-todos/format/prompts.ts` (`buildPrdRefinePrompt`)
 - type:
@@ -152,6 +159,7 @@ You MUST update the PRD file directly after clarification.
 ```
 
 ## Entry 7
+
 - where present:
   - `pi-todos/format/prompts.ts` (`buildSpecRefinePrompt`)
 - type:
@@ -173,6 +181,7 @@ You MUST update the spec file directly after clarification.
 ```
 
 ## Entry 8
+
 - where present:
   - `pi-todos/format/prompts.ts` (`buildTodoWorkPrompt`)
 - type:
@@ -195,6 +204,7 @@ You MUST ensure linked PRD/spec/todo markdown files remain a complete bidirectio
 ```
 
 ## Entry 9
+
 - where present:
   - `pi-todos/format/prompts.ts` (`buildPrdWorkPrompt`)
 - type:
@@ -217,6 +227,7 @@ You MUST preserve intent consistency across linked specs and todos.
 ```
 
 ## Entry 10
+
 - where present:
   - `pi-todos/format/prompts.ts` (`buildSpecWorkPrompt`)
 - type:
@@ -239,6 +250,7 @@ You MUST preserve consistency with linked PRDs and implementation todos.
 ```
 
 ## Entry 11
+
 - where present:
   - `pi-todos/format/prompts.ts` (`buildTodoReviewPrompt`)
 - type:
@@ -252,6 +264,7 @@ Then review implementation completeness, unresolved gaps, and missing link relat
 ```
 
 ## Entry 12
+
 - where present:
   - `pi-todos/format/prompts.ts` (`buildPrdReviewPrompt`)
 - type:
@@ -265,6 +278,7 @@ Then review product requirement completeness and unresolved gaps.
 ```
 
 ## Entry 13
+
 - where present:
   - `pi-todos/format/prompts.ts` (`buildSpecReviewPrompt`)
 - type:
@@ -278,6 +292,7 @@ Then review technical completeness, edge-case coverage, and unresolved gaps.
 ```
 
 ## Entry 14
+
 - where present:
   - `pi-todos/format/prompts.ts` (`buildEditChecklistPrompt`)
 - type:
@@ -302,6 +317,7 @@ Generic checklist items MUST NOT be used.
 ```
 
 ## Entry 15
+
 - where present:
   - `pi-todos/format/prompts.ts` (`buildValidateAuditPrompt`)
 - type:

@@ -9,4 +9,3 @@ export function buildCreatePrdPrompt(userPrompt: string, cli: string, cwd: strin
     cwd,
   );
 }
-

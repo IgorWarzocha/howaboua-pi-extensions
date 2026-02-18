@@ -77,4 +77,3 @@ Treat this file as a template blueprint for generated todo files.
 ## Verification Plan
 
 Run positive and negative invocation tests and validate response determinism.
-
