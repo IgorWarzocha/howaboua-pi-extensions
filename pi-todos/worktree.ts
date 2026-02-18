@@ -3,6 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import type { ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import type { TodoFrontMatter } from "./types.js";
+import { WorktreeSelectComponent } from "./tui/worktree-select.js";
+import { TUI } from "@mariozechner/pi-tui";
 
 interface Repo {
   path: string;
@@ -77,7 +79,7 @@ function parseWorktrees(raw: string): { path: string; branch?: string }[] {
 }
 
 function normalizeBranch(record: TodoFrontMatter): string {
-  const kind = record.kind === "prd" ? "prd" : "todo";
+  const kind = (record.type || record.kind) === "prd" ? "prd" : "todo";
   const slug = (record.title || "task")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
@@ -92,72 +94,94 @@ function initRepo(repo: string): void {
   run("git", ["commit", "--allow-empty", "-m", "chore(repo): initial commit"], repo);
 }
 
-async function pickRepo(repos: Repo[], ctx: ExtensionCommandContext): Promise<Repo | { error: string }> {
-  if (repos.length === 1) return repos[0];
-  if (!ctx.hasUI) return { error: "Multiple git repositories found. User selection required." };
-  for (const repo of repos) {
-    const ok = await ctx.ui.confirm("Select repository", `Use repository:\n${repo.path}`);
-    if (ok) return repo;
+export async function ensureWorktree(record: TodoFrontMatter, ctx: ExtensionCommandContext) {
+  const root = record.links?.root_abs ?? ctx.cwd;
+  const rootRepo = findEnclosingRepo(root);
+  const repos = rootRepo ? [rootRepo] : findRepos(root);
+  const targetBranch = record.worktree?.branch || normalizeBranch(record);
+
+  if (!ctx.hasUI) {
+    if (!repos.length) return { ok: true as const, skipped: true };
+    return ensureRepoWorktree(record, repos[0].path);
   }
-  return { error: "Repository selection required." };
+
+  const selection = await new Promise<string | null>((resolve) => {
+    void ctx.ui.custom<void>((tui, theme, _kb, done) => {
+      const uiTui = tui as unknown as TUI;
+      const items = [
+        { value: "none", label: "Work in current branch", description: "No git actions" },
+        { value: "new", label: `Create/Switch to: ${targetBranch}`, description: "Use dedicated worktree" },
+      ];
+
+      for (const repo of repos) {
+        try {
+          const list = parseWorktrees(run("git", ["worktree", "list", "--porcelain"], repo.path));
+          for (const w of list) {
+            if (!w.branch) continue;
+            const isTarget = w.branch === targetBranch;
+            if (isTarget) continue; // Already covered by "new" (which becomes switch if exists)
+            items.push({
+              value: `switch:${repo.path}:${w.branch}:${w.path}`,
+              label: `Switch to: ${w.branch}`,
+              description: `Existing worktree in ${path.basename(repo.path)}`,
+            });
+          }
+        } catch { /* ignore */ }
+      }
+
+      const component = new WorktreeSelectComponent(
+        uiTui,
+        theme,
+        items,
+        (val) => {
+          resolve(val);
+          done();
+        },
+        () => {
+          resolve(null);
+          done();
+        }
+      );
+
+      return {
+        render: (w) => component.render(w),
+        handleInput: (d) => component.handleInput(d),
+        invalidate: () => component.invalidate(),
+      };
+    });
+  });
+
+  if (!selection || selection === "none") return { ok: true as const, skipped: true };
+
+  if (selection === "new") {
+    if (!repos.length) {
+      const init = await ctx.ui.confirm("Initialize repository", "No repository found. Initialize git repository here?");
+      if (init) {
+        initRepo(root);
+        return ensureRepoWorktree(record, root);
+      }
+      return { ok: true as const, skipped: true };
+    }
+    const repo = repos.length === 1 ? repos[0] : await pickRepo(repos, ctx);
+    if ("error" in repo) return { ok: true as const, skipped: true };
+    return ensureRepoWorktree(record, repo.path);
+  }
+
+  if (selection.startsWith("switch:")) {
+    const [, repoPath, branch, worktreePath] = selection.split(":");
+    return { ok: true as const, path: worktreePath, branch, created: false };
+  }
+
+  return { ok: true as const, skipped: true };
 }
 
-async function pickMode(
-  repos: Repo[],
-  root: string,
-  record: TodoFrontMatter,
-  ctx: ExtensionCommandContext,
-): Promise<{ mode: "none" } | { mode: "init" } | { mode: "repo"; repo: string }> {
-  if (!ctx.hasUI) {
-    if (!repos.length) return { mode: "none" };
-    return { mode: "repo", repo: repos[0].path };
-  }
-
-  let worktreeInfo = "";
-  const allWorktrees: { repo: string; branch: string; path: string }[] = [];
-
+async function pickRepo(repos: Repo[], ctx: ExtensionCommandContext): Promise<Repo | { error: string }> {
+  if (repos.length === 1) return repos[0];
   for (const repo of repos) {
-    try {
-      const list = parseWorktrees(run("git", ["worktree", "list", "--porcelain"], repo.path));
-      for (const w of list) {
-        if (w.branch) {
-          allWorktrees.push({ repo: repo.path, branch: w.branch, path: w.path });
-        }
-      }
-    } catch {
-      // skip repo if git fails
-    }
+    const ok = await ctx.ui.confirm("Select repository", `Use repository: ${repo.path}`);
+    if (ok) return repo;
   }
-
-  if (allWorktrees.length) {
-    worktreeInfo = "\n\nExisting worktrees/branches found:";
-    for (const w of allWorktrees) {
-      const isCurrent = w.path === process.cwd() || w.path === path.resolve(w.repo);
-      const label = isCurrent ? " (current)" : "";
-      worktreeInfo += `\n  - ${w.branch}${label} [${path.basename(w.repo)}]`;
-    }
-  }
-
-  const branch = record.worktree?.branch || normalizeBranch(record);
-  const useWorktree = await ctx.ui.confirm(
-    "Worktree Orchestration",
-    `Would you like to create/switch to a dedicated worktree for this task?${worktreeInfo}\n\nTarget branch: ${branch}`
-  );
-
-  if (!useWorktree) return { mode: "none" };
-
-  if (!repos.length) {
-    const init = await ctx.ui.confirm(
-      "Initialize repository",
-      "No repository found. Initialize git repository here and create initial commit?",
-    );
-    if (init) return { mode: "init" };
-    return { mode: "none" };
-  }
-
-  const selected = await pickRepo(repos, ctx);
-  if ("error" in selected) return { mode: "none" };
-  return { mode: "repo", repo: selected.path };
+  return { error: "No repo selected" };
 }
 
 function ensureRepoWorktree(record: TodoFrontMatter, repo: string) {
@@ -165,7 +189,6 @@ function ensureRepoWorktree(record: TodoFrontMatter, repo: string) {
   const repoPath = path.resolve(repo);
   const list = parseWorktrees(run("git", ["worktree", "list", "--porcelain"], repoPath));
 
-  // If we are already in a worktree/repo that has this branch checked out
   const current = list.find(w => w.path === process.cwd() || w.path === repoPath);
   if (current?.branch === branch) {
     return { ok: true as const, path: current.path, branch, created: false };
@@ -173,6 +196,7 @@ function ensureRepoWorktree(record: TodoFrontMatter, repo: string) {
 
   const existing = list.find((item) => item.branch === branch);
   if (existing) return { ok: true as const, path: existing.path, branch, created: false };
+  
   const dir = path.join(repoPath, ".pi", "worktrees", branch.replace(/[\/]/g, "-"));
   fs.mkdirSync(path.dirname(dir), { recursive: true });
   const known = run("git", ["branch", "--list", branch], repoPath);
@@ -180,18 +204,3 @@ function ensureRepoWorktree(record: TodoFrontMatter, repo: string) {
   if (!known) run("git", ["worktree", "add", "-b", branch, dir], repoPath);
   return { ok: true as const, path: dir, branch, created: true };
 }
-
-export async function ensureWorktree(record: TodoFrontMatter, ctx: ExtensionCommandContext) {
-  const root = record.links?.root_abs ?? ctx.cwd;
-  const rootRepo = findEnclosingRepo(root);
-  const repos = rootRepo ? [rootRepo] : findRepos(root);
-
-  const pick = await pickMode(repos, root, record, ctx);
-  if (pick.mode === "none") return { ok: true as const, skipped: true };
-  if (pick.mode === "init") {
-    initRepo(root);
-    return ensureRepoWorktree(record, root);
-  }
-  return ensureRepoWorktree(record, pick.repo);
-}
-
