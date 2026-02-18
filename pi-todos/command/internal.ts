@@ -13,7 +13,7 @@ interface InternalArgs {
   internal: true;
   action: "create" | "update" | "append" | "tick";
   id?: string;
-  kind?: "todo" | "prd" | "spec";
+  type?: "todo" | "prd" | "spec";
   title?: string;
   body?: string;
   checklist?: Array<{ id?: string; title: string; done?: boolean }>;
@@ -50,14 +50,14 @@ async function load(todosDir: string, id: string): Promise<TodoRecord> {
 }
 
 async function save(todosDir: string, todo: TodoRecord): Promise<void> {
-  const filePath = getTodoPath(todosDir, todo.id, todo.kind);
+  const filePath = getTodoPath(todosDir, todo.id, todo.type);
   await writeTodoFile(filePath, todo);
 }
 
 async function runCreate(todosDir: string, args: InternalArgs) {
-  const kind = args.kind || "todo";
+  const type = args.type || "todo";
   if (!args.title?.trim()) return fail("title is required");
-  if (kind === "todo" && (!args.checklist || !args.checklist.length))
+  if (type === "todo" && (!args.checklist || !args.checklist.length))
     return fail("checklist is required");
   const id = await generateTodoId(todosDir);
   const todo: TodoRecord = {
@@ -67,7 +67,7 @@ async function runCreate(todosDir: string, args: InternalArgs) {
     status: "open",
     created_at: now(),
     modified_at: now(),
-    kind,
+    type,
     checklist: parseChecklist(args.checklist),
     body: (args.body || "").trim(),
   };

@@ -5,7 +5,7 @@ import { DynamicBorder } from "@mariozechner/pi-coding-agent";
 interface Row {
   key: string;
   label: string;
-  kind: "prd" | "spec" | "todo";
+  type: "prd" | "spec" | "todo";
   reason: string;
 }
 
@@ -15,8 +15,8 @@ interface State {
   todos: Set<string>;
 }
 
-function section(rows: Row[], kind: "prd" | "spec" | "todo"): Row[] {
-  return rows.filter((item) => item.kind === kind);
+function section(rows: Row[], type: "prd" | "spec" | "todo"): Row[] {
+  return rows.filter((item) => item.type === type);
 }
 
 export class ValidateSelectComponent extends Container {
@@ -132,9 +132,9 @@ export class ValidateSelectComponent extends Container {
       };
       for (const row of rows) {
         if (!this.selected.has(row.key)) continue;
-        if (row.kind === "prd") state.prds.add(row.key);
-        if (row.kind === "spec") state.specs.add(row.key);
-        if (row.kind === "todo") state.todos.add(row.key);
+        if (row.type === "prd") state.prds.add(row.key);
+        if (row.type === "spec") state.specs.add(row.key);
+        if (row.type === "todo") state.todos.add(row.key);
       }
       return this.onSubmit(state);
     }

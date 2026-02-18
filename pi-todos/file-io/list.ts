@@ -17,7 +17,6 @@ function toTodo(id: string, content: string, modifiedAt: string): TodoFrontMatte
     assigned_to_session: parsed.assigned_to_session,
     checklist: parsed.checklist,
     type: parsed.type,
-    kind: parsed.kind,
     template: parsed.template,
     links: parsed.links,
     agent_rules: parsed.agent_rules,

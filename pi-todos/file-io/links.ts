@@ -4,9 +4,9 @@ import type { TodoFrontMatter, TodoLinks, TodoRecord } from "../types.js";
 import { ensureTodoExists, writeTodoFile } from "./files.js";
 import { getTodoPath } from "./path.js";
 
-function bucket(kind: string | undefined): "prds" | "specs" | "todos" {
-  if (kind === "prd") return "prds";
-  if (kind === "spec") return "specs";
+function bucket(type: string | undefined): "prds" | "specs" | "todos" {
+  if (type === "prd") return "prds";
+  if (type === "spec") return "specs";
   return "todos";
 }
 
@@ -34,7 +34,7 @@ export async function attachLinks(
 ): Promise<{ updated: number } | { error: string }> {
   if (!targets.length) return { error: "Select at least one item to attach." };
   const root = ctx.cwd;
-  const sourcePath = getTodoPath(todosDir, source.id, source.kind);
+  const sourcePath = getTodoPath(todosDir, source.id, source.type);
   const sourceRecord = await ensureTodoExists(sourcePath, source.id);
   if (!sourceRecord) return { error: "Source item not found." };
   const items: Array<{ record: TodoRecord; file: string }> = [
@@ -42,7 +42,7 @@ export async function attachLinks(
   ];
   for (const target of targets) {
     if (target.id === source.id) return { error: "Cannot attach an item to itself." };
-    const targetPath = getTodoPath(todosDir, target.id, target.kind);
+    const targetPath = getTodoPath(todosDir, target.id, target.type);
     const targetRecord = await ensureTodoExists(targetPath, target.id);
     if (!targetRecord) return { error: `Target item not found: ${target.id}` };
     items.push({ record: targetRecord, file: targetPath });
@@ -53,8 +53,8 @@ export async function attachLinks(
     const target = items[index];
     const targetRef = rel(root, target.file);
     const targetLinks = ensureLinks(target.record, root);
-    const targetBucket = bucket(target.record.kind);
-    const sourceBucket = bucket(sourceRecord.kind);
+    const targetBucket = bucket(target.record.type);
+    const sourceBucket = bucket(sourceRecord.type);
     sourceLinks[targetBucket] = merge(sourceLinks[targetBucket], targetRef);
     targetLinks[sourceBucket] = merge(targetLinks[sourceBucket], sourceRef);
     sourceRecord.links = sourceLinks;

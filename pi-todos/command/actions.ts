@@ -60,7 +60,7 @@ async function runWork(
     ctx.ui.notify(`Worktree setup failed: ${message}`, "error");
     return "stay";
   }
-  const filePath = getTodoPath(todosDir, record.id, record.type || record.kind);
+  const filePath = getTodoPath(todosDir, record.id, record.type);
   setPrompt(withWorktree(flow.work(record, filePath), worktreePath));
   done();
   return "exit";
@@ -76,7 +76,7 @@ export async function applyTodoAction(
   setPrompt: (value: string) => void,
 ): Promise<"stay" | "exit"> {
   if (action === "refine") {
-    const filePath = getTodoPath(todosDir, record.id, record.type || record.kind);
+    const filePath = getTodoPath(todosDir, record.id, record.type);
     setPrompt(flow.refine(record, filePath));
     done();
     return "exit";
@@ -88,7 +88,7 @@ export async function applyTodoAction(
       ctx.ui.notify(links.error, "error");
       return "stay";
     }
-    const filePath = getTodoPath(todosDir, record.id, record.type || record.kind);
+    const filePath = getTodoPath(todosDir, record.id, record.type);
     setPrompt(flow.review(record, filePath));
     done();
     return "exit";
@@ -183,7 +183,7 @@ export async function handleQuickAction(
   if (action === "create") return showCreateInput();
   if (!todo) return;
   if (action === "refine") {
-    const filePath = getTodoPath(todosDir, todo.id, todo.type || todo.kind);
+    const filePath = getTodoPath(todosDir, todo.id, todo.type);
     setPrompt(flow.refine(todo, filePath));
     done();
     return;

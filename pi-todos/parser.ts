@@ -20,7 +20,6 @@ export function parseFrontMatter(text: string, idFallback: string): TodoFrontMat
     assigned_to_session_file: undefined,
     checklist: undefined,
     type: undefined,
-    kind: undefined,
     template: undefined,
     links: undefined,
     agent_rules: undefined,
@@ -53,9 +52,6 @@ export function parseFrontMatter(text: string, idFallback: string): TodoFrontMat
     }
     if (Array.isArray(parsed.checklist)) data.checklist = parseChecklist(parsed.checklist);
     if (typeof parsed.type === "string") data.type = parsed.type;
-    if (typeof parsed.kind === "string") data.kind = parsed.kind;
-    if (!data.type && data.kind) data.type = data.kind;
-    if (!data.kind && data.type) data.kind = data.type; // TODO: deprecate kind
     if (typeof parsed.template === "boolean") data.template = parsed.template;
     if (typeof parsed.agent_rules === "string") data.agent_rules = parsed.agent_rules;
     const links = parseLinks(parsed.links);
@@ -202,7 +198,6 @@ export function parseTodoContent(content: string, idFallback: string): TodoRecor
     assigned_to_session_file: parsed.assigned_to_session_file,
     checklist: parsed.checklist,
     type: parsed.type,
-    kind: parsed.kind,
     template: parsed.template,
     links: parsed.links,
     agent_rules: parsed.agent_rules,
@@ -221,7 +216,6 @@ export function serializeTodo(todo: TodoRecord): string {
     modified_at: todo.modified_at,
     assigned_to_session: todo.assigned_to_session || undefined,
     assigned_to_session_file: todo.assigned_to_session_file || undefined,
-    kind: todo.kind,
     template: todo.template,
     links: todo.links,
     agent_rules: todo.agent_rules,
@@ -231,7 +225,7 @@ export function serializeTodo(todo: TodoRecord): string {
       title: item.title,
       done: item.status === "checked",
     })),
-    type: todo.type || todo.kind,
+    type: todo.type,
   };
   const frontMatter = YAML.stringify(front).trimEnd();
 

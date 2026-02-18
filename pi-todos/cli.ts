@@ -5,11 +5,11 @@ import crypto from "node:crypto";
 import YAML from "yaml";
 import { resolveRoot } from "./cli/root.js";
 import { validateItem } from "./cli/validate.js";
-type Kind = "prd" | "spec" | "todo";
+type Type = "prd" | "spec" | "todo";
 
 interface Entry {
   id: string;
-  kind: Kind;
+  type: Type;
   title: string;
   tags: string[];
   status: string;
@@ -38,20 +38,20 @@ function slug(value: string): string {
     .replace(/-+$/, "");
 }
 
-function kind(value: string | undefined): Kind {
+function type(value: string | undefined): Type {
   if (value === "prd" || value === "spec" || value === "todo") return value;
-  fail("Invalid kind. Expected one of: prd, spec, todo.");
+  fail("Invalid type. Expected one of: prd, spec, todo.");
 }
 
-function map(kind: Kind): string {
-  if (kind === "prd") return "prds";
-  if (kind === "spec") return "specs";
+function map(type: Type): string {
+  if (type === "prd") return "prds";
+  if (type === "spec") return "specs";
   return "todos";
 }
 
-function branch(kind: Kind, title: string, id: string): string {
+function branch(type: Type, title: string, id: string): string {
   const value = slug(title) || id;
-  if (kind === "prd") return `feat/prd-${value}`;
+  if (type === "prd") return `feat/prd-${value}`;
   return `feat/todo-${value}`;
 }
 
@@ -93,7 +93,7 @@ function has(args: string[], names: string[]): boolean {
   return false;
 }
 
-function enforce(kind: Kind, args: string[]): void {
+function enforce(type: Type, args: string[]): void {
   const extra = has(args, [
     "--agent_rules",
     "-agent_rules",
@@ -113,26 +113,26 @@ function enforce(kind: Kind, args: string[]): void {
       "Do not pass managed flags (agent_rules/worktree/template/links/request/root). Use minimal create inputs only.",
     );
   const checklist = has(args, ["--checklist", "-checklist"]);
-  if (kind !== "todo" && checklist) fail("Checklist is only supported for kind=todo.");
+  if (type !== "todo" && checklist) fail("Checklist is only supported for type=todo.");
 }
 
-function schema(kind: Kind): string {
+function schema(type: Type): string {
   const lines = [
-    `Create input schema for ${kind}:`,
+    `Create input schema for ${type}:`,
     "---",
     "command: create",
-    `kind: ${kind}`,
+    `type: ${type}`,
     "title: <string>",
     "tags: <csv> # REQUIRED",
     "body: <markdown> # REQUIRED",
   ];
-  if (kind === "todo") lines.push("checklist: <json-array> # REQUIRED");
+  if (type === "todo") lines.push("checklist: <json-array> # REQUIRED");
   lines.push("---");
   return lines.join("\n");
 }
 
 async function create(args: string[]): Promise<void> {
-  const value = kind(pick(args, ["--kind", "-kind"]));
+  const value = type(pick(args, ["--type", "-type"]));
   enforce(value, args);
   const title = pick(args, ["--title", "-title"])?.trim();
   if (!title) fail("Missing --title for create command.");
@@ -149,7 +149,7 @@ async function create(args: string[]): Promise<void> {
   const valueLinks = links(root);
   const entry: Entry = {
     id: valueId,
-    kind: value,
+    type: value,
     title,
     tags,
     status: "open",
@@ -200,7 +200,7 @@ async function create(args: string[]): Promise<void> {
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   if (!args.length)
-    fail("Missing command. Use '-schema <kind>' or 'create --kind <kind> --title <title>'.");
+    fail("Missing command. Use '-schema <type>' or 'create --type <type> --title <title>'.");
   if (args[0] === "--validate" || args[0] === "-validate") {
     const filePath = pick(args, ["--filepath", "-filepath"]);
     if (!filePath) fail("Missing --filepath for validate command.");
@@ -209,7 +209,7 @@ async function main(): Promise<void> {
     return;
   }
   if (args[0] === "-schema") {
-    const value = kind(args[1]);
+    const value = type(args[1]);
     process.stdout.write(`${schema(value)}\n`);
     return;
   }

@@ -79,13 +79,13 @@ function parseWorktrees(raw: string): { path: string; branch?: string }[] {
 }
 
 function normalizeBranch(record: TodoFrontMatter): string {
-  const kind = (record.type || record.kind) === "prd" ? "prd" : "todo";
+  const type = record.type === "prd" ? "prd" : "todo";
   const slug = (record.title || "task")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+/, "")
     .replace(/-+$/, "");
-  return `feat/${kind}-${slug || record.id}`;
+  return `feat/${type}-${slug || record.id}`;
 }
 
 function initRepo(repo: string): void {

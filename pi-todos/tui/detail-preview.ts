@@ -6,7 +6,7 @@ import { getMarkdownTheme } from "@mariozechner/pi-coding-agent";
 import type { TodoRecord } from "../types.js";
 import { formatChecklistProgress, isTodoClosed, renderChecklist } from "../format.js";
 import { parseTodoContent } from "../parser.js";
-import { noun } from "../gui/kind.js";
+import { noun } from "../gui/type.js";
 
 interface RelatedRow {
   type: string;
@@ -108,7 +108,7 @@ export class TodoDetailPreviewComponent {
       const raw = readFileSync(file, "utf8");
       const id = path.basename(file, ".md");
       const parsed = parseTodoContent(raw, id);
-      const rowType = (parsed.type || parsed.kind || fallbackType.toLowerCase()).toUpperCase();
+      const rowType = (parsed.type || fallbackType.toLowerCase()).toUpperCase();
       const rowTitle = parsed.title || value || "(untitled)";
       const rowStatus = parsed.status || "unknown";
       const rowProgress = rowType === "TODO" ? formatChecklistProgress(parsed) : "";

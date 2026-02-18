@@ -74,33 +74,21 @@ export async function runTodoUi(
       Date.parse(todo.modified_at || todo.created_at || "") || 0;
     const listTasks = (all: TodoFrontMatter[]) =>
       all.filter(
-        (todo) =>
-          (todo.type || todo.kind || "todo") === "todo" && !isDone(todo) && !isDeprecated(todo),
+        (todo) => (todo.type || "todo") === "todo" && !isDone(todo) && !isDeprecated(todo),
       );
     const listPrds = (all: TodoFrontMatter[]) =>
-      all.filter(
-        (todo) => (todo.type || todo.kind) === "prd" && !isDone(todo) && !isDeprecated(todo),
-      );
+      all.filter((todo) => todo.type === "prd" && !isDone(todo) && !isDeprecated(todo));
     const listSpecs = (all: TodoFrontMatter[]) =>
-      all.filter(
-        (todo) => (todo.type || todo.kind) === "spec" && !isDone(todo) && !isDeprecated(todo),
-      );
+      all.filter((todo) => todo.type === "spec" && !isDone(todo) && !isDeprecated(todo));
     const listClosed = (all: TodoFrontMatter[]) => {
       const prds = all
-        .filter(
-          (todo) => (todo.type || todo.kind) === "prd" && (isDone(todo) || isDeprecated(todo)),
-        )
+        .filter((todo) => todo.type === "prd" && (isDone(todo) || isDeprecated(todo)))
         .sort((a, b) => modified(b) - modified(a));
       const specs = all
-        .filter(
-          (todo) => (todo.type || todo.kind) === "spec" && (isDone(todo) || isDeprecated(todo)),
-        )
+        .filter((todo) => todo.type === "spec" && (isDone(todo) || isDeprecated(todo)))
         .sort((a, b) => modified(b) - modified(a));
       const tasks = all
-        .filter(
-          (todo) =>
-            (todo.type || todo.kind || "todo") === "todo" && (isDone(todo) || isDeprecated(todo)),
-        )
+        .filter((todo) => (todo.type || "todo") === "todo" && (isDone(todo) || isDeprecated(todo)))
         .sort((a, b) => modified(b) - modified(a));
       return [...prds, ...specs, ...tasks];
     };
@@ -183,9 +171,9 @@ export async function runTodoUi(
           }
           const lines = scoped
             .map((todo) => {
-              const filePath = getTodoPath(todosDir, todo.id, todo.type || todo.kind);
+              const filePath = getTodoPath(todosDir, todo.id, todo.type);
               const title = todo.title || "(untitled)";
-              const type = todo.type || todo.kind || "todo";
+              const type = todo.type || "todo";
               if (type === "prd") return `- ${buildPrdReviewPrompt(title, filePath, todo.links)}`;
               if (type === "spec") return `- ${buildSpecReviewPrompt(title, filePath, todo.links)}`;
               return `- ${buildTodoReviewPrompt(title, filePath, todo.links)}`;
@@ -475,14 +463,10 @@ export async function runTodoUi(
     };
     const showAttachInput = async (record: TodoRecord, source: TodoListMode) => {
       const current = await sync();
-      const prds = current.filter(
-        (item) => item.id !== record.id && (item.type || item.kind) === "prd",
-      );
-      const specs = current.filter(
-        (item) => item.id !== record.id && (item.type || item.kind) === "spec",
-      );
+      const prds = current.filter((item) => item.id !== record.id && item.type === "prd");
+      const specs = current.filter((item) => item.id !== record.id && item.type === "spec");
       const todos = current.filter(
-        (item) => item.id !== record.id && (item.type || item.kind || "todo") === "todo",
+        (item) => item.id !== record.id && (item.type || "todo") === "todo",
       );
       const picker = new LinkSelectComponent(
         uiTui,
@@ -515,17 +499,17 @@ export async function runTodoUi(
     };
     const showValidateInput = async (record: TodoRecord, source: TodoListMode) => {
       const cli = getCliPath();
-      const file = getTodoPath(todosDir, record.id, record.type || record.kind);
+      const file = getTodoPath(todosDir, record.id, record.type);
       let result: {
         issues: Array<{
-          kind: "prd" | "spec" | "todo";
+          type: "prd" | "spec" | "todo";
           name: string;
           issue: string;
           file: string;
         }>;
         recommendations: Array<{
           target: string;
-          kind: "prd" | "spec" | "todo";
+          type: "prd" | "spec" | "todo";
           name: string;
           reason: string;
         }>;
@@ -553,13 +537,13 @@ export async function runTodoUi(
         result.recommendations.map((item) => ({
           key: item.target,
           label: item.name,
-          kind: item.kind,
+          type: item.type,
           reason: item.reason,
         })),
         async (selected) => {
           const latest = await sync();
           const targets = latest.filter((item) => {
-            const target = normalizePath(getTodoPath(todosDir, item.id, item.type || item.kind));
+            const target = normalizePath(getTodoPath(todosDir, item.id, item.type));
             return (
               selected.prds.has(target) || selected.specs.has(target) || selected.todos.has(target)
             );
@@ -581,8 +565,8 @@ export async function runTodoUi(
     };
     const showAuditPrompt = async (record: TodoRecord) => {
       const latest = await sync();
-      const current = getTodoPath(todosDir, record.id, record.type || record.kind);
-      const scope = latest.map((item) => getTodoPath(todosDir, item.id, item.type || item.kind));
+      const current = getTodoPath(todosDir, record.id, record.type);
+      const scope = latest.map((item) => getTodoPath(todosDir, item.id, item.type));
       setPrompt(buildValidateAuditPrompt(current, scope));
       done();
     };
@@ -714,7 +698,7 @@ export async function runTodoUi(
         record,
         (userPrompt) => {
           const checklist = record.checklist || [];
-          const filePath = getTodoPath(todosDir, record.id, record.type || record.kind);
+          const filePath = getTodoPath(todosDir, record.id, record.type);
           setPrompt(
             buildEditChecklistPrompt(record.title || "(untitled)", filePath, checklist, userPrompt),
           );

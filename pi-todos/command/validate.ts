@@ -3,13 +3,13 @@ import path from "node:path";
 
 interface Rec {
   target: string;
-  kind: "prd" | "spec" | "todo";
+  type: "prd" | "spec" | "todo";
   name: string;
   reason: string;
 }
 
 interface Issue {
-  kind: "prd" | "spec" | "todo";
+  type: "prd" | "spec" | "todo";
   name: string;
   issue: string;
   file: string;

@@ -29,7 +29,6 @@ export interface TodoFrontMatter {
   assigned_to_session_file?: string;
   checklist?: ChecklistItem[];
   type?: string;
-  kind?: string;
   template?: boolean;
   links?: TodoLinks;
   agent_rules?: string;

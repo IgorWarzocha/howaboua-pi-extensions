@@ -2,10 +2,10 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { parseTodoContent } from "../parser.js";
 
-type Kind = "prd" | "spec" | "todo";
+type Type = "prd" | "spec" | "todo";
 
 interface Issue {
-  kind: Kind;
+  type: Type;
   name: string;
   issue: string;
   file: string;
@@ -13,7 +13,7 @@ interface Issue {
 
 interface Recommendation {
   target: string;
-  kind: Kind;
+  type: Type;
   name: string;
   reason: string;
 }
@@ -21,7 +21,7 @@ interface Recommendation {
 interface Node {
   path: string;
   id: string;
-  kind: Kind;
+  type: Type;
   title: string;
   links: { root_abs?: string; prds?: string[]; specs?: string[]; todos?: string[] };
 }
@@ -34,13 +34,13 @@ function rel(root: string, file: string): string {
   return normalize(path.relative(root, file));
 }
 
-function bucket(kind: Kind): "prds" | "specs" | "todos" {
-  if (kind === "prd") return "prds";
-  if (kind === "spec") return "specs";
+function bucket(type: Type): "prds" | "specs" | "todos" {
+  if (type === "prd") return "prds";
+  if (type === "spec") return "specs";
   return "todos";
 }
 
-function parseKind(value: string | undefined): Kind {
+function parseType(value: string | undefined): Type {
   if (value === "prd") return "prd";
   if (value === "spec") return "spec";
   return "todo";
@@ -66,7 +66,7 @@ async function scan(root: string): Promise<Node[]> {
       out.push({
         path: file,
         id,
-        kind: parseKind(parsed.kind),
+        type: parseType(parsed.type),
         title: parsed.title || "(untitled)",
         links: parsed.links || {},
       });
@@ -82,12 +82,12 @@ function refs(node: Node, key: "prds" | "specs" | "todos", root: string): string
 }
 
 function addIssue(list: Issue[], node: Node, issue: string): void {
-  list.push({ kind: node.kind, name: node.title, issue, file: node.path });
+  list.push({ type: node.type, name: node.title, issue, file: node.path });
 }
 
 function addRec(list: Recommendation[], node: Node, target: Node, reason: string): void {
   if (list.some((item) => item.target === target.path)) return;
-  list.push({ target: target.path, kind: target.kind, name: target.title, reason });
+  list.push({ target: target.path, type: target.type, name: target.title, reason });
 }
 
 export async function validateItem(
@@ -117,11 +117,11 @@ export async function validateItem(
         continue;
       }
       const expect = key === "prds" ? "prd" : key === "specs" ? "spec" : "todo";
-      if (target.kind !== expect) {
+      if (target.type !== expect) {
         addIssue(issues, current, `bucket mismatch for ${target.title}`);
         continue;
       }
-      const back = bucket(current.kind);
+      const back = bucket(current.type);
       const targetBase = target.links.root_abs || root;
       const targetLinks = target.links[back] || [];
       const expectBack = rel(targetBase, current.path);
@@ -131,7 +131,7 @@ export async function validateItem(
       }
     }
   }
-  if (current.kind === "todo") {
+  if (current.type === "todo") {
     const todoSpecs = new Set<string>(refs(current, "specs", root));
     for (const prdPath of refs(current, "prds", root)) {
       const prd = map.get(prdPath);
@@ -146,7 +146,7 @@ export async function validateItem(
       }
     }
   }
-  if (current.kind === "spec") {
+  if (current.type === "spec") {
     const specPrds = new Set<string>(refs(current, "prds", root));
     for (const todoPath of refs(current, "todos", root)) {
       const todo = map.get(todoPath);
@@ -161,7 +161,7 @@ export async function validateItem(
       }
     }
   }
-  if (current.kind === "prd") {
+  if (current.type === "prd") {
     const prdSpecs = new Set<string>(refs(current, "specs", root));
     for (const todoPath of refs(current, "todos", root)) {
       const todo = map.get(todoPath);

@@ -1,6 +1,6 @@
 ---
 id: e3bf91aa
-kind: todo
+type: todo
 title: Gate internal cli execution
 tags:
   - cli

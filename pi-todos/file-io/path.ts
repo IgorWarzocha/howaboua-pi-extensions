@@ -21,14 +21,14 @@ export function getTodoSettingsPath(todosDir: string): string {
   return path.join(todosDir, TODO_SETTINGS_NAME);
 }
 
-function group(kind: string): string {
-  if (kind === "prd") return "prds";
-  if (kind === "spec") return "specs";
+function group(type: string): string {
+  if (type === "prd") return "prds";
+  if (type === "spec") return "specs";
   return "todos";
 }
 
-export function getTodoPath(todosDir: string, id: string, kind?: string): string {
-  if (kind) return path.join(todosDir, group(kind), `${id}.md`);
+export function getTodoPath(todosDir: string, id: string, type?: string): string {
+  if (type) return path.join(todosDir, group(type), `${id}.md`);
   const direct = path.join(todosDir, `${id}.md`);
   if (existsSync(direct)) return direct;
   const prd = path.join(todosDir, "prds", `${id}.md`);
