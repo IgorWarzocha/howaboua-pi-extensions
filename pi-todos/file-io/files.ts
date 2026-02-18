@@ -15,6 +15,7 @@ export async function readTodoFile(filePath: string, idFallback: string): Promis
 }
 
 export async function writeTodoFile(filePath: string, todo: TodoRecord): Promise<void> {
+  todo.modified_at = new Date().toISOString();
   await fs.writeFile(filePath, serializeTodo(todo), "utf8");
 }
 

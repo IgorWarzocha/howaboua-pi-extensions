@@ -31,30 +31,37 @@ export async function readTodoSettings(todosDir: string): Promise<TodoSettings> 
 
 export async function garbageCollectTodos(todosDir: string, settings: TodoSettings): Promise<void> {
   if (!settings.gc) return;
-  let entries: string[] = [];
-  try {
-    entries = await fs.readdir(todosDir);
-  } catch {
-    return;
+  const groups = ["prds", "specs", "todos"];
+  const files: string[] = [];
+  for (const group of groups) {
+    let entries: string[] = [];
+    try {
+      entries = await fs.readdir(`${todosDir}/${group}`);
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      if (!entry.endsWith(".md")) continue;
+      files.push(`${todosDir}/${group}/${entry}`);
+    }
   }
   const cutoff = Date.now() - settings.gcDays * 24 * 60 * 60 * 1000;
   await Promise.all(
-    entries
-      .filter((entry) => entry.endsWith(".md"))
-      .map(async (entry) => {
-        const id = entry.slice(0, -3);
-        const filePath = `${todosDir}/${entry}`;
-        try {
-          const content = await fs.readFile(filePath, "utf8");
-          const parts = splitFrontMatter(content);
-          const parsed = parseFrontMatter(parts.frontMatter, id);
-          if (!isTodoClosed(parsed.status)) return;
-          const stats = await fs.stat(filePath);
-          if (!Number.isFinite(stats.mtimeMs)) return;
-          if (stats.mtimeMs < cutoff) await fs.unlink(filePath);
-        } catch {
-          return;
-        }
-      }),
+    files.map(async (filePath) => {
+      const file = filePath.split("/").pop() || "";
+      if (!file.endsWith(".md")) return;
+      const id = file.slice(0, -3);
+      try {
+        const content = await fs.readFile(filePath, "utf8");
+        const parts = splitFrontMatter(content);
+        const parsed = parseFrontMatter(parts.frontMatter, id);
+        if (!isTodoClosed(parsed.status)) return;
+        const stats = await fs.stat(filePath);
+        if (!Number.isFinite(stats.mtimeMs)) return;
+        if (stats.mtimeMs < cutoff) await fs.unlink(filePath);
+      } catch {
+        return;
+      }
+    }),
   );
 }

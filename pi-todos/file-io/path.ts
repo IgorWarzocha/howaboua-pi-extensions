@@ -1,6 +1,6 @@
 import path from "node:path";
+import { existsSync } from "node:fs";
 import { TODO_DIR_NAME, TODO_PATH_ENV, TODO_SETTINGS_NAME } from "../constants.js";
-
 export function getTodosDir(cwd: string): string {
   const overridePath = process.env[TODO_PATH_ENV];
   if (overridePath && overridePath.trim()) {
@@ -9,7 +9,7 @@ export function getTodosDir(cwd: string): string {
   return path.resolve(cwd, TODO_DIR_NAME);
 }
 
-export function getTodosDirLabel(cwd: string): string {
+export function getTodosDirLabel(): string {
   const overridePath = process.env[TODO_PATH_ENV];
   if (overridePath && overridePath.trim()) {
     return overridePath.trim();
@@ -21,6 +21,21 @@ export function getTodoSettingsPath(todosDir: string): string {
   return path.join(todosDir, TODO_SETTINGS_NAME);
 }
 
-export function getTodoPath(todosDir: string, id: string): string {
-  return path.join(todosDir, `${id}.md`);
+function group(kind: string): string {
+  if (kind === "prd") return "prds";
+  if (kind === "spec") return "specs";
+  return "todos";
+}
+
+export function getTodoPath(todosDir: string, id: string, kind?: string): string {
+  if (kind) return path.join(todosDir, group(kind), `${id}.md`);
+  const direct = path.join(todosDir, `${id}.md`);
+  if (existsSync(direct)) return direct;
+  const prd = path.join(todosDir, "prds", `${id}.md`);
+  if (existsSync(prd)) return prd;
+  const spec = path.join(todosDir, "specs", `${id}.md`);
+  if (existsSync(spec)) return spec;
+  const todo = path.join(todosDir, "todos", `${id}.md`);
+  if (existsSync(todo)) return todo;
+  return path.join(todosDir, "todos", `${id}.md`);
 }
