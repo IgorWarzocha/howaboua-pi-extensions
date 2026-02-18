@@ -43,6 +43,9 @@ export class TodoActionMenuComponent extends Container {
     this.selectList.onCancel = () => this.onCancelCallback();
 
     this.addChild(this.selectList);
+    for (let index = entries.length; index < 9; index += 1) {
+      this.addChild(new Text("⠀", 0, 0));
+    }
     this.footerText = new Text(theme.fg("dim", opts?.footer ?? "Enter to confirm • Esc back"));
     this.addChild(this.footerText);
     this.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));

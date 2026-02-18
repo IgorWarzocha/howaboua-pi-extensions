@@ -31,7 +31,7 @@ export class TodoSelectorComponent extends Container implements Focusable {
   private hintText: Text;
   private currentSessionId?: string;
   private onQuickAction?: (todo: TodoFrontMatter | null, action: TodoQuickAction) => void;
-  private onTabCallback?: () => void;
+  private onTabCallback?: (direction: "next" | "prev") => void;
   private onCommandCallback?: (
     action: "sweep-abandoned" | "sweep-completed" | "review-all" | "repair-frontmatter",
   ) => void;
@@ -62,7 +62,7 @@ export class TodoSelectorComponent extends Container implements Focusable {
     initialSearchInput?: string,
     currentSessionId?: string,
     onQuickAction?: (todo: TodoFrontMatter | null, action: TodoQuickAction) => void,
-    onTab?: () => void,
+    onTab?: (direction: "next" | "prev") => void,
     onCommand?: (
       action: "sweep-abandoned" | "sweep-completed" | "review-all" | "repair-frontmatter",
     ) => void,
@@ -244,7 +244,8 @@ export class TodoSelectorComponent extends Container implements Focusable {
     }
     if (intent === "confirm") return this.confirmSelection();
     if (intent === "cancel") return this.onCancelCallback();
-    if (intent === "tab") return this.onTabCallback?.();
+    if (intent === "tab") return this.onTabCallback?.("next");
+    if (intent === "tab-back") return this.onTabCallback?.("prev");
   }
 
   override invalidate(): void {

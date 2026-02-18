@@ -223,6 +223,15 @@ export async function runTodoUi(
       ctx.ui.notify("Todo not found", "error");
       return null;
     };
+    const matchHeight = (lines: string[], target: number): string[] => {
+      if (target <= 0) return lines;
+      if (lines.length >= target) return lines.slice(0, target);
+      if (!lines.length) return Array.from({ length: target }, () => "⠀");
+      const last = lines[lines.length - 1] || "";
+      const head = lines.slice(0, -1);
+      const fill = Array.from({ length: target - lines.length }, () => "⠀");
+      return [...head, ...fill, last];
+    };
     const openDetailOverlay = async (
       record: TodoRecord,
       source: TodoListMode,
@@ -311,7 +320,7 @@ export async function runTodoUi(
                 return;
               }
               if (data === "\u0018" || matchesKey(data, Key.ctrl("x"))) return startLeader();
-              if (data === "\u001b" || data === "b" || data === "B") {
+              if (matchesKey(data, Key.escape) || data === "\u001b" || data === "b" || data === "B") {
                 doneOverlay();
                 return;
               }
@@ -414,7 +423,9 @@ export async function runTodoUi(
       );
       const detailView = {
         render(width: number) {
-          return detailMenu.render(width);
+          const base = selectors[source] ?? currentSelector();
+          const target = base ? base.render(width).length : 0;
+          return matchHeight(detailMenu.render(width), target);
         },
         invalidate() {
           detailMenu.invalidate();
@@ -711,7 +722,12 @@ export async function runTodoUi(
                 ctx,
                 resolve,
               ),
-        () => {
+        (direction) => {
+          if (direction === "prev") {
+            index = (index - 1 + modes.length) % modes.length;
+            setActive(currentSelector());
+            return;
+          }
           index = (index + 1) % modes.length;
           setActive(currentSelector());
         },

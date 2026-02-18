@@ -89,8 +89,6 @@ export function renderList(
   for (let index = lines.length; index < LIST_ROWS; index += 1) {
     listContainer.addChild(new Text("⠀", 0, 0));
   }
-  const pointer = totalItems ? safeIndex + 1 : 0;
-  listContainer.addChild(new Text(theme.fg("dim", `  (${pointer}/${totalItems})`), 0, 0));
 }
 
 export function renderAll(
