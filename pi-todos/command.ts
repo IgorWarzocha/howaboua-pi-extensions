@@ -1,40 +1,17 @@
 import type { ExtensionAPI, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
+import { formatTodoList } from "./format.js";
+import { getTodosDir, listTodos } from "./file-io.js";
 import { getTodoCompletions } from "./command/completions.js";
-import { blockedResponse } from "./command/internal.js";
 import { runTodoUi } from "./command/ui.js";
 
 export function registerTodoCommand(pi: ExtensionAPI) {
   pi.registerCommand("todo", {
-    description: "List plan items from .pi/plans",
+    description: "List todos from .pi/todos",
     getArgumentCompletions: (argumentPrefix: string) => getTodoCompletions(argumentPrefix),
     handler: async (args: string, ctx: ExtensionCommandContext) => {
-      const trimmed = (args || "").trim();
-      if (trimmed.startsWith("--internal")) {
-        process.stdout.write(
-          `${JSON.stringify({ ok: false, error: "internal mode is temporarily disabled" })}\n`,
-        );
-        return;
-      }
-
-      /*
-      if (trimmed.startsWith("--internal")) {
-        try {
-          const payload = parseInternalArgs(trimmed);
-          if (!payload) {
-            process.stdout.write(`${blockedResponse()}\n`);
-            return;
-          }
-          process.stdout.write(`${await runInternal(payload, ctx)}\n`);
-          return;
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "invalid internal payload";
-          process.stdout.write(`${JSON.stringify({ ok: false, error: message })}\n`);
-          return;
-        }
-      }
-      */
+      const todos = await listTodos(getTodosDir(ctx.cwd));
       if (!ctx.hasUI) {
-        process.stdout.write(`${blockedResponse()}\n`);
+        process.stdout.write(`${formatTodoList(todos)}\n`);
         return;
       }
       const nextPrompt = await runTodoUi(args, ctx);

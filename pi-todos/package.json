@@ -16,15 +16,12 @@
     "verify": "bun run format && bun run typecheck && bun run format:check && bun run build"
   },
   "dependencies": {
-    "yaml": "^2.8.1"
+    "@sinclair/typebox": "^0.34.41"
   },
   "peerDependencies": {
     "@mariozechner/pi-ai": "*",
     "@mariozechner/pi-coding-agent": "*",
     "@mariozechner/pi-tui": "*"
-  },
-  "devDependencies": {
-    "@types/node": "^24.3.0"
   },
   "pi": {
     "extensions": [

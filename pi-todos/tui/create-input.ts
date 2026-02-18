@@ -7,13 +7,7 @@ export class TodoCreateInputComponent extends Container {
   private onSubmitCallback: (prompt: string) => void;
   private onCancelCallback: () => void;
 
-  constructor(
-    tui: TUI,
-    theme: Theme,
-    onSubmit: (prompt: string) => void,
-    onCancel: () => void,
-    options?: { title?: string; description?: string },
-  ) {
+  constructor(tui: TUI, theme: Theme, onSubmit: (prompt: string) => void, onCancel: () => void) {
     super();
     this.onSubmitCallback = onSubmit;
     this.onCancelCallback = onCancel;
@@ -21,15 +15,14 @@ export class TodoCreateInputComponent extends Container {
     this.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
     this.addChild(new Spacer(1));
 
-    this.addChild(new Text(theme.fg("accent", theme.bold(options?.title || "Create New Todo")), 1, 0));
+    this.addChild(new Text(theme.fg("accent", theme.bold("Create New Todo")), 1, 0));
     this.addChild(new Spacer(1));
 
     this.addChild(
       new Text(
         theme.fg(
           "muted",
-          options?.description ||
-            "Describe the task. The AI will read files and ask questions before creating.",
+          "Describe the task. The AI will read files and ask questions before creating.",
         ),
         1,
         0,
@@ -49,7 +42,9 @@ export class TodoCreateInputComponent extends Container {
     });
     this.editor.onSubmit = (value) => {
       const prompt = value.trim();
-      if (prompt) this.onSubmitCallback(prompt);
+      if (prompt) {
+        this.onSubmitCallback(prompt);
+      }
     };
     this.addChild(this.editor);
 
@@ -74,4 +69,3 @@ export class TodoCreateInputComponent extends Container {
     super.invalidate();
   }
 }
-

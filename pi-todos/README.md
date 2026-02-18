@@ -2,7 +2,10 @@
 
 `pi-todos` adds a practical, checklist-first todo system to Pi.
 
-It gives you an interactive `/todo` terminal UI for fast manual control.
+It gives you two ways to work:
+
+- a natural-language tool flow for agents
+- an interactive `/todo` terminal UI for fast manual control
 
 The extension is designed for real task tracking during coding sessions, not just note-taking.
 
@@ -57,6 +60,17 @@ In the UI you can:
   - `Shift+Enter`, `Ctrl+Enter`, or `Alt+Enter` insert new lines
   - input wraps across lines for longer task descriptions
 
+### 3. Use the tool in agent flows
+
+The `todo` tool supports these actions:
+
+- `list`, `list-all`, `get`
+- `create`, `update`, `append`
+- `claim`, `release`
+- `tick`
+
+Titles are user-facing references. Internal IDs stay internal.
+
 ## Assignment and collaboration behavior
 
 `pi-todos` supports multi-session safety:
@@ -67,12 +81,13 @@ In the UI you can:
 
 ## Storage
 
-Plans are stored as markdown files with frontmatter in your project plans directory.
+Todos are stored as markdown files with frontmatter in your project todo directory.
 
 By default, this is:
 
-- `.pi/plans/prds`, `.pi/plans/specs`, and `.pi/plans/todos`
+- `.pi/todos`
 
+You can override the location with the todo path environment variable supported by the extension.
 
 ## Why this extension is useful
 

@@ -17,4 +17,3 @@ export {
   reopenTodoForUser,
 } from "./file-io/actions.js";
 export { filterTodos } from "./filter.js";
-export { attachLinks } from "./file-io/links.js";
