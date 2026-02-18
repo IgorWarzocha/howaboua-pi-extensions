@@ -4,7 +4,6 @@ import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
 import type { TodoRecord } from "../types.js";
 import { validateTodoId } from "../parser.js";
 import { clearAssignmentIfClosed, displayTodoId, isTodoClosed } from "../format.js";
-import { withTodoLock } from "../lock.js";
 import { ensureTodoExists, writeTodoFile } from "./files.js";
 import { getTodoPath } from "./path.js";
 
@@ -28,13 +27,9 @@ async function withExisting(
   const filePath = getTodoPath(todosDir, normalizedId);
   if (!existsSync(filePath)) return notFound(id);
   const sessionId = ctx.sessionManager.getSessionId();
-  const result = await withTodoLock(todosDir, normalizedId, ctx, async () => {
-    const existing = await ensureTodoExists(filePath, normalizedId);
-    if (!existing) return notFound(id);
-    return run(existing, filePath, sessionId);
-  });
-  if (typeof result === "object" && "error" in result) return { error: result.error };
-  return result;
+  const existing = await ensureTodoExists(filePath, normalizedId);
+  if (!existing) return notFound(id);
+  return run(existing, filePath, sessionId);
 }
 
 export async function updateTodoStatus(
@@ -67,6 +62,9 @@ export async function claimTodoAssignment(
     }
     if (assigned !== sessionId) {
       existing.assigned_to_session = sessionId;
+      const sessionFile = ctx.sessionManager.getSessionFile();
+      existing.assigned_to_session_file =
+        sessionFile && sessionFile.trim() ? sessionFile : undefined;
       await writeTodoFile(filePath, existing);
     }
     return existing;
@@ -88,6 +86,7 @@ export async function releaseTodoAssignment(
       };
     }
     existing.assigned_to_session = undefined;
+    existing.assigned_to_session_file = undefined;
     await writeTodoFile(filePath, existing);
     return existing;
   });
@@ -119,6 +118,7 @@ export async function reopenTodoForUser(
     }
     existing.status = "open";
     existing.assigned_to_session = undefined;
+    existing.assigned_to_session_file = undefined;
     await writeTodoFile(filePath, existing);
     return existing;
   });

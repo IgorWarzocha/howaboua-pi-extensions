@@ -14,9 +14,21 @@ export function isTodoClosed(status: string): boolean {
   return ["closed", "done", "abandoned"].includes(status.toLowerCase());
 }
 
+function isChecklistItemDone(item: { status?: string; done?: boolean }): boolean {
+  if (typeof item.done === "boolean") return item.done;
+  return item.status === "checked";
+}
+
+function countChecklistDone(todo: {
+  checklist?: Array<{ status?: string; done?: boolean }>;
+}): number {
+  if (!todo.checklist?.length) return 0;
+  return todo.checklist.filter((item) => isChecklistItemDone(item)).length;
+}
+
 export function deriveTodoStatus(todo: TodoRecord): string {
   if (!todo.checklist?.length) return todo.status;
-  const checked = todo.checklist.filter((i) => i.status === "checked").length;
+  const checked = countChecklistDone(todo);
   if (checked === 0) return "open";
   if (checked === todo.checklist.length) return "done";
   return "in-progress";
@@ -24,7 +36,7 @@ export function deriveTodoStatus(todo: TodoRecord): string {
 
 export function formatChecklistProgress(todo: TodoFrontMatter): string {
   if (!todo.checklist?.length) return "";
-  const checked = todo.checklist.filter((i) => i.status === "checked").length;
+  const checked = countChecklistDone(todo);
   return ` (${checked}/${todo.checklist.length})`;
 }
 
@@ -37,19 +49,22 @@ export function getTodoStatus(todo: TodoFrontMatter): string {
 }
 
 export function clearAssignmentIfClosed(todo: TodoFrontMatter): void {
-  if (isTodoClosed(getTodoStatus(todo))) todo.assigned_to_session = undefined;
+  if (!isTodoClosed(getTodoStatus(todo))) return;
+  todo.assigned_to_session = undefined;
+  todo.assigned_to_session_file = undefined;
 }
 
 export function sortTodos(todos: TodoFrontMatter[]): TodoFrontMatter[] {
   const rank = (todo: TodoFrontMatter): number => {
-    const status = todo.status.toLowerCase();
+    const status = deriveTodoStatus(todo as TodoRecord).toLowerCase();
     if (status === "done") return 0;
     if (status === "closed") return 1;
     if (status === "abandoned") return 2;
     return 3;
   };
   const openRank = (todo: TodoFrontMatter): number => {
-    const status = todo.status.toLowerCase();
+    const status = deriveTodoStatus(todo as TodoRecord).toLowerCase();
+    if (status === "done") return -1;
     if (status === "in-progress") return 0;
     if (status === "open") return 1;
     return 2;
@@ -60,8 +75,10 @@ export function sortTodos(todos: TodoFrontMatter[]): TodoFrontMatter[] {
     return value;
   };
   return [...todos].sort((a, b) => {
-    const aClosed = isTodoClosed(a.status);
-    const bClosed = isTodoClosed(b.status);
+    const aStatus = deriveTodoStatus(a as TodoRecord);
+    const bStatus = deriveTodoStatus(b as TodoRecord);
+    const aClosed = isTodoClosed(aStatus);
+    const bClosed = isTodoClosed(bStatus);
     if (aClosed !== bClosed) return aClosed ? 1 : -1;
     if (!aClosed) {
       const aOpenRank = openRank(a);

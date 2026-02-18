@@ -1,12 +1,70 @@
+import fs from "node:fs";
 import type { ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
 import type { TodoFrontMatter, TodoMenuAction, TodoQuickAction, TodoRecord } from "../types.js";
-import { buildRefinePrompt, getTodoTitle } from "../format.js";
+import { resolveLinkedPaths } from "../format.js";
 import {
+  claimTodoAssignment,
   deleteTodo,
+  getTodoPath,
   releaseTodoAssignment,
   reopenTodoForUser,
   updateTodoStatus,
 } from "../file-io.js";
+import { ensureWorktree } from "../worktree.js";
+import * as flow from "../gui/actions.js";
+
+function validateLinks(record: TodoFrontMatter): { ok: true } | { error: string } {
+  if (!record.links) return { ok: true };
+  const root = record.links.root_abs || "";
+  const paths = resolveLinkedPaths(record.links);
+  const hasRelative = paths.some((p) => !p.startsWith("/"));
+  if (hasRelative && !root)
+    return { error: "links.root_abs is required when links contain repo-relative files." };
+  for (const item of paths) {
+    if (!fs.existsSync(item)) return { error: `Required linked file not found: ${item}` };
+  }
+  return { ok: true };
+}
+
+function withWorktree(prompt: string, worktreePath?: string): string {
+  if (!worktreePath) return prompt;
+  return (
+    `You MUST execute this task from worktree path "${worktreePath}".\n` +
+    `Before any edits, you MUST set your working directory to "${worktreePath}" and keep all repo operations scoped there.\n\n` +
+    prompt
+  );
+}
+
+async function runWork(
+  todosDir: string,
+  record: TodoFrontMatter,
+  ctx: ExtensionCommandContext,
+  done: () => void,
+  setPrompt: (value: string) => void,
+): Promise<"stay" | "exit"> {
+  const links = validateLinks(record);
+  if ("error" in links) {
+    ctx.ui.notify(links.error, "error");
+    return "stay";
+  }
+  let worktreePath: string | undefined;
+  try {
+    const worktree = await ensureWorktree(record, ctx);
+    if ("path" in worktree) {
+      worktreePath = worktree.path;
+      if (worktree.created) ctx.ui.notify(`Created worktree ${worktree.path}`, "info");
+      if (!worktree.created) ctx.ui.notify(`Switched worktree ${worktree.path}`, "info");
+    }
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Unknown worktree setup error";
+    ctx.ui.notify(`Worktree setup failed: ${message}`, "error");
+    return "stay";
+  }
+  const filePath = getTodoPath(todosDir, record.id, record.type);
+  setPrompt(withWorktree(flow.work(record, filePath), worktreePath));
+  done();
+  return "exit";
+}
 
 export async function applyTodoAction(
   todosDir: string,
@@ -18,16 +76,38 @@ export async function applyTodoAction(
   setPrompt: (value: string) => void,
 ): Promise<"stay" | "exit"> {
   if (action === "refine") {
-    setPrompt(buildRefinePrompt(record.title || "(untitled)"));
+    const filePath = getTodoPath(todosDir, record.id, record.type);
+    setPrompt(flow.refine(record, filePath));
     done();
     return "exit";
   }
-  if (action === "work") {
-    setPrompt(`work on todo "${record.title || "(untitled)"}"`);
+  if (action === "work") return runWork(todosDir, record, ctx, done, setPrompt);
+  if (action === "review-item") {
+    const links = validateLinks(record);
+    if ("error" in links) {
+      ctx.ui.notify(links.error, "error");
+      return "stay";
+    }
+    const filePath = getTodoPath(todosDir, record.id, record.type);
+    setPrompt(flow.review(record, filePath));
     done();
     return "exit";
   }
   if (action === "view") return "stay";
+  if (action === "edit-checklist") return "stay";
+  if (action === "attach-links") return "stay";
+  if (action === "validate-links") return "stay";
+  if (action === "audit") return "stay";
+  if (action === "assign") {
+    const result = await claimTodoAssignment(todosDir, record.id, ctx, false);
+    if ("error" in result) {
+      ctx.ui.notify(result.error, "error");
+      return "stay";
+    }
+    await refresh();
+    ctx.ui.notify(flow.assigned(record), "info");
+    return "stay";
+  }
   if (action === "release") {
     const result = await releaseTodoAssignment(todosDir, record.id, ctx, true);
     if ("error" in result) {
@@ -35,8 +115,29 @@ export async function applyTodoAction(
       return "stay";
     }
     await refresh();
-    ctx.ui.notify(`Released todo "${record.title || "(untitled)"}"`, "info");
+    ctx.ui.notify(flow.released(record), "info");
     return "stay";
+  }
+  if (action === "go-to-session") {
+    const sessionPath = record.assigned_to_session_file;
+    if (!sessionPath) {
+      ctx.ui.notify("No assigned session path stored on this item.", "error");
+      return "stay";
+    }
+    const anyCtx = ctx as unknown as {
+      switchSession?: (path: string) => Promise<{ cancelled: boolean }>;
+    };
+    if (!anyCtx.switchSession) {
+      ctx.ui.notify("Session switching is unavailable in this runtime. Use /resume.", "error");
+      return "stay";
+    }
+    const result = await anyCtx.switchSession(sessionPath);
+    if (result.cancelled) {
+      ctx.ui.notify("Session switch cancelled.", "error");
+      return "stay";
+    }
+    done();
+    return "exit";
   }
   if (action === "delete") {
     const removed = await deleteTodo(todosDir, record.id, ctx);
@@ -45,7 +146,7 @@ export async function applyTodoAction(
       return "stay";
     }
     await refresh();
-    ctx.ui.notify(`Deleted todo "${record.title || "(untitled)"}"`, "info");
+    ctx.ui.notify(flow.deleted(record), "info");
     return "stay";
   }
   if (action === "reopen") {
@@ -55,7 +156,7 @@ export async function applyTodoAction(
       return "stay";
     }
     await refresh();
-    ctx.ui.notify(`Reopened todo "${record.title || "(untitled)"}" and reset checklist`, "info");
+    ctx.ui.notify(flow.reopened(record), "info");
     return "stay";
   }
   const status = action === "complete" ? "done" : "abandoned";
@@ -65,24 +166,32 @@ export async function applyTodoAction(
     return "stay";
   }
   await refresh();
-  ctx.ui.notify(
-    `${action === "complete" ? "Completed" : "Abandoned"} todo "${record.title || "(untitled)"}"`,
-    "info",
-  );
+  ctx.ui.notify(flow.done(action === "complete" ? "complete" : "abandon", record), "info");
   return "stay";
 }
 
-export function handleQuickAction(
+export async function handleQuickAction(
+  todosDir: string,
   todo: TodoFrontMatter | null,
   action: TodoQuickAction,
   showCreateInput: () => void,
   done: () => void,
   setPrompt: (value: string) => void,
-): void {
+  ctx: ExtensionCommandContext,
+  resolve: (todo: TodoFrontMatter) => Promise<TodoRecord | null>,
+): Promise<void> {
   if (action === "create") return showCreateInput();
   if (!todo) return;
-  const title = getTodoTitle(todo);
-  if (action === "refine") setPrompt(buildRefinePrompt(title));
-  if (action === "work") setPrompt(`work on todo "${title}"`);
-  done();
+  if (action === "refine") {
+    const filePath = getTodoPath(todosDir, todo.id, todo.type);
+    setPrompt(flow.refine(todo, filePath));
+    done();
+    return;
+  }
+  if (action === "work") {
+    const record = await resolve(todo);
+    if (!record) return;
+    await runWork(todosDir, record, ctx, done, setPrompt);
+    return;
+  }
 }

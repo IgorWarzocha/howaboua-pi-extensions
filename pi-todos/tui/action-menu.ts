@@ -3,6 +3,7 @@ import type { Theme } from "@mariozechner/pi-coding-agent";
 import { DynamicBorder } from "@mariozechner/pi-coding-agent";
 import type { TodoRecord, TodoMenuAction } from "../types.js";
 import { isTodoClosed } from "../format.js";
+import { items } from "../gui/menu.js";
 
 export class TodoActionMenuComponent extends Container {
   private selectList: SelectList;
@@ -25,30 +26,12 @@ export class TodoActionMenuComponent extends Container {
 
     const closed = isTodoClosed(todo.status);
     const title = todo.title || "(untitled)";
-    const items: SelectItem[] = [
-      { value: "work", label: "work", description: "Work on todo" },
-      ...(closed
-        ? [
-            { value: "reopen", label: "reopen", description: "Reopen todo" },
-            { value: "delete", label: "delete", description: "Delete todo" },
-          ]
-        : [
-            { value: "refine", label: "refine", description: "Refine todo scope" },
-            { value: "complete", label: "complete", description: "Mark todo as completed" },
-            { value: "abandon", label: "abandon", description: "Mark todo as abandoned" },
-          ]),
-      ...(todo.assigned_to_session
-        ? [{ value: "release", label: "release", description: "Release assignment" }]
-        : []),
-      ...(opts?.showView === false
-        ? []
-        : [{ value: "view", label: "view", description: "View details" }]),
-    ];
+    const entries: SelectItem[] = items(todo, closed, opts?.showView !== false);
 
     this.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
     this.addChild(new Text(theme.fg("accent", theme.bold(`Actions for "${title}"`))));
 
-    this.selectList = new SelectList(items, items.length, {
+    this.selectList = new SelectList(entries, 9, {
       selectedPrefix: (text) => theme.fg("accent", text),
       selectedText: (text) => theme.fg("accent", text),
       description: (text) => theme.fg("muted", text),
@@ -60,6 +43,9 @@ export class TodoActionMenuComponent extends Container {
     this.selectList.onCancel = () => this.onCancelCallback();
 
     this.addChild(this.selectList);
+    for (let index = entries.length; index < 9; index += 1) {
+      this.addChild(new Text("⠀", 0, 0));
+    }
     this.footerText = new Text(theme.fg("dim", opts?.footer ?? "Enter to confirm • Esc back"));
     this.addChild(this.footerText);
     this.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));

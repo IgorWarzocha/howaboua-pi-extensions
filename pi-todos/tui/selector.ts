@@ -9,12 +9,13 @@ import {
 } from "@mariozechner/pi-tui";
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import { DynamicBorder } from "@mariozechner/pi-coding-agent";
-import type { TodoFrontMatter, TodoQuickAction } from "../types.js";
+import type { TodoFrontMatter, TodoListMode, TodoQuickAction } from "../types.js";
 import { filterTodos } from "../filter.js";
 import { mapIntent } from "./selector-keys.js";
 import { renderAll } from "./selector-view.js";
 
 const CREATE_ITEM_ID = "__CREATE__";
+const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
 export class TodoSelectorComponent extends Container implements Focusable {
   private searchInput: Input;
@@ -30,13 +31,18 @@ export class TodoSelectorComponent extends Container implements Focusable {
   private hintText: Text;
   private currentSessionId?: string;
   private onQuickAction?: (todo: TodoFrontMatter | null, action: TodoQuickAction) => void;
-  private onTabCallback?: () => void;
-  private onCommandCallback?: (action: "sweep-abandoned" | "sweep-completed") => void;
-  private mode: "open" | "closed";
+  private onTabCallback?: (direction: "next" | "prev") => void;
+  private onCommandCallback?: (
+    action: "sweep-abandoned" | "sweep-completed" | "review-all" | "repair-frontmatter",
+  ) => void;
+  private mode: TodoListMode;
   private leaderActive = false;
   private leaderTimer: ReturnType<typeof setTimeout> | null = null;
   private searchActive = false;
   private _focused = false;
+  private repairing = false;
+  private spin = 0;
+  private timer: ReturnType<typeof setInterval> | null = null;
 
   get focused(): boolean {
     return this._focused;
@@ -56,9 +62,11 @@ export class TodoSelectorComponent extends Container implements Focusable {
     initialSearchInput?: string,
     currentSessionId?: string,
     onQuickAction?: (todo: TodoFrontMatter | null, action: TodoQuickAction) => void,
-    onTab?: () => void,
-    onCommand?: (action: "sweep-abandoned" | "sweep-completed") => void,
-    mode: "open" | "closed" = "open",
+    onTab?: (direction: "next" | "prev") => void,
+    onCommand?: (
+      action: "sweep-abandoned" | "sweep-completed" | "review-all" | "repair-frontmatter",
+    ) => void,
+    mode: TodoListMode = "tasks",
   ) {
     super();
     this.tui = tui;
@@ -100,11 +108,11 @@ export class TodoSelectorComponent extends Container implements Focusable {
     this.allTodos = todos;
     this.applyFilter(this.searchInput.getValue());
   }
-
   private getSelectedItem(): TodoFrontMatter | null {
-    if (this.selectedIndex === 0)
+    if (this.mode !== "closed" && this.selectedIndex === 0)
       return { id: CREATE_ITEM_ID, title: "", tags: [], status: "", created_at: "" };
-    return this.filteredTodos[this.selectedIndex - 1] ?? null;
+    const offset = this.mode === "closed" ? 0 : 1;
+    return this.filteredTodos[this.selectedIndex - offset] ?? null;
   }
 
   private clearLeader(): void {
@@ -129,16 +137,15 @@ export class TodoSelectorComponent extends Container implements Focusable {
   }
 
   private runLeader(keyData: string): boolean {
-    const selected = this.filteredTodos[this.selectedIndex - 1] ?? null;
-    if (keyData === "x" || keyData === "X") return (this.clearLeader(), true);
-    if (keyData === "c" || keyData === "C")
-      return (this.onQuickAction?.(null, "create"), this.clearLeader(), true);
+    const selected = this.getSelectedItem();
     if ((keyData === "w" || keyData === "W") && selected)
       return (this.onQuickAction?.(selected, "work"), this.clearLeader(), true);
-    if ((keyData === "r" || keyData === "R") && selected)
-      return (this.onQuickAction?.(selected, "refine"), this.clearLeader(), true);
-    if ((keyData === "v" || keyData === "V") && selected)
-      return (this.onSelectCallback(selected), this.clearLeader(), true);
+    if (keyData === "c" || keyData === "C")
+      return (this.onQuickAction?.(null, "create"), this.clearLeader(), true);
+    if (keyData === "y" || keyData === "Y")
+      return (this.onCommandCallback?.("review-all"), this.clearLeader(), true);
+    if (keyData === "r" || keyData === "R")
+      return (this.onCommandCallback?.("repair-frontmatter"), this.clearLeader(), true);
     if ((keyData === "a" || keyData === "A") && this.mode === "closed")
       return (this.onCommandCallback?.("sweep-abandoned"), this.clearLeader(), true);
     if ((keyData === "d" || keyData === "D") && this.mode === "closed")
@@ -156,7 +163,8 @@ export class TodoSelectorComponent extends Container implements Focusable {
 
   private applyFilter(query: string): void {
     this.filteredTodos = filterTodos(this.allTodos, query);
-    this.selectedIndex = Math.min(this.selectedIndex, this.filteredTodos.length);
+    const max = Math.max(0, this.filteredTodos.length - (this.mode === "closed" ? 1 : 0));
+    this.selectedIndex = Math.min(this.selectedIndex, max);
     this.renderState();
   }
 
@@ -173,9 +181,31 @@ export class TodoSelectorComponent extends Container implements Focusable {
       this.currentSessionId,
       this.leaderActive,
     );
+    if (!this.repairing) return;
+    const frame = SPINNER[this.spin % SPINNER.length] || "⠋";
+    this.hintText.setText(this.theme.fg("warning", `${frame} Repairing frontmatter...`));
+    this.tui.requestRender();
+  }
+
+  setRepairing(value: boolean): void {
+    this.repairing = value;
+    if (!value) {
+      if (this.timer) clearInterval(this.timer);
+      this.timer = null;
+      this.spin = 0;
+      this.renderState();
+      return;
+    }
+    if (this.timer) clearInterval(this.timer);
+    this.timer = setInterval(() => {
+      this.spin = (this.spin + 1) % SPINNER.length;
+      this.renderState();
+    }, 100);
+    this.renderState();
   }
 
   handleInput(keyData: string): void {
+    if (this.repairing) return;
     if (!this.searchActive && keyData === "/") return this.startSearch();
     if (this.searchActive) {
       const kb = getEditorKeybindings();
@@ -197,7 +227,7 @@ export class TodoSelectorComponent extends Container implements Focusable {
       this.applyFilter(this.searchInput.getValue());
       return;
     }
-    const totalItems = this.filteredTodos.length + 1;
+    const totalItems = this.filteredTodos.length + (this.mode === "closed" ? 0 : 1);
     const intent = mapIntent(keyData, this.mode);
     if (this.leaderActive) {
       if (intent === "leader") return this.clearLeader();
@@ -214,11 +244,18 @@ export class TodoSelectorComponent extends Container implements Focusable {
     }
     if (intent === "confirm") return this.confirmSelection();
     if (intent === "cancel") return this.onCancelCallback();
-    if (intent === "tab") return this.onTabCallback?.();
+    if (intent === "tab") return this.onTabCallback?.("next");
+    if (intent === "tab-back") return this.onTabCallback?.("prev");
   }
 
   override invalidate(): void {
     super.invalidate();
     this.renderState();
+  }
+
+  dispose(): void {
+    if (!this.timer) return;
+    clearInterval(this.timer);
+    this.timer = null;
   }
 }
