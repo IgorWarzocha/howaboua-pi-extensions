@@ -122,6 +122,11 @@ export async function runTodoUi(
       if (active && "focused" in active) active.focused = focused;
       tui.requestRender();
     };
+    const fill = (lines: string[]): string[] => {
+      const rows = Math.max(1, (tui.terminal.rows || 24) - 1);
+      if (lines.length >= rows) return lines.slice(0, rows);
+      return [...Array.from({ length: rows - lines.length }, () => ""), ...lines];
+    };
     const refresh = async () => {
       const updated = await listTodos(todosDir);
       all = updated;
@@ -383,7 +388,12 @@ export async function runTodoUi(
       const cli = getCliPath();
       const file = getTodoPath(todosDir, record.id, record.type || record.kind);
       let result: {
-        issues: Array<{ kind: "prd" | "spec" | "todo"; name: string; issue: string; file: string }>;
+        issues: Array<{
+          kind: "prd" | "spec" | "todo";
+          name: string;
+          issue: string;
+          file: string;
+        }>;
         recommendations: Array<{
           target: string;
           kind: "prd" | "spec" | "todo";
@@ -628,7 +638,8 @@ export async function runTodoUi(
         if (active && "focused" in active) active.focused = value;
       },
       render(width: number) {
-        return active ? active.render(width) : [];
+        if (!active) return fill([]);
+        return fill(active.render(width));
       },
       invalidate() {
         active?.invalidate();

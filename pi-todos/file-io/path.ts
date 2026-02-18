@@ -9,7 +9,7 @@ export function getTodosDir(cwd: string): string {
   return path.resolve(cwd, TODO_DIR_NAME);
 }
 
-export function getTodosDirLabel(cwd: string): string {
+export function getTodosDirLabel(): string {
   const overridePath = process.env[TODO_PATH_ENV];
   if (overridePath && overridePath.trim()) {
     return overridePath.trim();

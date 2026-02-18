@@ -1,5 +1,4 @@
 import type { ExtensionAPI, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
-import { getTodosDir } from "./file-io.js";
 import { getTodoCompletions } from "./command/completions.js";
 import { blockedResponse } from "./command/internal.js";
 import { runTodoUi } from "./command/ui.js";

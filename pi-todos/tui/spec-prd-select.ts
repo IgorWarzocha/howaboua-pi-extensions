@@ -53,7 +53,7 @@ export class SpecPrdSelectComponent extends Container {
 
   private confirm(): void {
     if (this.chosen.has(NONE) || !this.chosen.size) return this.onSubmit([]);
-    const ids = new Set([...this.chosen]);
+    const ids = new Set(this.chosen);
     const items = this.prds.filter((item) => ids.has(item.id));
     this.onSubmit(items);
   }

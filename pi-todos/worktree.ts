@@ -197,7 +197,7 @@ function ensureRepoWorktree(record: TodoFrontMatter, repo: string) {
   const existing = list.find((item) => item.branch === branch);
   if (existing) return { ok: true as const, path: existing.path, branch, created: false };
   
-  const dir = path.join(repoPath, ".pi", "worktrees", branch.replace(/[\/]/g, "-"));
+  const dir = path.join(repoPath, ".pi", "worktrees", branch.replace(/\//g, "-"));
   fs.mkdirSync(path.dirname(dir), { recursive: true });
   const known = run("git", ["branch", "--list", branch], repoPath);
   if (known) run("git", ["worktree", "add", dir, branch], repoPath);
