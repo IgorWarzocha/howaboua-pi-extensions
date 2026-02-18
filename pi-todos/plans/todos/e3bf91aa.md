@@ -12,7 +12,7 @@ modified_at: 2026-02-14T13:14:00.000Z
 assigned_to_session: null
 agent_rules: "MUST block direct model invocation. MUST enforce internal invocation argument. MUST provide explicit remediation text on failure."
 links:
-  root_abs: /ABSOLUTE/PATH/TO/REPO/pi-todos
+  root_abs: /home/igorw/Work/pi/pi-extensions-dev/pi-todos
   prds:
     - plans/prds/a1f49c2e.md
   specs:
@@ -23,11 +23,11 @@ links:
     - plans/specs/c93a0b57.md
 checklist:
   - title: Add internal invocation argument parser
-    done: true
+    done: false
   - title: Add unauthorized invocation guard
-    done: true
+    done: false
   - title: Add deterministic blocked-call response payload
-    done: true
+    done: false
 template: true
 ---
 
@@ -77,3 +77,4 @@ Treat this file as a template blueprint for generated todo files.
 ## Verification Plan
 
 Run positive and negative invocation tests and validate response determinism.
+
