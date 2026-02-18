@@ -6,6 +6,16 @@ import type { TodoFrontMatter } from "./types.js";
 import { WorktreeSelectComponent } from "../ui/tui/worktree-select.js";
 import { TUI } from "@mariozechner/pi-tui";
 
+function ensureTui(value: unknown): TUI {
+  if (!value || typeof value !== "object") throw new Error("Invalid TUI instance");
+  const withRender: unknown = Reflect.get(value, "requestRender");
+  const withTerminal: unknown = Reflect.get(value, "terminal");
+  if (typeof withRender !== "function") throw new Error("Invalid TUI: requestRender is missing");
+  if (!withTerminal || typeof withTerminal !== "object")
+    throw new Error("Invalid TUI: terminal is missing");
+  return value as TUI;
+}
+
 interface Repo {
   path: string;
 }
@@ -107,7 +117,7 @@ export async function ensureWorktree(record: TodoFrontMatter, ctx: ExtensionComm
 
   const selection = await new Promise<string | null>((resolve) => {
     void ctx.ui.custom<void>((tui, theme, _kb, done) => {
-      const uiTui = tui as unknown as TUI;
+      const uiTui = ensureTui(tui);
       const items = [
         { value: "none", label: "Work in current branch", description: "no git actions" },
         {
@@ -129,9 +139,7 @@ export async function ensureWorktree(record: TodoFrontMatter, ctx: ExtensionComm
               description: `in ${path.basename(repo.path)}`,
             });
           }
-        } catch {
-          /* ignore */
-        }
+        } catch {}
       }
 
       const component = new WorktreeSelectComponent(

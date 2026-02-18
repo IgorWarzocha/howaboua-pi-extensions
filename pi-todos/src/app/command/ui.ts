@@ -42,6 +42,16 @@ import { runValidateCli } from "./validate.js";
 import { footer, leader } from "../../ui/gui/detail.js";
 import { runRepairFrontmatter } from "./repair.js";
 
+function ensureTui(value: unknown): TUI {
+  if (!value || typeof value !== "object") throw new Error("Invalid TUI instance");
+  const withRender: unknown = Reflect.get(value, "requestRender");
+  const withTerminal: unknown = Reflect.get(value, "terminal");
+  if (typeof withRender !== "function") throw new Error("Invalid TUI: requestRender is missing");
+  if (!withTerminal || typeof withTerminal !== "object")
+    throw new Error("Invalid TUI: terminal is missing");
+  return value as TUI;
+}
+
 export async function runTodoUi(
   args: string,
   ctx: ExtensionCommandContext,
@@ -52,7 +62,7 @@ export async function runTodoUi(
   const searchTerm = (args ?? "").trim();
   let nextPrompt: string | null = null;
   await ctx.ui.custom<void>((tui, theme, _kb, done) => {
-    const uiTui = tui as unknown as TUI;
+    const uiTui = ensureTui(tui);
     const selectors: Partial<Record<TodoListMode, TodoSelectorComponent>> = {};
     const modes: TodoListMode[] = ["tasks", "prds", "specs", "closed"];
     let index = 0;
@@ -257,7 +267,7 @@ export async function runTodoUi(
       await ctx.ui.custom<void>(
         (overlayTui, overlayTheme, _overlayKb, doneOverlay) => {
           const preview = new TodoDetailPreviewComponent(
-            overlayTui as unknown as TUI,
+            ensureTui(overlayTui),
             overlayTheme,
             record,
           );

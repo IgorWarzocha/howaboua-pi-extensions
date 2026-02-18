@@ -76,7 +76,7 @@ export class WorktreeSelectComponent extends Container {
   }
 
   handleInput(keyData: string): void {
-    const intent = mapIntent(keyData, "tasks"); // Use "tasks" mode for standard selector mapping
+    const intent = mapIntent(keyData, "tasks");
 
     if (intent === "up") {
       this.selectedIndex =

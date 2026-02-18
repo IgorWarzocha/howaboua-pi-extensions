@@ -6,5 +6,5 @@ export function getCliPath(): string {
   if (env && env.trim()) return env.trim();
   const file = fileURLToPath(import.meta.url);
   const dir = path.dirname(file);
-  return path.join(dir, "cli.ts");
+  return path.resolve(dir, "../app/cli/index.ts");
 }

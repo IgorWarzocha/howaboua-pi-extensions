@@ -18,6 +18,14 @@ import {
 import { ensureWorktree } from "../../core/worktree.js";
 import * as flow from "../../ui/gui/actions.js";
 
+type SessionSwitch = (path: string) => Promise<{ cancelled: boolean }>;
+
+function getSessionSwitch(ctx: ExtensionCommandContext): SessionSwitch | null {
+  const value: unknown = Reflect.get(ctx, "switchSession");
+  if (typeof value !== "function") return null;
+  return value as SessionSwitch;
+}
+
 function validateLinks(record: TodoFrontMatter): { ok: true } | { error: string } {
   if (!record.links) return { ok: true };
   const root = record.links.root_abs || "";
@@ -129,14 +137,12 @@ export async function applyTodoAction(
       ctx.ui.notify("No assigned session path stored on this item.", "error");
       return "stay";
     }
-    const anyCtx = ctx as unknown as {
-      switchSession?: (path: string) => Promise<{ cancelled: boolean }>;
-    };
-    if (!anyCtx.switchSession) {
+    const switchSession = getSessionSwitch(ctx);
+    if (!switchSession) {
       ctx.ui.notify("Session switching is unavailable in this runtime. Use /resume.", "error");
       return "stay";
     }
-    const result = await anyCtx.switchSession(sessionPath);
+    const result = await switchSession(sessionPath);
     if (result.cancelled) {
       ctx.ui.notify("Session switch cancelled.", "error");
       return "stay";
